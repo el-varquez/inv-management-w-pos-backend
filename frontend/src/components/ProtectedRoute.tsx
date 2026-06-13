@@ -1,1 +1,7 @@
-// ProtectedRoute (redirects to /login when no token) — implement per phase-1-implementation.md
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+
+export const ProtectedRoute = () => {
+  const token = useAuthStore((s) => s.token);
+  return token ? <Outlet /> : <Navigate to="/login" replace />;
+};
