@@ -3,6 +3,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
 import { LoginScreen } from './features/auth/screens/LoginScreen';
 import { ItemsScreen } from './features/items/screens/ItemsScreen';
+import { CategoriesScreen } from './features/items/screens/CategoriesScreen';
 import { StockLevelsScreen } from './features/inventory/screens/StockLevelsScreen';
 import { LowStockScreen } from './features/inventory/screens/LowStockScreen';
 import { InventoryCountScreen } from './features/inventory/screens/InventoryCountScreen';
@@ -20,6 +21,7 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/items" replace />} />
             <Route path="/items" element={<ItemsScreen />} />
+            <Route path="/items/categories" element={<CategoriesScreen />} />
             <Route
               path="/inventory"
               element={<Navigate to="/inventory/stock-levels" replace />}

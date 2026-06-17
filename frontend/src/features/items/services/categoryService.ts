@@ -14,4 +14,15 @@ export const categoryService = {
     const { data } = await api.post<{ id: string }>('/categories', payload);
     return data;
   },
+
+  update: async (
+    id: string,
+    payload: { name: string; description?: string }
+  ): Promise<void> => {
+    await api.put(`/categories/${id}`, payload);
+  },
+
+  remove: async (id: string): Promise<void> => {
+    await api.delete(`/categories/${id}`);
+  },
 };

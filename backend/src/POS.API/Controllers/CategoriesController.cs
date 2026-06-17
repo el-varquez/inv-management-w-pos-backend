@@ -2,6 +2,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using POS.Application.Categories.Commands.CreateCategory;
+using POS.Application.Categories.Commands.DeleteCategory;
+using POS.Application.Categories.Commands.UpdateCategory;
 using POS.Application.Categories.Queries.GetCategories;
 
 namespace POS.API.Controllers;
@@ -25,5 +27,21 @@ public class CategoriesController : ControllerBase
     {
         var id = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetAll), new { id }, new { id });
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCategoryCommand command)
+    {
+        await _mediator.Send(command with { Id = id });
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        await _mediator.Send(new DeleteCategoryCommand(id));
+        return NoContent();
     }
 }

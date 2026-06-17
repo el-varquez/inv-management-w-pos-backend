@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useItems } from '../hooks/useItems';
 import { useCategories } from '../hooks/useCategories';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { ItemsTabs } from '../components/ItemsTabs';
 import { ItemFormModal } from '../components/ItemFormModal';
 import { DeleteItemModal } from '../components/DeleteItemModal';
 import { peso } from '../../../lib/format';
@@ -58,6 +59,8 @@ export const ItemsScreen = () => {
           )}
         </div>
       </div>
+
+      <ItemsTabs />
 
       <div className="card table-wrap">
         {error ? (
