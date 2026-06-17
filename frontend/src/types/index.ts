@@ -115,3 +115,80 @@ export type StockMovementType =
   | 'Adjustment'
   | 'InventoryCount'
   | 'Return';
+
+// ── Sales (Phase 3) ────────────────────────────────────────
+
+export type PaymentType = 'Cash' | 'GCash' | 'Maya';
+
+export interface CartItem {
+  itemId: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+  discount: number;
+  stock: number;
+}
+
+export interface CreateTransactionPayload {
+  items: { itemId: string; quantity: number; discount: number }[];
+  transactionDiscount: number;
+  paymentType: PaymentType;
+  amountTendered: number;
+}
+
+export interface TransactionResult {
+  transactionId: string;
+  receiptNumber: string;
+  subtotal: number;
+  discountAmount: number;
+  total: number;
+  amountTendered: number;
+  change: number;
+}
+
+export interface Transaction {
+  id: string;
+  receiptNumber: string;
+  subtotal: number;
+  discountAmount: number;
+  total: number;
+  paymentType: string;
+  amountTendered: number;
+  change: number;
+  isRefunded: boolean;
+  refundedFromId?: string | null;
+  itemCount: number;
+  createdAt: string;
+}
+
+export interface TransactionLine {
+  itemName: string;
+  unitPrice: number;
+  quantity: number;
+  discount: number;
+  total: number;
+}
+
+export interface TransactionDetail {
+  id: string;
+  receiptNumber: string;
+  subtotal: number;
+  discountAmount: number;
+  total: number;
+  paymentType: string;
+  amountTendered: number;
+  change: number;
+  isRefunded: boolean;
+  lines: TransactionLine[];
+  createdAt: string;
+}
+
+export interface SalesSummary {
+  grossSales: number;
+  totalDiscounts: number;
+  refunds: number;
+  netSales: number;
+  transactionCount: number;
+  from?: string | null;
+  to?: string | null;
+}

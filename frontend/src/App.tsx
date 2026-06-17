@@ -8,6 +8,8 @@ import { LowStockScreen } from './features/inventory/screens/LowStockScreen';
 import { InventoryCountScreen } from './features/inventory/screens/InventoryCountScreen';
 import { InventoryHistoryScreen } from './features/inventory/screens/InventoryHistoryScreen';
 import { InventoryValuationScreen } from './features/inventory/screens/InventoryValuationScreen';
+import { POSScreen } from './features/sales/screens/POSScreen';
+import { SalesHistoryScreen } from './features/sales/screens/SalesHistoryScreen';
 
 export default function App() {
   return (
@@ -36,6 +38,12 @@ export default function App() {
               path="/inventory/valuation"
               element={<InventoryValuationScreen />}
             />
+            <Route
+              path="/sales"
+              element={<Navigate to="/sales/pos" replace />}
+            />
+            <Route path="/sales/pos" element={<POSScreen />} />
+            <Route path="/sales/history" element={<SalesHistoryScreen />} />
           </Route>
         </Route>
       </Routes>

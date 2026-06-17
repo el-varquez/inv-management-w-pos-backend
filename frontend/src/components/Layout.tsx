@@ -38,9 +38,14 @@ export const Layout = () => {
           >
             Inventory
           </NavLink>
-          <span className="nav-soon">
-            Sales <span className="soon-tag">soon</span>
-          </span>
+          <NavLink
+            to="/sales"
+            className={({ isActive }) =>
+              isActive ? 'nav-link is-active' : 'nav-link'
+            }
+          >
+            Sales
+          </NavLink>
           <span className="nav-soon">
             Reports <span className="soon-tag">soon</span>
           </span>

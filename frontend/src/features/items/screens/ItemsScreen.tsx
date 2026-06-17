@@ -1,17 +1,33 @@
+import { useState } from 'react';
 import { useItems } from '../hooks/useItems';
+import { useCategories } from '../hooks/useCategories';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { ItemFormModal } from '../components/ItemFormModal';
+import { DeleteItemModal } from '../components/DeleteItemModal';
+import { peso } from '../../../lib/format';
 import type { Item } from '../../../types';
-
-const peso = new Intl.NumberFormat('en-PH', {
-  style: 'currency',
-  currency: 'PHP',
-});
 
 const SKELETON_ROWS = Array.from({ length: 5 });
 
+type ModalState =
+  | { kind: 'create' }
+  | { kind: 'edit'; item: Item }
+  | { kind: 'delete'; item: Item }
+  | null;
+
 export const ItemsScreen = () => {
   const { items, loading, error, refetch } = useItems();
+  const { categories, createCategory } = useCategories();
+  const { user } = useAuth();
+  const [modal, setModal] = useState<ModalState>(null);
 
+  const isAdmin = user?.role === 'Admin';
   const lowCount = items.filter((i) => i.isLowStock).length;
+
+  const closeAndRefresh = () => {
+    setModal(null);
+    refetch();
+  };
 
   return (
     <>
@@ -29,16 +45,17 @@ export const ItemsScreen = () => {
           </p>
         </div>
         <div className="page-actions">
-          <button
-            className="btn btn-ghost"
-            onClick={refetch}
-            disabled={loading}
-          >
+          <button className="btn btn-ghost" onClick={refetch} disabled={loading}>
             Refresh
           </button>
-          <button className="btn btn-primary" disabled title="Coming next">
-            New item
-          </button>
+          {isAdmin && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setModal({ kind: 'create' })}
+            >
+              New item
+            </button>
+          )}
         </div>
       </div>
 
@@ -53,7 +70,7 @@ export const ItemsScreen = () => {
             </button>
           </div>
         ) : loading ? (
-          <ItemsTable>
+          <ItemsTable isAdmin={isAdmin}>
             {SKELETON_ROWS.map((_, i) => (
               <tr key={i}>
                 <td>
@@ -71,6 +88,11 @@ export const ItemsScreen = () => {
                 <td className="num">
                   <span className="skeleton" style={{ width: 80, marginLeft: 'auto' }} />
                 </td>
+                {isAdmin && (
+                  <td className="num">
+                    <span className="skeleton" style={{ width: 90, marginLeft: 'auto' }} />
+                  </td>
+                )}
               </tr>
             ))}
           </ItemsTable>
@@ -82,20 +104,65 @@ export const ItemsScreen = () => {
               Your catalog is empty. Add your first product to start tracking
               stock and sales.
             </p>
+            {isAdmin && (
+              <button
+                className="btn btn-primary"
+                onClick={() => setModal({ kind: 'create' })}
+              >
+                New item
+              </button>
+            )}
           </div>
         ) : (
-          <ItemsTable>
+          <ItemsTable isAdmin={isAdmin}>
             {items.map((item) => (
-              <ItemRow key={item.id} item={item} />
+              <ItemRow
+                key={item.id}
+                item={item}
+                isAdmin={isAdmin}
+                onEdit={() => setModal({ kind: 'edit', item })}
+                onDelete={() => setModal({ kind: 'delete', item })}
+              />
             ))}
           </ItemsTable>
         )}
       </div>
+
+      {modal?.kind === 'create' && (
+        <ItemFormModal
+          categories={categories}
+          createCategory={createCategory}
+          onClose={() => setModal(null)}
+          onSaved={closeAndRefresh}
+        />
+      )}
+      {modal?.kind === 'edit' && (
+        <ItemFormModal
+          item={modal.item}
+          categories={categories}
+          createCategory={createCategory}
+          onClose={() => setModal(null)}
+          onSaved={closeAndRefresh}
+        />
+      )}
+      {modal?.kind === 'delete' && (
+        <DeleteItemModal
+          item={modal.item}
+          onClose={() => setModal(null)}
+          onDeleted={closeAndRefresh}
+        />
+      )}
     </>
   );
 };
 
-const ItemsTable = ({ children }: { children: React.ReactNode }) => (
+const ItemsTable = ({
+  isAdmin,
+  children,
+}: {
+  isAdmin: boolean;
+  children: React.ReactNode;
+}) => (
   <table className="ledger">
     <thead>
       <tr>
@@ -104,16 +171,34 @@ const ItemsTable = ({ children }: { children: React.ReactNode }) => (
         <th className="num">Cost</th>
         <th className="num">Price</th>
         <th className="num">Stock</th>
+        {isAdmin && <th className="num">Actions</th>}
       </tr>
     </thead>
     <tbody>{children}</tbody>
   </table>
 );
 
-const ItemRow = ({ item }: { item: Item }) => (
+const ItemRow = ({
+  item,
+  isAdmin,
+  onEdit,
+  onDelete,
+}: {
+  item: Item;
+  isAdmin: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) => (
   <tr>
     <td>
-      <div className="item-name">{item.name}</div>
+      <div className="item-name">
+        {item.name}
+        {!item.isActive && (
+          <span className="badge badge-muted" style={{ marginLeft: 8 }}>
+            Inactive
+          </span>
+        )}
+      </div>
       <div className="item-sub">{item.sku ?? item.description ?? '—'}</div>
     </td>
     <td className="item-sub-cat">
@@ -131,5 +216,17 @@ const ItemRow = ({ item }: { item: Item }) => (
         )}
       </span>
     </td>
+    {isAdmin && (
+      <td className="num">
+        <div className="row-actions">
+          <button className="btn btn-ghost btn-sm" onClick={onEdit}>
+            Edit
+          </button>
+          <button className="btn btn-quiet btn-sm" onClick={onDelete}>
+            Delete
+          </button>
+        </div>
+      </td>
+    )}
   </tr>
 );
