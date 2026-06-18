@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using POS.Application.Reports.Queries.GetExpenseReport;
+using POS.Application.Reports.Queries.GetProfitReport;
 using POS.Application.Reports.Queries.GetSalesReport;
 
 namespace POS.API.Controllers;
@@ -26,4 +27,12 @@ public class ReportsController : ControllerBase
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to)
         => Ok(await _mediator.Send(new GetExpenseReportQuery(from, to)));
+
+    [HttpGet("profit")]
+    public async Task<IActionResult> GetProfitReport(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] Guid? categoryId,
+        [FromQuery] Guid? itemId)
+        => Ok(await _mediator.Send(new GetProfitReportQuery(from, to, categoryId, itemId)));
 }

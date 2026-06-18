@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 const tabs = [
   { to: '/reports/sales', label: 'Sales' },
   { to: '/reports/expenses', label: 'Expenses' },
+  { to: '/reports/profit', label: 'Profit' },
 ];
 
 export const ReportsTabs = () => (

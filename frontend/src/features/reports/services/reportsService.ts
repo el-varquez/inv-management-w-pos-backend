@@ -1,5 +1,5 @@
 import api from '../../../services/api';
-import type { SalesReport, ExpenseReport } from '../../../types';
+import type { SalesReport, ExpenseReport, ProfitReport } from '../../../types';
 
 export interface DateRange {
   from?: string;
@@ -18,6 +18,13 @@ export const reportsService = {
     const { data } = await api.get<ExpenseReport>('/reports/expenses', {
       params: range,
     });
+    return data;
+  },
+
+  getProfitReport: async (
+    params?: DateRange & { categoryId?: string; itemId?: string }
+  ): Promise<ProfitReport> => {
+    const { data } = await api.get<ProfitReport>('/reports/profit', { params });
     return data;
   },
 };

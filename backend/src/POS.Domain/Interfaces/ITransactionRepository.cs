@@ -9,6 +9,10 @@ public interface ITransactionRepository
         DateTime? from,
         DateTime? to,
         CancellationToken ct = default);
+    Task<IList<Transaction>> GetAllWithItemCategoriesAsync(
+        DateTime? from,
+        DateTime? to,
+        CancellationToken ct = default);
     Task<(IList<Transaction> Items, int Total)> GetPagedAsync(
         DateTime? from,
         DateTime? to,

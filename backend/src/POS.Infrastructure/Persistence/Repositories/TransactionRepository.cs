@@ -28,6 +28,21 @@ public class TransactionRepository : ITransactionRepository
         return await query.OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
     }
 
+    public async Task<IList<Transaction>> GetAllWithItemCategoriesAsync(
+        DateTime? from, DateTime? to, CancellationToken ct = default)
+    {
+        var query = _context.Transactions
+            .Include(t => t.Items)
+                .ThenInclude(i => i.Item)
+                    .ThenInclude(it => it.Category)
+            .AsQueryable();
+
+        if (from.HasValue) query = query.Where(t => t.CreatedAt >= from.Value);
+        if (to.HasValue) query = query.Where(t => t.CreatedAt <= to.Value);
+
+        return await query.OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
+    }
+
     public async Task<(IList<Transaction> Items, int Total)> GetPagedAsync(
         DateTime? from, DateTime? to, int page, int pageSize, CancellationToken ct = default)
     {

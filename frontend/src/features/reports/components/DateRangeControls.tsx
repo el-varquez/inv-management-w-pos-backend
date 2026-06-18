@@ -7,6 +7,7 @@ interface DateRangeControlsProps {
   setCustomFrom: (v: string) => void;
   customTo: string;
   setCustomTo: (v: string) => void;
+  leading?: React.ReactNode;
 }
 
 const PRESETS: { value: RangePreset; label: string }[] = [
@@ -23,8 +24,10 @@ export const DateRangeControls = ({
   setCustomFrom,
   customTo,
   setCustomTo,
+  leading,
 }: DateRangeControlsProps) => (
   <div className="filter-bar card">
+    {leading}
     <div className="field">
       <label>Period</label>
       <div className="segmented">

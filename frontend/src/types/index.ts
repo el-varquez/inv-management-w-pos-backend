@@ -234,3 +234,26 @@ export interface ExpenseReport {
   from?: string | null;
   to?: string | null;
 }
+
+export interface ProfitDetail {
+  itemId: string;
+  itemName: string;
+  categoryName: string;
+  quantitySold: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  marginPercent: number;
+}
+
+export interface ProfitReport {
+  netSales: number;
+  costOfGoodsSold: number;
+  grossProfit: number;
+  inventoryLoss: number;
+  netProfit: number;
+  grossMarginPercent: number;
+  details: ProfitDetail[];
+  from?: string | null;
+  to?: string | null;
+}

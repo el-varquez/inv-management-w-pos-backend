@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal } from '../../../components/Modal';
+import { SearchSelect } from '../../../components/SearchSelect';
 import { useItemMutations } from '../hooks/useItemMutations';
 import { getApiErrorMessage } from '../../../services/apiError';
 import { peso } from '../../../lib/format';
@@ -188,29 +189,15 @@ export const ItemFormModal = ({
         <div className="field">
           <label htmlFor="category">Category</label>
           {!addingCategory && (
-            <select
+            <SearchSelect
               id="category"
-              className="input"
               value={categoryId}
-              onChange={(e) => {
-                if (e.target.value === '__add__') {
-                  setAddingCategory(true);
-                  return;
-                }
-                setCategoryId(e.target.value);
-              }}
-              required
-            >
-              <option value="" disabled>
-                Select a category…
-              </option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-              <option value="__add__">+ New category…</option>
-            </select>
+              onChange={setCategoryId}
+              options={categories.map((c) => ({ value: c.id, label: c.name }))}
+              placeholder="Select a category…"
+              actionLabel="+ New category…"
+              onAction={() => setAddingCategory(true)}
+            />
           )}
 
           {addingCategory && (

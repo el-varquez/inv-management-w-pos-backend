@@ -1194,3 +1194,52 @@ select.input {
   font-weight: 600;
   color: var(--ink-2);
 }
+
+.search-select {
+  position: relative;
+  min-width: 200px;
+}
+.search-select-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 205px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+.search-select-option {
+  padding: 9px 11px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.search-select-option:hover {
+  background: var(--surface-2);
+}
+.search-select-option.is-active {
+  background: var(--clay-soft);
+  color: var(--clay-deep);
+  font-weight: 600;
+}
+.search-select-empty {
+  padding: 9px 11px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.search-select-action {
+  color: var(--clay-deep);
+  font-weight: 600;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  margin-top: 4px;
+}
