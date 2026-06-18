@@ -1,20 +1,22 @@
 using MediatR;
+using POS.Application.Common.Models;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Items.Queries.GetItems;
 
-public class GetItemsQueryHandler : IRequestHandler<GetItemsQuery, IList<ItemDto>>
+public class GetItemsQueryHandler : IRequestHandler<GetItemsQuery, PagedResult<ItemDto>>
 {
     private readonly IItemRepository _itemRepository;
 
     public GetItemsQueryHandler(IItemRepository itemRepository)
-        => _itemRepository = itemRepository;    
+        => _itemRepository = itemRepository;
 
-    public async Task<IList<ItemDto>> Handle(GetItemsQuery request, CancellationToken ct)
+    public async Task<PagedResult<ItemDto>> Handle(GetItemsQuery request, CancellationToken ct)
     {
-        var items = await _itemRepository.GetAllAsync(ct);
+        var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
+        var (items, total) = await _itemRepository.GetPagedAsync(page, pageSize, ct);
 
-        return items.Select(i => new ItemDto(
+        var dtos = items.Select(i => new ItemDto(
             i.Id,
             i.Name,
             i.Description,
@@ -29,5 +31,7 @@ public class GetItemsQueryHandler : IRequestHandler<GetItemsQuery, IList<ItemDto
             i.Category.Name,
             i.CreatedAt
         )).ToList();
+
+        return new PagedResult<ItemDto>(dtos, page, pageSize, total);
     }
 }

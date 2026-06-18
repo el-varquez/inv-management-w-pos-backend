@@ -4,12 +4,19 @@ import type {
   InventoryHistoryItem,
   InventoryValuation,
   LowStockItem,
+  Paged,
 } from '../../../types';
 
 export const inventoryService = {
   // ── Stock levels ──────────────────────────────────────────
-  getStockLevels: async (): Promise<StockLevel[]> => {
-    const { data } = await api.get<StockLevel[]>('/inventory/stock-levels');
+  getStockLevels: async (params: {
+    page: number;
+    pageSize: number;
+  }): Promise<Paged<StockLevel>> => {
+    const { data } = await api.get<Paged<StockLevel>>(
+      '/inventory/stock-levels',
+      { params }
+    );
     return data;
   },
 
@@ -70,12 +77,14 @@ export const inventoryService = {
   },
 
   // ── Reports ───────────────────────────────────────────────
-  getHistory: async (params?: {
+  getHistory: async (params: {
     from?: string;
     to?: string;
     type?: string;
-  }): Promise<InventoryHistoryItem[]> => {
-    const { data } = await api.get<InventoryHistoryItem[]>(
+    page: number;
+    pageSize: number;
+  }): Promise<Paged<InventoryHistoryItem>> => {
+    const { data } = await api.get<Paged<InventoryHistoryItem>>(
       '/inventory/history',
       { params }
     );

@@ -1196,3 +1196,32 @@ select.input {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Pagination ──────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  margin-top: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.pagination-range {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pagination-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}

@@ -36,6 +36,37 @@ public class StockMovementRepository : IStockMovementRepository
         return await query.OrderByDescending(s => s.CreatedAt).ToListAsync(ct);
     }
 
+    public async Task<(IList<StockMovement> Items, int Total)> GetPagedAsync(
+        DateTime? from,
+        DateTime? to,
+        StockMovementType? type,
+        int page,
+        int pageSize,
+        CancellationToken ct = default
+    )
+    {
+        var query = _context.StockMovements
+        .Include(s => s.Item)
+        .ThenInclude(i => i.Category)
+        .AsQueryable();
+
+        if (from.HasValue) query = query.Where(s => s.CreatedAt >= from.Value);
+        if (to.HasValue) query = query.Where(s => s.CreatedAt <= to.Value);
+        if (type.HasValue) query = query.Where(s => s.Type == type.Value);
+
+        var ordered = query
+            .OrderByDescending(s => s.CreatedAt)
+            .ThenBy(s => s.Id);
+
+        var total = await ordered.CountAsync(ct);
+        var items = await ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, total);
+    }
+
     public async Task AddAsync(StockMovement movement, CancellationToken ct = default) => await _context.StockMovements.AddAsync(movement, ct);
     public async Task AddRangeAsync(IList<StockMovement> movements, CancellationToken ct = default) => await _context.StockMovements.AddRangeAsync(movements, ct);
 }

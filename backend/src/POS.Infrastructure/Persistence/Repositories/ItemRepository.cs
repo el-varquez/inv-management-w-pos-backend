@@ -22,6 +22,24 @@ public class ItemRepository : IItemRepository
             .OrderBy(i => i.Name)
             .ToListAsync(ct);
 
+    public async Task<(IList<Item> Items, int Total)> GetPagedAsync(
+        int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _context.Items
+            .Include(i => i.Category)
+            .Where(i => i.IsActive)
+            .OrderBy(i => i.Name)
+            .ThenBy(i => i.Id);
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, total);
+    }
+
     public async Task<IList<Item>> GetLowStockAsync(CancellationToken ct = default)
         => await _context.Items
             .Include(i => i.Category)

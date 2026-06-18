@@ -2,9 +2,14 @@ import { useEffect, useState } from 'react';
 import { itemService } from '../services/itemService';
 import type { Item } from '../../../types';
 import { getApiErrorMessage } from '../../../services/apiError';
+import { DEFAULT_PAGE_SIZE } from '../../../lib/pagination';
 
 export const useItems = () => {
   const [items, setItems] = useState<Item[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,8 +17,10 @@ export const useItems = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await itemService.getAll();
-      setItems(data);
+      const data = await itemService.getPaged({ page, pageSize });
+      setItems(data.items);
+      setTotalCount(data.totalCount);
+      setTotalPages(data.totalPages);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to load items.'));
     } finally {
@@ -21,10 +28,23 @@ export const useItems = () => {
     }
   };
 
-  // Standard fetch-on-mount. The eslint rule flags the loading-state update
-  // inside the effect, which is expected here (we sync with a remote source).
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { fetchItems(); }, []);
+  // Re-fetch whenever the page changes. The lint rules flag the loading-state
+  // update inside the effect and the omitted fetchItems dep — both expected.
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+  useEffect(() => {
+    fetchItems();
+  }, [page, pageSize]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
-  return { items, loading, error, refetch: fetchItems };
+  return {
+    items,
+    loading,
+    error,
+    refetch: fetchItems,
+    page,
+    setPage,
+    pageSize,
+    totalCount,
+    totalPages,
+  };
 };

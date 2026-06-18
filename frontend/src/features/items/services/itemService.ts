@@ -1,5 +1,5 @@
 import api from '../../../services/api';
-import type { Item } from '../../../types';
+import type { Item, Paged } from '../../../types';
 
 export type CreateItemPayload = Omit<
   Item,
@@ -9,8 +9,17 @@ export type CreateItemPayload = Omit<
 export type UpdateItemPayload = CreateItemPayload & { isActive: boolean };
 
 export const itemService = {
-  getAll: async (): Promise<Item[]> => {
-    const { data } = await api.get<Item[]>('/items');
+  getPaged: async (params: {
+    page: number;
+    pageSize: number;
+  }): Promise<Paged<Item>> => {
+    const { data } = await api.get<Paged<Item>>('/items', { params });
+    return data;
+  },
+
+  // Full active catalog for POS client-side search (unpaged).
+  getSellable: async (): Promise<Item[]> => {
+    const { data } = await api.get<Item[]>('/items/sellable');
     return data;
   },
 

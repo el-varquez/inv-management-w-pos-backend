@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSalesHistory } from '../hooks/useSalesHistory';
 import { SalesTabs } from '../components/SalesTabs';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
+import { Pagination } from '../../../components/Pagination';
 import type { SalesFilters } from '../services/salesService';
 import { peso, formatDateTime } from '../../../lib/format';
 import type { Transaction } from '../../../types';
@@ -10,8 +11,19 @@ const SKELETON_ROWS = Array.from({ length: 6 });
 
 export const SalesHistoryScreen = () => {
   const [filters, setFilters] = useState<SalesFilters>({});
-  const { transactions, summary, loading, error, refetch, refund } =
-    useSalesHistory(filters);
+  const {
+    transactions,
+    summary,
+    loading,
+    error,
+    refetch,
+    refund,
+    page,
+    setPage,
+    pageSize,
+    totalCount,
+    totalPages,
+  } = useSalesHistory(filters);
   const [selected, setSelected] = useState<Transaction | null>(null);
 
   const update = (patch: Partial<SalesFilters>) =>
@@ -28,7 +40,7 @@ export const SalesHistoryScreen = () => {
               ? 'Loading sales…'
               : error
                 ? 'Could not load sales.'
-                : `${transactions.length} transaction${transactions.length === 1 ? '' : 's'}`}
+                : `${totalCount} transaction${totalCount === 1 ? '' : 's'}`}
           </p>
         </div>
         <div className="page-actions">
@@ -184,6 +196,16 @@ export const SalesHistoryScreen = () => {
           </HistoryTable>
         )}
       </div>
+
+      {!loading && !error && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
+      )}
 
       {selected && (
         <TransactionDetailModal

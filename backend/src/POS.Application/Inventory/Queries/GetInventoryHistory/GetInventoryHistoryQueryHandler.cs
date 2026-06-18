@@ -1,23 +1,25 @@
 using MediatR;
+using POS.Application.Common.Models;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Inventory.Queries.GetInventoryHistory;
 
 public class GetInventoryHistoryQueryHandler
-    : IRequestHandler<GetInventoryHistoryQuery, IList<InventoryHistoryDto>>
+    : IRequestHandler<GetInventoryHistoryQuery, PagedResult<InventoryHistoryDto>>
 {
     private readonly IStockMovementRepository _stockMovementRepository;
 
     public GetInventoryHistoryQueryHandler(IStockMovementRepository stockMovementRepository)
         => _stockMovementRepository = stockMovementRepository;
 
-    public async Task<IList<InventoryHistoryDto>> Handle(
+    public async Task<PagedResult<InventoryHistoryDto>> Handle(
         GetInventoryHistoryQuery request, CancellationToken ct)
     {
-        var movements = await _stockMovementRepository.GetAllAsync(
-            request.From, request.To, request.Type, ct);
+        var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
+        var (movements, total) = await _stockMovementRepository.GetPagedAsync(
+            request.From, request.To, request.Type, page, pageSize, ct);
 
-        return movements.Select(m => new InventoryHistoryDto(
+        var dtos = movements.Select(m => new InventoryHistoryDto(
             m.Id,
             m.ItemId,
             m.Item.Name,
@@ -31,5 +33,7 @@ public class GetInventoryHistoryQueryHandler
             m.Notes,
             m.CreatedAt
         )).ToList();
+
+        return new PagedResult<InventoryHistoryDto>(dtos, page, pageSize, total);
     }
 }

@@ -5,6 +5,7 @@ import type {
   Transaction,
   TransactionDetail,
   SalesSummary,
+  Paged,
 } from '../../../types';
 
 export interface SalesFilters {
@@ -27,8 +28,10 @@ export const salesService = {
     return data;
   },
 
-  getTransactions: async (params?: SalesFilters): Promise<Transaction[]> => {
-    const { data } = await api.get<Transaction[]>('/sales', { params });
+  getTransactions: async (
+    params: SalesFilters & { page: number; pageSize: number }
+  ): Promise<Paged<Transaction>> => {
+    const { data } = await api.get<Paged<Transaction>>('/sales', { params });
     return data;
   },
 

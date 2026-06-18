@@ -1,8 +1,9 @@
 using MediatR;
+using POS.Application.Common.Models;
 
 namespace POS.Application.Items.Queries.GetItems;
 
-public record GetItemsQuery : IRequest<IList<ItemDto>>;
+public record GetItemsQuery(int? Page, int? PageSize) : IRequest<PagedResult<ItemDto>>;
 
 public record ItemDto(
     Guid Id,

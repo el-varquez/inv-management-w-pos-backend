@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useItems } from '../../items/hooks/useItems';
+import { useSellableItems } from '../../items/hooks/useSellableItems';
 import { useCart } from '../hooks/useCart';
 import { useCheckout } from '../hooks/useCheckout';
 import { SalesTabs } from '../components/SalesTabs';
@@ -10,7 +10,7 @@ import type { PaymentType } from '../../../types';
 const PAYMENT_TYPES: PaymentType[] = ['Cash', 'GCash', 'Maya'];
 
 export const POSScreen = () => {
-  const { items, loading, error } = useItems();
+  const { items, loading, error } = useSellableItems();
   const cart = useCart();
   const { checkout, loading: checkingOut, error: checkoutError, result, reset } =
     useCheckout();

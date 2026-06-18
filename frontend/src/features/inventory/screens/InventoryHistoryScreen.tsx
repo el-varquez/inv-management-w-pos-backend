@@ -4,6 +4,7 @@ import {
   type InventoryHistoryFilters,
 } from '../hooks/useInventoryHistory';
 import { InventoryTabs } from '../components/InventoryTabs';
+import { Pagination } from '../../../components/Pagination';
 import { peso, formatDateTime, signed } from '../../../lib/format';
 import type { StockMovementType } from '../../../types';
 
@@ -20,7 +21,17 @@ const MOVEMENT_TYPES: { value: StockMovementType | ''; label: string }[] = [
 
 export const InventoryHistoryScreen = () => {
   const [filters, setFilters] = useState<InventoryHistoryFilters>({});
-  const { history, loading, error, refetch } = useInventoryHistory(filters);
+  const {
+    history,
+    loading,
+    error,
+    refetch,
+    page,
+    setPage,
+    pageSize,
+    totalCount,
+    totalPages,
+  } = useInventoryHistory(filters);
 
   const update = (patch: Partial<InventoryHistoryFilters>) =>
     setFilters((f) => ({ ...f, ...patch }));
@@ -36,7 +47,7 @@ export const InventoryHistoryScreen = () => {
               ? 'Loading movements…'
               : error
                 ? 'Could not load history.'
-                : `${history.length} movement${history.length === 1 ? '' : 's'}`}
+                : `${totalCount} movement${totalCount === 1 ? '' : 's'}`}
           </p>
         </div>
         <div className="page-actions">
@@ -164,6 +175,16 @@ export const InventoryHistoryScreen = () => {
           </HistoryTable>
         )}
       </div>
+
+      {!loading && !error && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
+      )}
     </>
   );
 };

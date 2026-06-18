@@ -24,8 +24,10 @@ public class InventoryController : ControllerBase
     public InventoryController(IMediator mediator) => _mediator = mediator;
 
     [HttpGet("stock-levels")]
-    public async Task<IActionResult> GetStockLevels()
-        => Ok(await _mediator.Send(new GetStockLevelsQuery()));
+    public async Task<IActionResult> GetStockLevels(
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetStockLevelsQuery(page, pageSize)));
 
     [HttpGet("low-stock")]
     public async Task<IActionResult> GetLowStock()
@@ -74,8 +76,10 @@ public class InventoryController : ControllerBase
     public async Task<IActionResult> GetHistory(
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
-        [FromQuery] StockMovementType? type)
-        => Ok(await _mediator.Send(new GetInventoryHistoryQuery(from, to, type)));
+        [FromQuery] StockMovementType? type,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetInventoryHistoryQuery(from, to, type, page, pageSize)));
 
     [HttpGet("valuation")]
     public async Task<IActionResult> GetValuation()

@@ -28,6 +28,15 @@ export interface LoginResult {
   role: string;
 }
 
+// Mirrors the backend PagedResult<T> envelope for server-side paginated lists.
+export interface Paged<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 // ── Inventory (Phase 2) ────────────────────────────────────────
 
 export interface StockLevel {

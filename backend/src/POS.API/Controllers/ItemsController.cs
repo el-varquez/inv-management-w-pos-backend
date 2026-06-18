@@ -5,6 +5,7 @@ using POS.Application.Items.Commands.CreateItem;
 using POS.Application.Items.Commands.DeleteItem;
 using POS.Application.Items.Commands.UpdateItem;
 using POS.Application.Items.Queries.GetItems;
+using POS.Application.Items.Queries.GetSellableItems;
 
 namespace POS.API.Controller;
 
@@ -17,7 +18,14 @@ public class ItemsController : ControllerBase
     public ItemsController(IMediator mediator) => _mediator = mediator;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll() => Ok(await _mediator.Send(new GetItemsQuery()));
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetItemsQuery(page, pageSize)));
+
+    [HttpGet("sellable")]
+    public async Task<IActionResult> GetSellable()
+        => Ok(await _mediator.Send(new GetSellableItemsQuery()));
 
     [HttpPost]
     [Authorize(Roles = "Admin")]

@@ -1,11 +1,14 @@
 using MediatR;
+using POS.Application.Common.Models;
 
 namespace POS.Application.Sales.Queries.GetTransactions;
 
 public record GetTransactionsQuery(
     DateTime? From,
-    DateTime? To
-) : IRequest<IList<TransactionDto>>;
+    DateTime? To,
+    int? Page,
+    int? PageSize
+) : IRequest<PagedResult<TransactionDto>>;
 
 public record TransactionDto(
     Guid Id,

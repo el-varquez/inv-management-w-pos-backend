@@ -3,6 +3,7 @@ import { useStockLevels } from '../hooks/useStockLevels';
 import { InventoryTabs } from '../components/InventoryTabs';
 import { AddStockModal } from '../components/AddStockModal';
 import { AdjustStockModal } from '../components/AdjustStockModal';
+import { Pagination } from '../../../components/Pagination';
 import { peso } from '../../../lib/format';
 import type { StockLevel } from '../../../types';
 
@@ -14,10 +15,18 @@ type ModalState =
   | null;
 
 export const StockLevelsScreen = () => {
-  const { stockLevels, loading, error, refetch } = useStockLevels();
+  const {
+    stockLevels,
+    loading,
+    error,
+    refetch,
+    page,
+    setPage,
+    pageSize,
+    totalCount,
+    totalPages,
+  } = useStockLevels();
   const [modal, setModal] = useState<ModalState>(null);
-
-  const lowCount = stockLevels.filter((s) => s.isLowStock).length;
 
   const closeAndRefresh = () => {
     setModal(null);
@@ -35,8 +44,7 @@ export const StockLevelsScreen = () => {
               ? 'Loading stock…'
               : error
                 ? 'Could not load stock levels.'
-                : `${stockLevels.length} item${stockLevels.length === 1 ? '' : 's'}` +
-                  (lowCount > 0 ? ` · ${lowCount} low on stock` : '')}
+                : `${totalCount} item${totalCount === 1 ? '' : 's'}`}
           </p>
         </div>
         <div className="page-actions">
@@ -132,6 +140,16 @@ export const StockLevelsScreen = () => {
           </StockTable>
         )}
       </div>
+
+      {!loading && !error && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
+      )}
 
       {modal?.kind === 'add' && (
         <AddStockModal

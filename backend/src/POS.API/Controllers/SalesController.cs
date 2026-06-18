@@ -35,8 +35,10 @@ public class SalesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
-        => Ok(await _mediator.Send(new GetTransactionsQuery(from, to)));
+        [FromQuery] DateTime? to,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetTransactionsQuery(from, to, page, pageSize)));
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)

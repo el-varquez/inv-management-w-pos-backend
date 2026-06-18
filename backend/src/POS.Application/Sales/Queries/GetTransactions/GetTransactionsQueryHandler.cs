@@ -1,23 +1,25 @@
 using MediatR;
+using POS.Application.Common.Models;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Sales.Queries.GetTransactions;
 
 public class GetTransactionsQueryHandler
-    : IRequestHandler<GetTransactionsQuery, IList<TransactionDto>>
+    : IRequestHandler<GetTransactionsQuery, PagedResult<TransactionDto>>
 {
     private readonly ITransactionRepository _transactionRepository;
 
     public GetTransactionsQueryHandler(ITransactionRepository transactionRepository)
         => _transactionRepository = transactionRepository;
 
-    public async Task<IList<TransactionDto>> Handle(
+    public async Task<PagedResult<TransactionDto>> Handle(
         GetTransactionsQuery request, CancellationToken ct)
     {
-        var transactions = await _transactionRepository.GetAllAsync(
-            request.From, request.To, ct);
+        var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
+        var (transactions, total) = await _transactionRepository.GetPagedAsync(
+            request.From, request.To, page, pageSize, ct);
 
-        return transactions.Select(t => new TransactionDto(
+        var dtos = transactions.Select(t => new TransactionDto(
             t.Id,
             t.ReceiptNumber,
             t.Subtotal,
@@ -31,5 +33,7 @@ public class GetTransactionsQueryHandler
             t.Items.Count,
             t.CreatedAt
         )).ToList();
+
+        return new PagedResult<TransactionDto>(dtos, page, pageSize, total);
     }
 }

@@ -28,6 +28,29 @@ public class TransactionRepository : ITransactionRepository
         return await query.OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
     }
 
+    public async Task<(IList<Transaction> Items, int Total)> GetPagedAsync(
+        DateTime? from, DateTime? to, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _context.Transactions
+            .Include(t => t.Items)
+            .AsQueryable();
+
+        if (from.HasValue) query = query.Where(t => t.CreatedAt >= from.Value);
+        if (to.HasValue) query = query.Where(t => t.CreatedAt <= to.Value);
+
+        var ordered = query
+            .OrderByDescending(t => t.CreatedAt)
+            .ThenBy(t => t.Id);
+
+        var total = await ordered.CountAsync(ct);
+        var items = await ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, total);
+    }
+
     public async Task<int> GetCountForTodayAsync(CancellationToken ct = default)
     {
         var today = DateTime.UtcNow.Date;

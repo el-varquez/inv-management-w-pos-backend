@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/hooks/useAuth';
 import { ItemsTabs } from '../components/ItemsTabs';
 import { ItemFormModal } from '../components/ItemFormModal';
 import { DeleteItemModal } from '../components/DeleteItemModal';
+import { Pagination } from '../../../components/Pagination';
 import { peso } from '../../../lib/format';
 import type { Item } from '../../../types';
 
@@ -17,13 +18,22 @@ type ModalState =
   | null;
 
 export const ItemsScreen = () => {
-  const { items, loading, error, refetch } = useItems();
+  const {
+    items,
+    loading,
+    error,
+    refetch,
+    page,
+    setPage,
+    pageSize,
+    totalCount,
+    totalPages,
+  } = useItems();
   const { categories, createCategory } = useCategories();
   const { user } = useAuth();
   const [modal, setModal] = useState<ModalState>(null);
 
   const isAdmin = user?.role === 'Admin';
-  const lowCount = items.filter((i) => i.isLowStock).length;
 
   const closeAndRefresh = () => {
     setModal(null);
@@ -41,8 +51,7 @@ export const ItemsScreen = () => {
               ? 'Loading your catalog…'
               : error
                 ? 'Could not load items.'
-                : `${items.length} item${items.length === 1 ? '' : 's'}` +
-                  (lowCount > 0 ? ` · ${lowCount} low on stock` : '')}
+                : `${totalCount} item${totalCount === 1 ? '' : 's'}`}
           </p>
         </div>
         <div className="page-actions">
@@ -130,6 +139,16 @@ export const ItemsScreen = () => {
           </ItemsTable>
         )}
       </div>
+
+      {!loading && !error && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
+      )}
 
       {modal?.kind === 'create' && (
         <ItemFormModal
