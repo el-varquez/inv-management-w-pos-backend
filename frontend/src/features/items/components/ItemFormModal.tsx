@@ -6,7 +6,6 @@ import { peso } from '../../../lib/format';
 import type { Category, Item } from '../../../types';
 
 interface Props {
-  /** The item to edit, or null/undefined to create a new one. */
   item?: Item | null;
   categories: Category[];
   createCategory: (name: string) => Promise<string>;
@@ -39,7 +38,6 @@ export const ItemFormModal = ({
   const [categoryId, setCategoryId] = useState(item?.categoryId ?? '');
   const [isActive, setIsActive] = useState(item?.isActive ?? true);
 
-  // Inline category creation
   const [addingCategory, setAddingCategory] = useState(categories.length === 0);
   const [newCategory, setNewCategory] = useState('');
   const [catSaving, setCatSaving] = useState(false);

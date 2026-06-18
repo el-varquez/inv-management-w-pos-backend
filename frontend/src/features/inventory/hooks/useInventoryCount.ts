@@ -37,11 +37,6 @@ export const useInventoryCount = () => {
     }
   };
 
-  /**
-   * Convenience: create a draft count then immediately submit the counted
-   * actuals. The backend snapshots expected quantities at creation time, so
-   * this captures the variance against current system stock in one shot.
-   */
   const submitCount = async (
     lines: { itemId: string; actualQty: number }[],
     notes?: string

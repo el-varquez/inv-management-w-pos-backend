@@ -7,7 +7,6 @@ interface Props {
   onClose: () => void;
 }
 
-/** Acknowledgment Receipt shown after a successful sale. */
 export const ReceiptModal = ({ result, onClose }: Props) => (
   <Modal
     title="Sale complete"

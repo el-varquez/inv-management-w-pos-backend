@@ -4,10 +4,6 @@ using POS.Domain.Entities;
 
 namespace POS.Infrastructure.Persistence;
 
-/// <summary>
-/// Seeds the default users. Idempotent — only inserts a user when no row with
-/// the same email exists, so it is safe to run on every startup.
-/// </summary>
 public static class DbSeeder
 {
     public static async Task SeedAsync(

@@ -9,7 +9,6 @@ export const InventoryCountScreen = () => {
   const { submitCount, loading: submitting, error: submitError } =
     useInventoryCount();
 
-  // Map of itemId → actual qty as typed (string so the field can be cleared).
   const [actuals, setActuals] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [done, setDone] = useState(false);

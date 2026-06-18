@@ -21,8 +21,6 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
         var category = await _categoryRepository.GetByIdAsync(request.Id, ct)
             ?? throw new NotFoundException("Category", request.Id);
 
-        // Items have a Restrict FK to their category, so block deletion while any
-        // remain — surface a clear message instead of a raw DB constraint error.
         if (category.Items.Count > 0)
             throw new DomainException(
                 $"Cannot delete '{category.Name}' — it still has {category.Items.Count} " +

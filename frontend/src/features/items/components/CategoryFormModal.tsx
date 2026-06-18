@@ -4,7 +4,6 @@ import { useCategoryMutations } from '../hooks/useCategoryMutations';
 import type { Category } from '../../../types';
 
 interface Props {
-  /** The category to edit, or null/undefined to create a new one. */
   category?: Category | null;
   onClose: () => void;
   onSaved: () => void;

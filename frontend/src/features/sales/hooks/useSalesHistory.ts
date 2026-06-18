@@ -4,11 +4,6 @@ import { getApiErrorMessage } from '../../../services/apiError';
 import type { Transaction, SalesSummary } from '../../../types';
 import { DEFAULT_PAGE_SIZE } from '../../../lib/pagination';
 
-/**
- * Loads the sales ledger (paged) plus its summary totals for the given date
- * range, and exposes a refund action that re-fetches both once a refund is
- * posted. The summary covers the whole filtered range, not just the page.
- */
 export const useSalesHistory = (filters: SalesFilters) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<SalesSummary | null>(null);
@@ -38,9 +33,6 @@ export const useSalesHistory = (filters: SalesFilters) => {
     }
   };
 
-  // Reset to the first page whenever the date range changes. Adjusting state
-  // during render (with a previous-value guard) is React's recommended
-  // alternative to a reset-in-effect — it avoids the extra commit.
   const filterKey = `${filters.from ?? ''}|${filters.to ?? ''}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (filterKey !== prevFilterKey) {

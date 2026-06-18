@@ -28,8 +28,6 @@ export const useItems = () => {
     }
   };
 
-  // Re-fetch whenever the page changes. The lint rules flag the loading-state
-  // update inside the effect and the omitted fetchItems dep — both expected.
   /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchItems();

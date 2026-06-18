@@ -8,7 +8,6 @@ export const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Once authenticated, leave the login screen.
   useEffect(() => {
     if (token) navigate('/items', { replace: true });
   }, [token, navigate]);

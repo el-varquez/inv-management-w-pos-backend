@@ -8,7 +8,6 @@ import type {
 } from '../../../types';
 
 export const inventoryService = {
-  // ── Stock levels ──────────────────────────────────────────
   getStockLevels: async (params: {
     page: number;
     pageSize: number;
@@ -25,7 +24,6 @@ export const inventoryService = {
     return data;
   },
 
-  // ── Stock actions ─────────────────────────────────────────
   addStock: async (payload: {
     itemId: string;
     quantity: number;
@@ -53,7 +51,6 @@ export const inventoryService = {
     return data;
   },
 
-  // ── Inventory count ───────────────────────────────────────
   createCount: async (notes?: string): Promise<{ id: string }> => {
     const { data } = await api.post<{ id: string }>('/inventory/count', {
       notes,
@@ -68,7 +65,6 @@ export const inventoryService = {
     await api.post(`/inventory/count/${countId}/complete`, lines);
   },
 
-  // ── Composite items ───────────────────────────────────────
   setComponents: async (
     itemId: string,
     components: { componentItemId: string; quantity: number }[]
@@ -76,7 +72,6 @@ export const inventoryService = {
     await api.post(`/inventory/items/${itemId}/components`, components);
   },
 
-  // ── Reports ───────────────────────────────────────────────
   getHistory: async (params: {
     from?: string;
     to?: string;

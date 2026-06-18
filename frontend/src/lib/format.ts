@@ -23,6 +23,5 @@ export const formatDateTime = (iso: string): string =>
 export const formatDate = (iso: string): string =>
   dateFmt.format(new Date(iso));
 
-/** Signed integer, e.g. +5 / -3 / 0. */
 export const signed = (n: number): string =>
   n > 0 ? `+${n}` : `${n}`;

@@ -17,7 +17,6 @@ export const itemService = {
     return data;
   },
 
-  // Full active catalog for POS client-side search (unpaged).
   getSellable: async (): Promise<Item[]> => {
     const { data } = await api.get<Item[]>('/items/sellable');
     return data;

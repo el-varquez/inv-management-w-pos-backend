@@ -24,10 +24,6 @@ export const useCategories = () => {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchCategories(); }, []);
 
-  /**
-   * Creates a category, refreshes the list, and returns its new id so callers
-   * can immediately select it. Throws on failure for the caller to handle.
-   */
   const createCategory = async (
     name: string,
     description?: string

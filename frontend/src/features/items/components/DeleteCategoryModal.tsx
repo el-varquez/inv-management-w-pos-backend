@@ -11,7 +11,6 @@ interface Props {
 export const DeleteCategoryModal = ({ category, onClose, onDeleted }: Props) => {
   const { deleteCategory, loading, error } = useCategoryMutations();
 
-  // A category can only be deleted once it has no items (DB enforces this too).
   const blocked = category.itemCount > 0;
 
   const handleDelete = async () => {

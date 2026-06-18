@@ -22,8 +22,6 @@ export const TransactionDetailModal = ({
   const [confirming, setConfirming] = useState(false);
   const [refunding, setRefunding] = useState(false);
 
-  // A transaction can be refunded only if it's an original sale (not itself a
-  // refund) and hasn't already been refunded.
   const isRefund = (transaction.refundedFromId ?? null) !== null;
   const canRefund = !isRefund && !transaction.isRefunded;
 

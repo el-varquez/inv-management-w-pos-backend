@@ -9,22 +9,15 @@ using POS.API.Middleware;
 using POS.API.Services;
 using System.Text.Json.Serialization;
 
-// Load secrets from .env (DB connection string + JWT key) before the
-// configuration is built, so they are available as environment variables.
-// TraversePath walks up from the working directory, so it resolves whether
-// the app is launched via `dotnet run` (cwd = API project) or `dotnet ef`
-// (cwd = repo root).
 DotNetEnv.Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Layers
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
-// Auth
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -46,7 +39,6 @@ builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Co
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// CORS for React frontend
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -57,7 +49,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Seed default users (admin + cashier). Idempotent, so safe on every startup.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

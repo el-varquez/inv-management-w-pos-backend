@@ -1,10 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { CartItem, Item } from '../../../types';
 
-/**
- * Local cart state for the POS screen. Lives entirely client-side; nothing is
- * persisted until checkout posts the transaction.
- */
 export const useCart = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [transactionDiscount, setTransactionDiscount] = useState(0);

@@ -23,7 +23,6 @@ export const useInventoryHistory = (filters?: InventoryHistoryFilters) => {
     setLoading(true);
     setError(null);
     try {
-      // Strip empty strings so we don't send blank query params.
       const params: InventoryHistoryFilters & { page: number; pageSize: number } = {
         page,
         pageSize,
@@ -42,9 +41,6 @@ export const useInventoryHistory = (filters?: InventoryHistoryFilters) => {
     }
   };
 
-  // Reset to the first page whenever a filter changes. Adjusting state during
-  // render (with a previous-value guard) is React's recommended alternative to
-  // a reset-in-effect — it avoids the extra commit + cascading render.
   const filterKey = `${filters?.from ?? ''}|${filters?.to ?? ''}|${filters?.type ?? ''}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (filterKey !== prevFilterKey) {

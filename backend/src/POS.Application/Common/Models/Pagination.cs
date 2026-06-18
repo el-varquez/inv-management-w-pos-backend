@@ -1,9 +1,5 @@
 namespace POS.Application.Common.Models;
 
-/// <summary>
-/// Shared pagination defaults and clamping. Bad/missing params are coerced to a
-/// safe range rather than rejected — callers never get a 4xx for paging input.
-/// </summary>
 public static class Pagination
 {
     public const int DefaultPageSize = 20;

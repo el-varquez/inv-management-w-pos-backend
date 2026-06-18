@@ -28,7 +28,6 @@ export interface LoginResult {
   role: string;
 }
 
-// Mirrors the backend PagedResult<T> envelope for server-side paginated lists.
 export interface Paged<T> {
   items: T[];
   page: number;
@@ -36,8 +35,6 @@ export interface Paged<T> {
   totalCount: number;
   totalPages: number;
 }
-
-// ── Inventory (Phase 2) ────────────────────────────────────────
 
 export interface StockLevel {
   itemId: string;
@@ -110,7 +107,6 @@ export interface InventoryCount {
   lines: InventoryCountLine[];
 }
 
-// Enum string values mirror the backend enums (serialized as names).
 export type AdjustmentReason =
   | 'Damage'
   | 'Loss'
@@ -124,8 +120,6 @@ export type StockMovementType =
   | 'Adjustment'
   | 'InventoryCount'
   | 'Return';
-
-// ── Sales (Phase 3) ────────────────────────────────────────
 
 export type PaymentType = 'Cash' | 'GCash' | 'Maya';
 
@@ -198,6 +192,26 @@ export interface SalesSummary {
   refunds: number;
   netSales: number;
   transactionCount: number;
+  from?: string | null;
+  to?: string | null;
+}
+
+export interface SalesReportDaily {
+  date: string;
+  grossSales: number;
+  discounts: number;
+  refunds: number;
+  netSales: number;
+  transactionCount: number;
+}
+
+export interface SalesReport {
+  grossSales: number;
+  totalDiscounts: number;
+  totalRefunds: number;
+  netSales: number;
+  transactionCount: number;
+  dailyBreakdown: SalesReportDaily[];
   from?: string | null;
   to?: string | null;
 }

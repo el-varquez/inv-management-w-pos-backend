@@ -64,7 +64,6 @@ export const POSScreen = () => {
       <SalesTabs />
 
       <div className="pos-layout">
-        {/* ── Products ──────────────────────────────────── */}
         <section className="pos-products card">
           <div className="pos-search">
             <input
@@ -125,7 +124,6 @@ export const POSScreen = () => {
           )}
         </section>
 
-        {/* ── Cart ──────────────────────────────────────── */}
         <aside className="pos-cart card">
           <div className="pos-cart-head">
             <h2 className="modal-title">Cart</h2>

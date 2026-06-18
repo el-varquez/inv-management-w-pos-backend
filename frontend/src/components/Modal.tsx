@@ -8,7 +8,6 @@ interface ModalProps {
 }
 
 export const Modal = ({ title, subtitle, onClose, children }: ModalProps) => {
-  // Close on Escape.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();

@@ -6,11 +6,6 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
-/**
- * Classic footer pagination control: ‹ Prev · "Page X of Y" · Next ›, plus a
- * "21–40 of 137" range label. Renders nothing when there is no data; the
- * Prev/Next buttons disable at the first/last page.
- */
 export const Pagination = ({
   page,
   pageSize,

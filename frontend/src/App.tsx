@@ -11,6 +11,7 @@ import { InventoryHistoryScreen } from './features/inventory/screens/InventoryHi
 import { InventoryValuationScreen } from './features/inventory/screens/InventoryValuationScreen';
 import { POSScreen } from './features/sales/screens/POSScreen';
 import { SalesHistoryScreen } from './features/sales/screens/SalesHistoryScreen';
+import { SalesReportScreen } from './features/reports/screens/SalesReportScreen';
 
 export default function App() {
   return (
@@ -46,6 +47,11 @@ export default function App() {
             />
             <Route path="/sales/pos" element={<POSScreen />} />
             <Route path="/sales/history" element={<SalesHistoryScreen />} />
+            <Route
+              path="/reports"
+              element={<Navigate to="/reports/sales" replace />}
+            />
+            <Route path="/reports/sales" element={<SalesReportScreen />} />
           </Route>
         </Route>
       </Routes>

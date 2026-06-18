@@ -6,7 +6,6 @@ import {
 } from '../services/itemService';
 import { getApiErrorMessage } from '../../../services/apiError';
 
-/** Create / update / delete actions for items, with shared loading + error. */
 export const useItemMutations = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
