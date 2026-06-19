@@ -3,6 +3,7 @@ import type {
   StockLevel,
   InventoryHistoryItem,
   InventoryValuation,
+  ItemComponents,
   LowStockItem,
   Paged,
 } from '../../../types';
@@ -63,6 +64,13 @@ export const inventoryService = {
     lines: { itemId: string; actualQty: number }[]
   ): Promise<void> => {
     await api.post(`/inventory/count/${countId}/complete`, lines);
+  },
+
+  getComponents: async (itemId: string): Promise<ItemComponents> => {
+    const { data } = await api.get<ItemComponents>(
+      `/inventory/items/${itemId}/components`
+    );
+    return data;
   },
 
   setComponents: async (

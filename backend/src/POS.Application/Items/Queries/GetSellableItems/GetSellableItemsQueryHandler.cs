@@ -26,6 +26,7 @@ public class GetSellableItemsQueryHandler : IRequestHandler<GetSellableItemsQuer
             i.LowStockThreshold,
             i.Stock <= i.LowStockThreshold,
             i.IsActive,
+            i.IsComposite,
             i.CategoryId,
             i.Category.Name,
             i.CreatedAt

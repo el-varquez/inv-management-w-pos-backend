@@ -3,7 +3,13 @@ import type { Item, Paged } from '../../../types';
 
 export type CreateItemPayload = Omit<
   Item,
-  'id' | 'stock' | 'isLowStock' | 'isActive' | 'categoryName' | 'createdAt'
+  | 'id'
+  | 'stock'
+  | 'isLowStock'
+  | 'isActive'
+  | 'isComposite'
+  | 'categoryName'
+  | 'createdAt'
 >;
 
 export type UpdateItemPayload = CreateItemPayload & { isActive: boolean };
@@ -12,6 +18,7 @@ export const itemService = {
   getPaged: async (params: {
     page: number;
     pageSize: number;
+    isComposite?: boolean;
   }): Promise<Paged<Item>> => {
     const { data } = await api.get<Paged<Item>>('/items', { params });
     return data;

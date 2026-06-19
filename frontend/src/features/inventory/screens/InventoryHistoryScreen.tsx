@@ -5,6 +5,7 @@ import {
 } from '../hooks/useInventoryHistory';
 import { InventoryTabs } from '../components/InventoryTabs';
 import { Pagination } from '../../../components/Pagination';
+import { SearchSelect } from '../../../components/SearchSelect';
 import { peso, formatDateTime, signed } from '../../../lib/format';
 import type { StockMovementType } from '../../../types';
 
@@ -82,18 +83,16 @@ export const InventoryHistoryScreen = () => {
         </div>
         <div className="field">
           <label htmlFor="type">Type</label>
-          <select
+          <SearchSelect
             id="type"
-            className="input"
             value={filters.type ?? ''}
-            onChange={(e) => update({ type: e.target.value || undefined })}
-          >
-            {MOVEMENT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => update({ type: v || undefined })}
+            allLabel="All movements"
+            options={MOVEMENT_TYPES.filter((t) => t.value !== '').map((t) => ({
+              value: t.value,
+              label: t.label,
+            }))}
+          />
         </div>
         {(filters.from || filters.to || filters.type) && (
           <button

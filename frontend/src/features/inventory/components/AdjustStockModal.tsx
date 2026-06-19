@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal } from '../../../components/Modal';
+import { SearchSelect } from '../../../components/SearchSelect';
 import { useAdjustStock } from '../hooks/useAdjustStock';
 import type { StockLevel, AdjustmentReason } from '../../../types';
 
@@ -95,18 +96,12 @@ export const AdjustStockModal = ({ item, onClose, onDone }: Props) => {
           </div>
           <div className="field">
             <label htmlFor="reason">Reason</label>
-            <select
+            <SearchSelect
               id="reason"
-              className="input"
               value={reason}
-              onChange={(e) => setReason(e.target.value as AdjustmentReason)}
-            >
-              {REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setReason(v as AdjustmentReason)}
+              options={REASONS.map((r) => ({ value: r, label: r }))}
+            />
           </div>
         </div>
 

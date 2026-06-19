@@ -9,9 +9,26 @@ export interface Item {
   lowStockThreshold: number;
   isLowStock: boolean;
   isActive: boolean;
+  isComposite: boolean;
   categoryId: string;
   categoryName: string;
   createdAt: string;
+}
+
+export interface ItemComponent {
+  componentItemId: string;
+  componentItemName: string;
+  quantity: number;
+  componentCostPrice: number;
+  lineCost: number;
+}
+
+export interface ItemComponents {
+  parentItemId: string;
+  parentItemName: string;
+  isComposite: boolean;
+  totalComponentCost: number;
+  components: ItemComponent[];
 }
 
 export interface Category {

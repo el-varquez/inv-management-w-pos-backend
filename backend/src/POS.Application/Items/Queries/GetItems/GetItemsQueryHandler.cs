@@ -14,7 +14,8 @@ public class GetItemsQueryHandler : IRequestHandler<GetItemsQuery, PagedResult<I
     public async Task<PagedResult<ItemDto>> Handle(GetItemsQuery request, CancellationToken ct)
     {
         var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
-        var (items, total) = await _itemRepository.GetPagedAsync(page, pageSize, ct);
+        var (items, total) = await _itemRepository.GetPagedAsync(
+            page, pageSize, request.IsComposite, ct);
 
         var dtos = items.Select(i => new ItemDto(
             i.Id,
@@ -27,6 +28,7 @@ public class GetItemsQueryHandler : IRequestHandler<GetItemsQuery, PagedResult<I
             i.LowStockThreshold,
             i.Stock <= i.LowStockThreshold,
             i.IsActive,
+            i.IsComposite,
             i.CategoryId,
             i.Category.Name,
             i.CreatedAt

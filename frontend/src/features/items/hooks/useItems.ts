@@ -4,7 +4,11 @@ import type { Item } from '../../../types';
 import { getApiErrorMessage } from '../../../services/apiError';
 import { DEFAULT_PAGE_SIZE } from '../../../lib/pagination';
 
-export const useItems = () => {
+export interface ItemFilters {
+  isComposite?: boolean;
+}
+
+export const useItems = (filters?: ItemFilters) => {
   const [items, setItems] = useState<Item[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -17,7 +21,12 @@ export const useItems = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await itemService.getPaged({ page, pageSize });
+      const params: { page: number; pageSize: number; isComposite?: boolean } = {
+        page,
+        pageSize,
+      };
+      if (filters?.isComposite !== undefined) params.isComposite = filters.isComposite;
+      const data = await itemService.getPaged(params);
       setItems(data.items);
       setTotalCount(data.totalCount);
       setTotalPages(data.totalPages);
@@ -28,10 +37,17 @@ export const useItems = () => {
     }
   };
 
+  const filterKey = `${filters?.isComposite ?? ''}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setPage(1);
+  }
+
   /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchItems();
-  }, [page, pageSize]);
+  }, [filters?.isComposite, page, pageSize]);
   /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   return {

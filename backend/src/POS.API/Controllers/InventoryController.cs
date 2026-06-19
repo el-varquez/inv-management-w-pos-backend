@@ -7,6 +7,7 @@ using POS.Application.Inventory.Commands.CompleteInventoryCount;
 using POS.Application.Inventory.Commands.CreateInventoryCount;
 using POS.Application.Inventory.Commands.SetCompositeItem;
 using POS.Application.Inventory.Queries.GetInventoryHistory;
+using POS.Application.Inventory.Queries.GetItemComponents;
 using POS.Application.Inventory.Queries.GetInventoryValuation;
 using POS.Application.Inventory.Queries.GetLowStockItems;
 using POS.Application.Inventory.Queries.GetStockLevels;
@@ -62,6 +63,10 @@ public class InventoryController : ControllerBase
         await _mediator.Send(new CompleteInventoryCountCommand(id, lines));
         return NoContent();
     }
+
+    [HttpGet("items/{id:guid}/components")]
+    public async Task<IActionResult> GetComponents(Guid id)
+        => Ok(await _mediator.Send(new GetItemComponentsQuery(id)));
 
     [HttpPost("items/{id:guid}/components")]
     public async Task<IActionResult> SetComponents(

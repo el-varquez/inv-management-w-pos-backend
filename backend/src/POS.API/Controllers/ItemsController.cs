@@ -20,8 +20,9 @@ public class ItemsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int? page,
-        [FromQuery] int? pageSize)
-        => Ok(await _mediator.Send(new GetItemsQuery(page, pageSize)));
+        [FromQuery] int? pageSize,
+        [FromQuery] bool? isComposite)
+        => Ok(await _mediator.Send(new GetItemsQuery(page, pageSize, isComposite)));
 
     [HttpGet("sellable")]
     public async Task<IActionResult> GetSellable()

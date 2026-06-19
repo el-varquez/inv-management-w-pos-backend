@@ -5,7 +5,9 @@ import { useAuth } from '../../auth/hooks/useAuth';
 import { ItemsTabs } from '../components/ItemsTabs';
 import { ItemFormModal } from '../components/ItemFormModal';
 import { DeleteItemModal } from '../components/DeleteItemModal';
+import { ComponentsModal } from '../components/ComponentsModal';
 import { Pagination } from '../../../components/Pagination';
+import { SearchSelect } from '../../../components/SearchSelect';
 import { peso } from '../../../lib/format';
 import type { Item } from '../../../types';
 
@@ -15,9 +17,15 @@ type ModalState =
   | { kind: 'create' }
   | { kind: 'edit'; item: Item }
   | { kind: 'delete'; item: Item }
+  | { kind: 'components'; item: Item }
   | null;
 
+type RecipeFilter = '' | 'true' | 'false';
+
 export const ItemsScreen = () => {
+  const [recipeFilter, setRecipeFilter] = useState<RecipeFilter>('');
+  const filters =
+    recipeFilter === '' ? undefined : { isComposite: recipeFilter === 'true' };
   const {
     items,
     loading,
@@ -28,7 +36,7 @@ export const ItemsScreen = () => {
     pageSize,
     totalCount,
     totalPages,
-  } = useItems();
+  } = useItems(filters);
   const { categories, createCategory } = useCategories();
   const { user } = useAuth();
   const [modal, setModal] = useState<ModalState>(null);
@@ -71,6 +79,31 @@ export const ItemsScreen = () => {
 
       <ItemsTabs />
 
+      <div className="filter-bar card">
+        <div className="field">
+          <label htmlFor="recipe-filter">Type</label>
+          <SearchSelect
+            id="recipe-filter"
+            value={recipeFilter}
+            onChange={(v) => setRecipeFilter(v as RecipeFilter)}
+            allLabel="All items"
+            options={[
+              { value: 'true', label: 'Recipes' },
+              { value: 'false', label: 'Standard items' },
+            ]}
+          />
+        </div>
+        {recipeFilter !== '' && (
+          <button
+            type="button"
+            className="btn btn-quiet btn-sm filter-clear"
+            onClick={() => setRecipeFilter('')}
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
       <div className="card table-wrap">
         {error ? (
           <div className="state state-error">
@@ -109,22 +142,44 @@ export const ItemsScreen = () => {
             ))}
           </ItemsTable>
         ) : items.length === 0 ? (
-          <div className="state">
-            <div className="state-emoji">🗂️</div>
-            <div className="state-title">No items yet</div>
-            <p className="state-msg">
-              Your catalog is empty. Add your first product to start tracking
-              stock and sales.
-            </p>
-            {isAdmin && (
+          recipeFilter !== '' ? (
+            <div className="state">
+              <div className="state-emoji">🗂️</div>
+              <div className="state-title">
+                {recipeFilter === 'true'
+                  ? 'No recipe items'
+                  : 'No standard items'}
+              </div>
+              <p className="state-msg">
+                {recipeFilter === 'true'
+                  ? 'No items have components yet. Open an item’s Recipe to add components and turn it into a recipe.'
+                  : 'No standard items match this filter.'}
+              </p>
               <button
-                className="btn btn-primary"
-                onClick={() => setModal({ kind: 'create' })}
+                className="btn btn-ghost"
+                onClick={() => setRecipeFilter('')}
               >
-                New item
+                Clear filters
               </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="state">
+              <div className="state-emoji">🗂️</div>
+              <div className="state-title">No items yet</div>
+              <p className="state-msg">
+                Your catalog is empty. Add your first product to start tracking
+                stock and sales.
+              </p>
+              {isAdmin && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setModal({ kind: 'create' })}
+                >
+                  New item
+                </button>
+              )}
+            </div>
+          )
         ) : (
           <ItemsTable isAdmin={isAdmin}>
             {items.map((item) => (
@@ -134,6 +189,7 @@ export const ItemsScreen = () => {
                 isAdmin={isAdmin}
                 onEdit={() => setModal({ kind: 'edit', item })}
                 onDelete={() => setModal({ kind: 'delete', item })}
+                onComponents={() => setModal({ kind: 'components', item })}
               />
             ))}
           </ItemsTable>
@@ -174,6 +230,13 @@ export const ItemsScreen = () => {
           onDeleted={closeAndRefresh}
         />
       )}
+      {modal?.kind === 'components' && (
+        <ComponentsModal
+          item={modal.item}
+          onClose={() => setModal(null)}
+          onSaved={closeAndRefresh}
+        />
+      )}
     </>
   );
 };
@@ -205,16 +268,23 @@ const ItemRow = ({
   isAdmin,
   onEdit,
   onDelete,
+  onComponents,
 }: {
   item: Item;
   isAdmin: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onComponents: () => void;
 }) => (
   <tr>
     <td>
       <div className="item-name">
         {item.name}
+        {item.isComposite && (
+          <span className="badge badge-info" style={{ marginLeft: 8 }}>
+            Recipe
+          </span>
+        )}
         {!item.isActive && (
           <span className="badge badge-muted" style={{ marginLeft: 8 }}>
             Inactive
@@ -243,6 +313,9 @@ const ItemRow = ({
         <div className="row-actions">
           <button className="btn btn-ghost btn-sm" onClick={onEdit}>
             Edit
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={onComponents}>
+            Recipe
           </button>
           <button className="btn btn-quiet btn-sm" onClick={onDelete}>
             Delete

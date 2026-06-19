@@ -23,16 +23,21 @@ public class ItemRepository : IItemRepository
             .ToListAsync(ct);
 
     public async Task<(IList<Item> Items, int Total)> GetPagedAsync(
-        int page, int pageSize, CancellationToken ct = default)
+        int page, int pageSize, bool? isComposite = null, CancellationToken ct = default)
     {
         var query = _context.Items
             .Include(i => i.Category)
-            .Where(i => i.IsActive)
+            .Where(i => i.IsActive);
+
+        if (isComposite.HasValue)
+            query = query.Where(i => i.IsComposite == isComposite.Value);
+
+        var ordered = query
             .OrderBy(i => i.Name)
             .ThenBy(i => i.Id);
 
-        var total = await query.CountAsync(ct);
-        var items = await query
+        var total = await ordered.CountAsync(ct);
+        var items = await ordered
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);

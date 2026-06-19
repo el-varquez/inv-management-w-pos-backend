@@ -16,7 +16,7 @@ public class GetStockLevelsQueryHandler
         GetStockLevelsQuery request, CancellationToken ct)
     {
         var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
-        var (items, total) = await _itemRepository.GetPagedAsync(page, pageSize, ct);
+        var (items, total) = await _itemRepository.GetPagedAsync(page, pageSize, ct: ct);
 
         var dtos = items.Select(i => new StockLevelDto(
             i.Id,

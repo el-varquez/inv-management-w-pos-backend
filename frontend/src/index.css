@@ -196,6 +196,10 @@ a {
 .badge-muted::before {
   background: var(--ink-3);
 }
+.badge-info {
+  color: var(--clay-deep);
+  background: var(--clay-soft);
+}
 
 .shell {
   min-height: 100svh;
@@ -642,6 +646,22 @@ select.input {
 }
 .cat-add-row .input {
   flex: 1;
+}
+
+.component-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.component-row {
+  display: grid;
+  grid-template-columns: 1fr 90px auto;
+  align-items: center;
+  gap: 8px;
+}
+.component-row .search-select {
+  min-width: 0;
 }
 
 .subnav {
