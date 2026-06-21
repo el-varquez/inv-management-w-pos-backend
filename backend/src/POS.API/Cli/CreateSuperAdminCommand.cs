@@ -59,7 +59,7 @@ public static class CreateSuperAdminCommand
             Name = "Super Admin",
             Email = email,
             PasswordHash = passwordHasher.Hash(password),
-            Role = "Admin",
+            Role = "SuperAdmin",
             IsActive = true
         });
         await db.SaveChangesAsync(ct);
