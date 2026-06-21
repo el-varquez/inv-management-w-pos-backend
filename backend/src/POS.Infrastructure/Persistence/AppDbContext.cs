@@ -117,14 +117,7 @@ public class AppDbContext : DbContext
 
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
-        foreach (var entry in ChangeTracker.Entries<ITenantScoped>()
-                     .Where(e => e.State == EntityState.Added))
-        {
-            if (_currentUser?.TenantId is not Guid tenantId)
-                throw new InvalidOperationException(
-                    "Cannot persist a tenant-scoped entity without a tenant context.");
-            entry.Entity.TenantId = tenantId;
-        }
+        StampTenantScopedEntities();
 
         var entitiesWithEvents = ChangeTracker.Entries<BaseEntity>()
             .Select(e => e.Entity)
@@ -142,9 +135,23 @@ public class AppDbContext : DbContext
                 foreach (var domainEvent in events)
                     await _mediator.Publish(domainEvent, ct);
             }
+
+            StampTenantScopedEntities();
             await base.SaveChangesAsync(ct);
         }
 
         return result;
+    }
+
+    private void StampTenantScopedEntities()
+    {
+        foreach (var entry in ChangeTracker.Entries<ITenantScoped>()
+                     .Where(e => e.State == EntityState.Added))
+        {
+            if (_currentUser?.TenantId is not Guid tenantId)
+                throw new InvalidOperationException(
+                    "Cannot persist a tenant-scoped entity without a tenant context.");
+            entry.Entity.TenantId = tenantId;
+        }
     }
 }
