@@ -20,7 +20,6 @@ public class TenantIsolationTests : IDisposable
             .UseSqlite(_connection)
             .Options;
 
-        // Create schema once using a context with no tenant.
         using var ctx = new AppDbContext(_options, new FakeCurrentUser { TenantId = null });
         ctx.Database.EnsureCreated();
     }
@@ -34,7 +33,7 @@ public class TenantIsolationTests : IDisposable
         var tenantA = Guid.NewGuid();
         await using var ctx = ContextFor(tenantA);
 
-        var category = new Category { Name = "Drinks" }; // TenantId left default
+        var category = new Category { Name = "Drinks" };
         ctx.Categories.Add(category);
         await ctx.SaveChangesAsync();
 

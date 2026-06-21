@@ -10,12 +10,6 @@ using Xunit;
 
 namespace POS.Infrastructure.Tests;
 
-/// <summary>
-/// Proves that ITenantScoped entities created during domain-event dispatch
-/// (the "second save" in AppDbContext.SaveChangesAsync) are auto-stamped
-/// with the current tenant. Before the fix, those entities were persisted
-/// with TenantId == Guid.Empty.
-/// </summary>
 public class DomainEventTenantStampTests : IDisposable
 {
     private readonly SqliteConnection _connection;
@@ -33,20 +27,11 @@ public class DomainEventTenantStampTests : IDisposable
         ctx.Database.EnsureCreated();
     }
 
-    /// <summary>
-    /// A trivial domain event used only in this test.
-    /// </summary>
     private record TestDomainEvent : IDomainEvent
     {
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
     }
 
-    /// <summary>
-    /// A fake IMediator that, on Publish, adds a StockMovement (without setting
-    /// TenantId) to the given DbContext — simulating what SaleCompletedEventHandler
-    /// does in production. The DbContext reference is set after construction so it
-    /// can point to the same context instance that calls SaveChangesAsync.
-    /// </summary>
     private sealed class FakeMediator : IMediator
     {
         public AppDbContext? Ctx { get; set; }
@@ -63,15 +48,12 @@ public class DomainEventTenantStampTests : IDisposable
         {
             if (notification is TestDomainEvent)
             {
-                // Simulate a domain-event handler adding a tenant-scoped entity
-                // WITHOUT setting TenantId (the auto-stamp should handle it).
                 Ctx!.StockMovements.Add(new StockMovement
                 {
                     ItemId = _itemId,
                     Type = StockMovementType.Sale,
                     Quantity = -1,
                     CreatedBy = _userId
-                    // TenantId deliberately NOT set
                 });
             }
             return Task.CompletedTask;
@@ -104,7 +86,6 @@ public class DomainEventTenantStampTests : IDisposable
         var tenantA = Guid.NewGuid();
         var fakeUser = new FakeCurrentUser { TenantId = tenantA };
 
-        // Seed an Item that the StockMovement FK will reference.
         var category = new Category { Name = "Test Category" };
         var item = new Item
         {
@@ -123,25 +104,18 @@ public class DomainEventTenantStampTests : IDisposable
             await seedCtx.SaveChangesAsync();
         }
 
-        // Create the mediator that will inject a StockMovement on Publish.
         var mediator = new FakeMediator(item.Id, fakeUser.Id);
 
-        // Build the test context WITH the mediator wired up.
         await using var testCtx = new AppDbContext(_options, fakeUser, mediator);
 
-        // Point the mediator at the same context so entities land in the same
-        // ChangeTracker that SaveChangesAsync will flush.
         mediator.Ctx = testCtx;
 
-        // Add a category with a domain event so the event-dispatch path fires.
         var triggerCategory = new Category { Name = "Trigger" };
         triggerCategory.AddDomainEvent(new TestDomainEvent());
         testCtx.Categories.Add(triggerCategory);
 
         await testCtx.SaveChangesAsync();
 
-        // Read back the StockMovement bypassing the query filter
-        // (null tenant sees nothing through the filter).
         await using var verifyCtx = new AppDbContext(
             _options, new FakeCurrentUser { TenantId = null });
         var movement = await verifyCtx.StockMovements
