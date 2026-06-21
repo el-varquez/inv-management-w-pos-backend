@@ -3,8 +3,9 @@ using POS.Domain.Enums;
 
 namespace POS.Domain.Entities;
 
-public class StockMovement : BaseEntity
+public class StockMovement : BaseEntity, ITenantScoped
 {
+    public Guid TenantId { get; set; }
     public Guid ItemId { get; set; }
     public Item Item { get; set; } = null!;
     

@@ -3,8 +3,9 @@ using POS.Domain.Enums;
 
 namespace POS.Domain.Entities;
 
-public class Transaction : BaseEntity
+public class Transaction : BaseEntity, ITenantScoped
 {
+    public Guid TenantId { get; set; }
     public string ReceiptNumber { get; set; } = string.Empty;
     public decimal Subtotal { get; set; }
     public decimal DiscountAmount { get; set; }

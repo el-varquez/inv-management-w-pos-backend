@@ -2,8 +2,9 @@ using POS.Domain.Common;
 
 namespace POS.Domain.Entities;
 
-public class TransactionItem : BaseEntity
+public class TransactionItem : BaseEntity, ITenantScoped
 {
+    public Guid TenantId { get; set; }
     public Guid TransactionId { get; set; }
     public Transaction Transaction { get; set; } = null!;
     
