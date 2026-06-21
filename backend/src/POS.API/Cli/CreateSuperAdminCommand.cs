@@ -5,11 +5,6 @@ using POS.Infrastructure.Persistence;
 
 namespace POS.API.Cli;
 
-/// <summary>
-/// One-off command to create the single super admin account.
-/// Run with: dotnet run --project backend/src/POS.API -- create-admin
-/// Credentials are entered interactively and never stored in source control.
-/// </summary>
 public static class CreateSuperAdminCommand
 {
     public const string Name = "create-admin";
@@ -43,7 +38,6 @@ public static class CreateSuperAdminCommand
             return 1;
         }
 
-        // Confirmation only makes sense for interactive input.
         if (!Console.IsInputRedirected)
         {
             var confirm = ReadSecret("Confirm password: ");
@@ -72,8 +66,6 @@ public static class CreateSuperAdminCommand
     {
         Console.Write(prompt);
 
-        // When input is piped (e.g. `echo pw | dotnet run -- create-admin`)
-        // there is no console to mask, so read the line directly.
         if (Console.IsInputRedirected)
             return Console.ReadLine() ?? string.Empty;
 
