@@ -4,7 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using POS.Application;
 using POS.Application.Common.Interfaces;
 using POS.Infrastructure;
-using POS.Infrastructure.Persistence;
+using POS.API.Cli;
 using POS.API.Middleware;
 using POS.API.Services;
 using System.Text.Json.Serialization;
@@ -49,12 +49,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-    await DbSeeder.SeedAsync(db, passwordHasher);
-}
+if (args.Length > 0 && args[0] == CreateSuperAdminCommand.Name)
+    return await CreateSuperAdminCommand.RunAsync(app.Services);
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -70,3 +66,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+return 0;

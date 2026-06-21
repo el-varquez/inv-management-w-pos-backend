@@ -17,11 +17,6 @@ export const LoginScreen = () => {
     await login(email, password);
   };
 
-  const fillDemo = () => {
-    setEmail('admin@pos.local');
-    setPassword('Admin123!');
-  };
-
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={handleSubmit}>
@@ -33,7 +28,6 @@ export const LoginScreen = () => {
           </div>
         </div>
 
-        <p className="eyebrow">Admin access</p>
         <h1 className="login-title">Welcome back</h1>
         <p className="login-lead">
           Sign in to manage your items, stock, and sales.
@@ -82,15 +76,6 @@ export const LoginScreen = () => {
           {loading ? <span className="spinner" aria-hidden="true" /> : null}
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
-
-        <div className="login-demo">
-          <span>
-            Demo: <code>admin@pos.local</code> / <code>Admin123!</code>
-          </span>
-          <button type="button" className="btn btn-quiet" onClick={fillDemo}>
-            Use demo
-          </button>
-        </div>
       </form>
     </div>
   );
