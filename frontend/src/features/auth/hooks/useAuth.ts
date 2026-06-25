@@ -14,6 +14,10 @@ export const useAuth = () => {
     setError(null);
     try {
       const result = await authService.login(email, password);
+      if (result.role === 'Cashier') {
+        setError('Cashiers sign in on the mobile app.');
+        return;
+      }
       setAuth(result.token, {
         name: result.name,
         email: result.email,

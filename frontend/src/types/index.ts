@@ -52,6 +52,20 @@ export interface RegisterPayload {
   password: string;
 }
 
+export interface Cashier {
+  id: string;
+  name: string;
+  email: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CashierList {
+  cashiers: Cashier[];
+  activeCount: number;
+  cashierCap: number;
+}
+
 export interface Paged<T> {
   items: T[];
   page: number;

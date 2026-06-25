@@ -12,6 +12,7 @@ import { LowStockScreen } from './features/inventory/screens/LowStockScreen';
 import { InventoryCountScreen } from './features/inventory/screens/InventoryCountScreen';
 import { InventoryHistoryScreen } from './features/inventory/screens/InventoryHistoryScreen';
 import { InventoryValuationScreen } from './features/inventory/screens/InventoryValuationScreen';
+import { CashiersScreen } from './features/cashiers/screens/CashiersScreen';
 import { POSScreen } from './features/sales/screens/POSScreen';
 import { SalesHistoryScreen } from './features/sales/screens/SalesHistoryScreen';
 import { SalesReportScreen } from './features/reports/screens/SalesReportScreen';
@@ -78,6 +79,7 @@ export default function App() {
               path="/reports/best-sellers"
               element={<BestSellersScreen />}
             />
+            <Route path="/cashiers" element={<CashiersScreen />} />
             </Route>
           </Route>
         </Route>

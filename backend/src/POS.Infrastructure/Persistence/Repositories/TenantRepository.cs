@@ -11,4 +11,7 @@ public class TenantRepository : ITenantRepository
 
     public async Task AddAsync(Tenant tenant, CancellationToken ct = default)
         => await _context.Tenants.AddAsync(tenant, ct);
+
+    public async Task<Tenant?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        => await _context.Tenants.FindAsync(new object[] { id }, ct);
 }

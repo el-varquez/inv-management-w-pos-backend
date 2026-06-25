@@ -5,6 +5,8 @@ export const Layout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  const isAdmin = user?.role === 'Admin';
+
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
@@ -67,6 +69,16 @@ export const Layout = () => {
               >
                 Reports
               </NavLink>
+              {isAdmin && (
+                <NavLink
+                  to="/cashiers"
+                  className={({ isActive }) =>
+                    isActive ? 'nav-link is-active' : 'nav-link'
+                  }
+                >
+                  Cashiers
+                </NavLink>
+              )}
             </>
           )}
         </nav>
