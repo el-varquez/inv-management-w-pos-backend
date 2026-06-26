@@ -10,16 +10,19 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
     private readonly IUserRepository _userRepository;
     private readonly IJwtService _jwtService;
     private readonly IPasswordHasher _passwordHAsher;
+    private readonly ITenantRepository _tenantRepository;
 
     public LoginCommandHandler(
         IUserRepository userRepository,
         IJwtService jwtService,
-        IPasswordHasher passwordHasher
+        IPasswordHasher passwordHasher,
+        ITenantRepository tenantRepository
     )
     {
         _userRepository = userRepository;
         _jwtService = jwtService;
         _passwordHAsher = passwordHasher;
+        _tenantRepository = tenantRepository;
     }
 
     public async Task<LoginResult> Handle(LoginCommand request, CancellationToken ct)
@@ -32,6 +35,13 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
 
         if (!user.IsActive)
             throw new DomainException("Account is inactive.");
+
+        if (user.TenantId is Guid tenantId)
+        {
+            var tenant = await _tenantRepository.GetByIdAsync(tenantId, ct);
+            if (tenant is not null && !tenant.IsActive)
+                throw new DomainException("This business account is suspended.");
+        }
 
         var token = _jwtService.GenerateToken(user);
 

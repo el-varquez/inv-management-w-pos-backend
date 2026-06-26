@@ -6,4 +6,5 @@ public class Tenant : BaseEntity
 {
     public string Name { get; set; } = string.Empty;
     public int CashierCap { get; set; } = 5;
+    public bool IsActive { get; set; } = true;
 }

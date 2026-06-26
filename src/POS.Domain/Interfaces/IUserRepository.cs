@@ -11,4 +11,7 @@ public interface IUserRepository
     Task<IReadOnlyList<User>> GetCashiersByTenantAsync(Guid tenantId, CancellationToken ct = default);
     Task<int> CountActiveCashiersAsync(Guid tenantId, CancellationToken ct = default);
     Task<User?> GetCashierByIdAsync(Guid id, Guid tenantId, CancellationToken ct = default);
+
+    Task<IReadOnlyList<User>> GetAllAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<User>> GetByTenantAsync(Guid tenantId, CancellationToken ct = default);
 }

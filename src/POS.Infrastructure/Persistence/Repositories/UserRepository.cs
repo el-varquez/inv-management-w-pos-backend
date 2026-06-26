@@ -32,4 +32,14 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetCashierByIdAsync(Guid id, Guid tenantId, CancellationToken ct = default)
         => await _context.Users
             .FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId && u.Role == "Cashier", ct);
+
+    public async Task<IReadOnlyList<User>> GetAllAsync(CancellationToken ct = default)
+        => await _context.Users.ToListAsync(ct);
+
+    public async Task<IReadOnlyList<User>> GetByTenantAsync(Guid tenantId, CancellationToken ct = default)
+        => await _context.Users
+            .Where(u => u.TenantId == tenantId)
+            .OrderBy(u => u.Role)
+            .ThenBy(u => u.Name)
+            .ToListAsync(ct);
 }

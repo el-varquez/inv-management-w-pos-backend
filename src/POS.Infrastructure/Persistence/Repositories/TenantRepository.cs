@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 
@@ -14,4 +15,9 @@ public class TenantRepository : ITenantRepository
 
     public async Task<Tenant?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => await _context.Tenants.FindAsync(new object[] { id }, ct);
+
+    public async Task<IReadOnlyList<Tenant>> GetAllAsync(CancellationToken ct = default)
+        => await _context.Tenants
+            .OrderBy(t => t.Name)
+            .ToListAsync(ct);
 }
