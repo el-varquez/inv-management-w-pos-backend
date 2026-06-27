@@ -2,7 +2,10 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using POS.Application.Platform.Commands.CreateTenant;
+using POS.Application.Platform.Commands.DeactivateTenantUser;
+using POS.Application.Platform.Commands.EditTenantUser;
 using POS.Application.Platform.Commands.ReactivateTenant;
+using POS.Application.Platform.Commands.ReactivateTenantUser;
 using POS.Application.Platform.Commands.SetCashierCap;
 using POS.Application.Platform.Commands.SuspendTenant;
 using POS.Application.Platform.Queries.GetTenant;
@@ -52,6 +55,27 @@ public class PlatformController : ControllerBase
     public async Task<IActionResult> SetCashierCap(Guid id, [FromBody] SetCashierCapCommand command)
     {
         await _mediator.Send(command with { Id = id });
+        return NoContent();
+    }
+
+    [HttpPut("{tenantId:guid}/users/{userId:guid}")]
+    public async Task<IActionResult> EditUser(Guid tenantId, Guid userId, [FromBody] EditTenantUserCommand command)
+    {
+        await _mediator.Send(command with { TenantId = tenantId, UserId = userId });
+        return NoContent();
+    }
+
+    [HttpPost("{tenantId:guid}/users/{userId:guid}/deactivate")]
+    public async Task<IActionResult> DeactivateUser(Guid tenantId, Guid userId)
+    {
+        await _mediator.Send(new DeactivateTenantUserCommand(tenantId, userId));
+        return NoContent();
+    }
+
+    [HttpPost("{tenantId:guid}/users/{userId:guid}/reactivate")]
+    public async Task<IActionResult> ReactivateUser(Guid tenantId, Guid userId)
+    {
+        await _mediator.Send(new ReactivateTenantUserCommand(tenantId, userId));
         return NoContent();
     }
 }
