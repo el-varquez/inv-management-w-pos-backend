@@ -36,7 +36,13 @@ public class EditTenantUserCommandHandler : IRequestHandler<EditTenantUserComman
         user.Email = email;
 
         if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            if (_passwordHasher.Verify(request.Password, user.PasswordHash))
+                throw new DomainException(
+                    "That's already this user's current password. Please choose a different one.");
+
             user.PasswordHash = _passwordHasher.Hash(request.Password);
+        }
 
         await _unitOfWork.SaveChangesAsync(ct);
     }

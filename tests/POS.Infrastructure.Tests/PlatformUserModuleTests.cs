@@ -125,6 +125,18 @@ public class PlatformUserModuleTests : IDisposable
     }
 
     [Fact]
+    public async Task Edit_rejects_reusing_current_password()
+    {
+        var tenantId = await SeedTenantAsync();
+        var admin = await AdminOf(tenantId);
+
+        await Assert.ThrowsAsync<DomainException>(() =>
+            EditHandler().Handle(
+                new EditTenantUserCommand(tenantId, admin.Id, "Owner", "owner@store.ph", "password123"),
+                CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Deactivate_rejects_admin_target()
     {
         var tenantId = await SeedTenantAsync();
