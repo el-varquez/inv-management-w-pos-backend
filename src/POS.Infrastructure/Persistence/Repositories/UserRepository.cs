@@ -33,6 +33,10 @@ public class UserRepository : IUserRepository
         => await _context.Users
             .FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId && u.Role == "Cashier", ct);
 
+    public async Task<User?> GetByIdInTenantAsync(Guid id, Guid tenantId, CancellationToken ct = default)
+        => await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId, ct);
+
     public async Task<IReadOnlyList<User>> GetAllAsync(CancellationToken ct = default)
         => await _context.Users.ToListAsync(ct);
 
