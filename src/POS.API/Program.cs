@@ -97,6 +97,13 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromHours(1);
+    options.IncludeSubDomains = false;
+    options.Preload = false;
+});
+
 var app = builder.Build();
 
 if (args.Length > 0 && args[0] == CreateSuperAdminCommand.Name)
@@ -106,10 +113,15 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    var forwardedHeadersOptions = new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-    });
+    };
+    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwardedHeadersOptions);
+
+    app.UseHsts();
 }
 
 if (app.Environment.IsDevelopment())
