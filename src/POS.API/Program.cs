@@ -3,10 +3,12 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using POS.Application;
 using POS.Application.Common.Interfaces;
 using POS.Infrastructure;
+using POS.Infrastructure.Persistence;
 using POS.API.Cli;
 using POS.API.Middleware;
 using POS.API.Services;
@@ -108,6 +110,12 @@ var app = builder.Build();
 
 if (args.Length > 0 && args[0] == CreateSuperAdminCommand.Name)
     return await CreateSuperAdminCommand.RunAsync(app.Services);
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

@@ -1,0 +1,36 @@
+services:
+  server:
+    build:
+      context: .
+      target: final
+    ports:
+      - 5103:8080
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=pos_db;Username=postgres;Password=${POSTGRES_PASSWORD}
+      - Jwt__Key=${Jwt__Key}
+      - Jwt__Issuer=POSApp
+      - Jwt__Audience=POSApp
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      - POSTGRES_DB=pos_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    expose:
+      - 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-data:
