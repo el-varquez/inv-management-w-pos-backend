@@ -34,10 +34,10 @@ public class CreateInventoryCountCommandHandler
         {
             ItemId = item.Id,
             ExpectedQty = item.Stock,
-            ActualQty = item.Stock 
+            ActualQty = null
         }).ToList();
 
-        var reference = $"COUNT-{DateTime.UtcNow:yyyyMMdd-HHmm}";
+        var reference = $"COUNT-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}";
 
         var count = new InventoryCount
         {

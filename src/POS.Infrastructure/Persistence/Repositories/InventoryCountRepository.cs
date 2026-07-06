@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
 namespace POS.Infrastructure.Persistence.Repositories;
@@ -30,5 +31,25 @@ public class InventoryCountRepository : IInventoryCountRepository
     {
         _context.InventoryCounts.Update(count);
         return Task.CompletedTask;
+    }
+
+    public async Task<(IList<InventoryCount> Items, int Total)> GetPagedAsync(
+        InventoryCountStatus? status, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _context.InventoryCounts
+            .Include(ic => ic.Lines)
+            .AsQueryable();
+
+        if (status.HasValue) query = query.Where(ic => ic.Status == status.Value);
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(ic => ic.CreatedAt)
+            .ThenBy(ic => ic.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, total);
     }
 }

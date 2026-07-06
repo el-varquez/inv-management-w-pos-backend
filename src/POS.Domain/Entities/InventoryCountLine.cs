@@ -12,6 +12,6 @@ public class InventoryCountLine : BaseEntity, ITenantScoped
     public Item Item { get; set; } = null!;
 
     public int ExpectedQty { get; set; }
-    public int ActualQty { get; set; }
-    public int Variance => ActualQty - ExpectedQty;
+    public int? ActualQty { get; set; }
+    public int? Variance => ActualQty.HasValue ? ActualQty.Value - ExpectedQty : null;
 }

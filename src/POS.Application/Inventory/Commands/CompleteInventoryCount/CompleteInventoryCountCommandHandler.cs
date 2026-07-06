@@ -45,15 +45,17 @@ public class CompleteInventoryCountCommandHandler
             var line = count.Lines.FirstOrDefault(l => l.ItemId == input.ItemId)
                 ?? throw new DomainException($"Item line not found in this count.");
 
+            line.ActualQty = input.ActualQty;
+
+            if (input.ActualQty is null) continue;
+
             var item = await _itemRepository.GetByIdAsync(input.ItemId, ct)
                 ?? throw new NotFoundException("Item", input.ItemId);
 
-            line.ActualQty = input.ActualQty;
-            var variance = input.ActualQty - line.ExpectedQty;
-
-            if (variance != 0)
+            var movementQty = input.ActualQty.Value - item.Stock;
+            if (movementQty != 0)
             {
-                item.Stock = input.ActualQty;
+                item.Stock = input.ActualQty.Value;
                 item.UpdatedAt = DateTime.UtcNow;
                 await _itemRepository.UpdateAsync(item, ct);
 
@@ -61,9 +63,9 @@ public class CompleteInventoryCountCommandHandler
                 {
                     ItemId = item.Id,
                     Type = StockMovementType.InventoryCount,
-                    Quantity = variance,
-                    Reason = variance < 0 ? AdjustmentReason.Loss : AdjustmentReason.Correction,
-                    Notes = $"Inventory count {count.Reference}. Variance: {variance:+#;-#;0}",
+                    Quantity = movementQty,
+                    Reason = movementQty < 0 ? AdjustmentReason.Loss : AdjustmentReason.Correction,
+                    Notes = $"Inventory count {count.Reference}",
                     CreatedBy = _currentUser.Id
                 });
             }
