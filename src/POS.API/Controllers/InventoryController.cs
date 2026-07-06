@@ -5,7 +5,10 @@ using POS.Application.Inventory.Commands.AddStock;
 using POS.Application.Inventory.Commands.AdjustStock;
 using POS.Application.Inventory.Commands.CompleteInventoryCount;
 using POS.Application.Inventory.Commands.CreateInventoryCount;
+using POS.Application.Inventory.Commands.SaveInventoryCountProgress;
 using POS.Application.Inventory.Commands.SetCompositeItem;
+using POS.Application.Inventory.Queries.GetInventoryCount;
+using POS.Application.Inventory.Queries.GetInventoryCounts;
 using POS.Application.Inventory.Queries.GetInventoryHistory;
 using POS.Application.Inventory.Queries.GetItemComponents;
 using POS.Application.Inventory.Queries.GetInventoryValuation;
@@ -48,6 +51,13 @@ public class InventoryController : ControllerBase
         return Ok(new { id });
     }
 
+    [HttpGet("count")]
+    public async Task<IActionResult> GetCounts(
+        [FromQuery] InventoryCountStatus? status,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetInventoryCountsQuery(status, page, pageSize)));
+
     [HttpPost("count")]
     public async Task<IActionResult> CreateCount([FromBody] CreateInventoryCountCommand command)
     {
@@ -63,6 +73,19 @@ public class InventoryController : ControllerBase
         await _mediator.Send(new CompleteInventoryCountCommand(id, lines));
         return NoContent();
     }
+
+    [HttpPost("count/{id:guid}/progress")]
+    public async Task<IActionResult> SaveCountProgress(
+        Guid id,
+        [FromBody] IList<CountLineInput> lines)
+    {
+        await _mediator.Send(new SaveInventoryCountProgressCommand(id, lines));
+        return NoContent();
+    }
+
+    [HttpGet("count/{id:guid}")]
+    public async Task<IActionResult> GetCount(Guid id)
+        => Ok(await _mediator.Send(new GetInventoryCountQuery(id)));
 
     [HttpGet("items/{id:guid}/components")]
     public async Task<IActionResult> GetComponents(Guid id)
