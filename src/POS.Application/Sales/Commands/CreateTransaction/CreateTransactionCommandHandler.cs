@@ -15,19 +15,22 @@ public class CreateTransactionCommandHandler
     private readonly IReceiptNumberGenerator _receiptGenerator;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
+    private readonly ICompositeItemRepository _compositeItemRepository;
 
     public CreateTransactionCommandHandler(
         IItemRepository itemRepository,
         ITransactionRepository transactionRepository,
         IReceiptNumberGenerator receiptGenerator,
         IUnitOfWork unitOfWork,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser,
+        ICompositeItemRepository compositeItemRepository)
     {
         _itemRepository = itemRepository;
         _transactionRepository = transactionRepository;
         _receiptGenerator = receiptGenerator;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _compositeItemRepository = compositeItemRepository;
     }
 
     public async Task<CreateTransactionResult> Handle(
@@ -35,6 +38,7 @@ public class CreateTransactionCommandHandler
     {
         var transactionItems = new List<TransactionItem>();
         var soldItems = new List<(Guid ItemId, int Quantity)>();
+        var demand = new Dictionary<Guid, int>();
         decimal subtotal = 0;
         decimal totalLineDiscounts = 0;
 
@@ -43,18 +47,32 @@ public class CreateTransactionCommandHandler
             var item = await _itemRepository.GetByIdAsync(cartItem.ItemId, ct)
                 ?? throw new NotFoundException("Item", cartItem.ItemId);
 
-            if (!item.IsComposite && item.Stock < cartItem.Quantity)
-                throw new InsufficientStockException(
-                    item.Name, cartItem.Quantity, item.Stock);
+            decimal costPrice;
+            if (item.IsComposite)
+            {
+                var components = await _compositeItemRepository.GetByParentIdAsync(item.Id, ct);
+                foreach (var component in components)
+                {
+                    var required = (int)Math.Ceiling(component.Quantity * cartItem.Quantity);
+                    demand[component.ComponentItemId] =
+                        demand.GetValueOrDefault(component.ComponentItemId) + required;
+                }
+                costPrice = components.Sum(c => c.Quantity * c.ComponentItem.CostPrice);
+            }
+            else
+            {
+                demand[item.Id] = demand.GetValueOrDefault(item.Id) + cartItem.Quantity;
+                costPrice = item.CostPrice;
+            }
 
             var lineTotal = (item.SellingPrice * cartItem.Quantity) - cartItem.Discount;
 
             transactionItems.Add(new TransactionItem
             {
                 ItemId = item.Id,
-                ItemName = item.Name,              
-                UnitPrice = item.SellingPrice,     
-                CostPrice = item.CostPrice,        
+                ItemName = item.Name,
+                UnitPrice = item.SellingPrice,
+                CostPrice = costPrice,
                 Quantity = cartItem.Quantity,
                 Discount = cartItem.Discount,
                 Total = lineTotal
@@ -63,6 +81,14 @@ public class CreateTransactionCommandHandler
             soldItems.Add((item.Id, cartItem.Quantity));
             subtotal += item.SellingPrice * cartItem.Quantity;
             totalLineDiscounts += cartItem.Discount;
+        }
+
+        foreach (var (itemId, required) in demand)
+        {
+            var stockItem = await _itemRepository.GetByIdAsync(itemId, ct);
+            if (stockItem is null) continue;
+            if (stockItem.Stock < required)
+                throw new InsufficientStockException(stockItem.Name, required, stockItem.Stock);
         }
 
         var totalDiscount = totalLineDiscounts + request.TransactionDiscount;

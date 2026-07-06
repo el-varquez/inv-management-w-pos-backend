@@ -16,7 +16,9 @@ public class GetLowStockItemsQueryHandler
     {
         var items = await _itemRepository.GetLowStockAsync(ct);
 
-        return items.Select(i => new LowStockItemDto(
+        return items
+            .Where(i => !i.IsComposite)
+            .Select(i => new LowStockItemDto(
             i.Id,
             i.Name,
             i.Category.Name,

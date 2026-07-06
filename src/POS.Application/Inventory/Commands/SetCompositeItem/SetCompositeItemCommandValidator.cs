@@ -16,6 +16,10 @@ public class SetCompositeItemCommandValidator : AbstractValidator<SetCompositeIt
 
             component.RuleFor(c => c.Quantity)
                 .GreaterThan(0).WithMessage("Component quantity must be greater than 0.");
+
+            component.RuleFor(c => c.Quantity)
+                .Must(q => q == Math.Floor(q))
+                .WithMessage("Component quantity must be a whole number.");
         });
 
         RuleFor(x => x.Components)
