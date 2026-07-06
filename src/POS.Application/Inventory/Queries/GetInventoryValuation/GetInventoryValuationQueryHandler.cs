@@ -16,7 +16,9 @@ public class GetInventoryValuationQueryHandler
     {
         var items = await _itemRepository.GetAllAsync(ct);
 
-        var valuationItems = items.Select(i => new InventoryValuationItemDto(
+        var valuationItems = items
+            .Where(i => !i.IsComposite)
+            .Select(i => new InventoryValuationItemDto(
             i.Id,
             i.Name,
             i.Category.Name,
