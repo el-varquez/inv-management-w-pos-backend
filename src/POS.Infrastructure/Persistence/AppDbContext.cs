@@ -3,27 +3,21 @@ using Microsoft.EntityFrameworkCore;
 using POS.Domain.Entities;
 using MediatR;
 using POS.Domain.Common;
-using POS.Application.Common.Interfaces;
 
 namespace POS.Infrastructure.Persistence;
 
 public class AppDbContext : DbContext
 {
     private readonly IMediator? _mediator;
-    private readonly ICurrentUser? _currentUser;
 
     public AppDbContext(
         DbContextOptions<AppDbContext> options,
-        ICurrentUser currentUser,
         IMediator? mediator = null)
         : base(options)
     {
-        _currentUser = currentUser;
         _mediator = mediator;
     }
 
-
-    public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Item> Items => Set<Item>();
@@ -33,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<CompositeItem> CompositeItems => Set<CompositeItem>();
     public DbSet<InventoryCount> InventoryCounts => Set<InventoryCount>();
     public DbSet<InventoryCountLine> InventoryCountLines => Set<InventoryCountLine>();
+    public DbSet<StoreSettings> StoreSettings => Set<StoreSettings>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -104,21 +99,10 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(l => l.ItemId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        builder.Entity<Category>().HasQueryFilter(e => e.TenantId == _currentUser!.TenantId);
-        builder.Entity<Item>().HasQueryFilter(e => e.TenantId == _currentUser!.TenantId);
-        builder.Entity<StockMovement>().HasQueryFilter(e => e.TenantId == _currentUser!.TenantId);
-        builder.Entity<Transaction>().HasQueryFilter(e => e.TenantId == _currentUser!.TenantId);
-        builder.Entity<TransactionItem>().HasQueryFilter(e => e.TenantId == _currentUser!.TenantId);
-        builder.Entity<CompositeItem>().HasQueryFilter(e => e.TenantId == _currentUser!.TenantId);
-        builder.Entity<InventoryCount>().HasQueryFilter(e => e.TenantId == _currentUser!.TenantId);
-        builder.Entity<InventoryCountLine>().HasQueryFilter(e => e.TenantId == _currentUser!.TenantId);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
-        StampTenantScopedEntities();
-
         var entitiesWithEvents = ChangeTracker.Entries<BaseEntity>()
             .Select(e => e.Entity)
             .Where(e => e.DomainEvents.Any())
@@ -136,22 +120,9 @@ public class AppDbContext : DbContext
                     await _mediator.Publish(domainEvent, ct);
             }
 
-            StampTenantScopedEntities();
             await base.SaveChangesAsync(ct);
         }
 
         return result;
-    }
-
-    private void StampTenantScopedEntities()
-    {
-        foreach (var entry in ChangeTracker.Entries<ITenantScoped>()
-                     .Where(e => e.State == EntityState.Added))
-        {
-            if (_currentUser?.TenantId is not Guid tenantId)
-                throw new InvalidOperationException(
-                    "Cannot persist a tenant-scoped entity without a tenant context.");
-            entry.Entity.TenantId = tenantId;
-        }
     }
 }

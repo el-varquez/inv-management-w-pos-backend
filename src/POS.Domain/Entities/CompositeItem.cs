@@ -2,9 +2,8 @@ using POS.Domain.Common;
 
 namespace POS.Domain.Entities;
 
-public class CompositeItem : BaseEntity, ITenantScoped
+public class CompositeItem : BaseEntity
 {
-    public Guid TenantId { get; set; }
     public Guid ParentItemId { get; set; }
     public Item ParentItem { get; set; } = null!;
 

@@ -2,9 +2,8 @@ using POS.Domain.Common;
 
 namespace POS.Domain.Entities;
 
-public class InventoryCountLine : BaseEntity, ITenantScoped
+public class InventoryCountLine : BaseEntity
 {
-    public Guid TenantId { get; set; }
     public Guid InventoryCountId { get; set; }
     public InventoryCount InventoryCount { get; set; } = null!;
 

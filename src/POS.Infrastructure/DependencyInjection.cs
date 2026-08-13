@@ -25,8 +25,8 @@ public static class DependencyInjection
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<IInventoryCountRepository, InventoryCountRepository>();
         services.AddScoped<ICompositeItemRepository, CompositeItemRepository>();
-        services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
+        services.AddScoped<IStoreSettingsRepository, StoreSettingsRepository>();
         services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
 
         services.AddScoped<IJwtService, JwtService>();

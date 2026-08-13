@@ -21,7 +21,6 @@ public class CompositeStockTests : IDisposable
     private readonly ItemRepository _items;
     private readonly CompositeItemRepository _composites;
     private readonly UnitOfWork _uow;
-    private readonly Guid _tenantId = Guid.NewGuid();
     private readonly Guid _categoryId = Guid.NewGuid();
 
     public CompositeStockTests()
@@ -32,14 +31,14 @@ public class CompositeStockTests : IDisposable
             .UseSqlite(_connection)
             .Options;
 
-        _ctx = new AppDbContext(options, new FakeCurrentUser { TenantId = _tenantId });
+        _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
 
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
-        _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General", TenantId = _tenantId });
+        _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
         _ctx.SaveChanges();
     }
 
@@ -54,7 +53,6 @@ public class CompositeStockTests : IDisposable
             SellingPrice = 100m,
             LowStockThreshold = lowStockThreshold,
             CategoryId = _categoryId,
-            TenantId = _tenantId,
             IsComposite = isComposite
         };
         await _items.AddAsync(item);
@@ -68,8 +66,7 @@ public class CompositeStockTests : IDisposable
         {
             ParentItemId = parentId,
             ComponentItemId = componentId,
-            Quantity = qty,
-            TenantId = _tenantId
+            Quantity = qty
         });
         await _uow.SaveChangesAsync();
     }

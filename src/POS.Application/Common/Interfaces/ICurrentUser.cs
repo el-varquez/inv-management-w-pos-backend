@@ -4,5 +4,4 @@ public interface ICurrentUser
 {
     Guid Id { get; }
     string Role { get; }
-    Guid? TenantId { get; }
 }
