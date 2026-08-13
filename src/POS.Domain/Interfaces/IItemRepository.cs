@@ -5,6 +5,8 @@ namespace POS.Domain.Interfaces;
 public interface IItemRepository
 {
     Task<Item?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<Item?> GetByBarcodeAsync(string barcode, CancellationToken ct = default);
+    Task<IList<Item>> SearchAsync(string term, int limit, CancellationToken ct = default);
     Task<IList<Item>> GetAllAsync(CancellationToken ct = default);
     Task<(IList<Item> Items, int Total)> GetPagedAsync(int page, int pageSize, bool? isComposite = null, CancellationToken ct = default);
     Task<IList<Item>> GetLowStockAsync(CancellationToken ct = default);

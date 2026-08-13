@@ -24,14 +24,26 @@ public class CreateItemCommandHandler : IRequestHandler<CreateItemCommand, Guid>
 
     public async Task<Guid> Handle(CreateItemCommand request, CancellationToken ct)
     {
-        var category = await _categoryRepository.GetByIdAsync(request.CategoryId, ct) 
+        var category = await _categoryRepository.GetByIdAsync(request.CategoryId, ct)
             ?? throw new NotFoundException(nameof(Category), request.CategoryId);
+
+        var barcode = string.IsNullOrWhiteSpace(request.Barcode)
+            ? null
+            : request.Barcode.Trim();
+        if (barcode is not null)
+        {
+            var existing = await _itemRepository.GetByBarcodeAsync(barcode, ct);
+            if (existing is not null)
+                throw new DomainException(
+                    $"Barcode {barcode} is already used by \"{existing.Name}\".");
+        }
 
         var item = new Item
         {
             Name = request.Name,
             Description = request.Description,
             Sku = request.Sku,
+            Barcode = barcode,
             CostPrice = request.CostPrice,
             SellingPrice = request.SellingPrice,
             LowStockThreshold = request.LowStockThreshold,

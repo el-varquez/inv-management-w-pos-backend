@@ -15,6 +15,26 @@ public class ItemRepository : IItemRepository
             .Include(i => i.Category)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
 
+    public async Task<Item?> GetByBarcodeAsync(string barcode, CancellationToken ct = default)
+        => await _context.Items.FirstOrDefaultAsync(i => i.Barcode == barcode, ct);
+
+    public async Task<IList<Item>> SearchAsync(string term, int limit, CancellationToken ct = default)
+    {
+        var lowered = term.ToLower();
+        return await _context.Items
+            .Include(i => i.Category)
+            .Where(i =>
+                i.Barcode == term ||
+                (i.Sku != null && i.Sku.ToLower() == lowered) ||
+                i.Name.ToLower().Contains(lowered) ||
+                (i.Sku != null && i.Sku.ToLower().Contains(lowered)))
+            .OrderByDescending(i => i.Barcode == term)
+            .ThenByDescending(i => i.Sku != null && i.Sku.ToLower() == lowered)
+            .ThenBy(i => i.Name)
+            .Take(limit)
+            .ToListAsync(ct);
+    }
+
     public async Task<IList<Item>> GetAllAsync(CancellationToken ct = default)
         => await _context.Items
             .Include(i => i.Category)
