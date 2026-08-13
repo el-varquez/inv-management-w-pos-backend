@@ -22,7 +22,6 @@ public class InventoryCountResumeTests : IDisposable
     private readonly InventoryCountRepository _counts;
     private readonly StockMovementRepository _movements;
     private readonly UnitOfWork _uow;
-    private readonly Guid _tenantId = Guid.NewGuid();
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _categoryId = Guid.NewGuid();
 
@@ -31,8 +30,7 @@ public class InventoryCountResumeTests : IDisposable
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
         var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options;
-        _ctx = new AppDbContext(options,
-            new FakeCurrentUser { Id = _userId, Role = "Admin", TenantId = _tenantId });
+        _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
 
         _items = new ItemRepository(_ctx);
@@ -40,19 +38,19 @@ public class InventoryCountResumeTests : IDisposable
         _movements = new StockMovementRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
-        _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General", TenantId = _tenantId });
+        _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
         _ctx.SaveChanges();
     }
 
     private FakeCurrentUser User() =>
-        new() { Id = _userId, Role = "Admin", TenantId = _tenantId };
+        new() { Id = _userId, Role = "Admin" };
 
     private async Task<Item> SeedItemAsync(string name, int stock)
     {
         var item = new Item
         {
             Name = name, CostPrice = 1m, SellingPrice = 10m, Stock = stock,
-            CategoryId = _categoryId, TenantId = _tenantId
+            CategoryId = _categoryId
         };
         await _items.AddAsync(item);
         await _uow.SaveChangesAsync();

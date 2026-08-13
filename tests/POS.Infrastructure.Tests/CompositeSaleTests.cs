@@ -20,7 +20,6 @@ public class CompositeSaleTests : IDisposable
     private readonly CompositeItemRepository _composites;
     private readonly TransactionRepository _transactions;
     private readonly UnitOfWork _uow;
-    private readonly Guid _tenantId = Guid.NewGuid();
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _categoryId = Guid.NewGuid();
 
@@ -32,8 +31,7 @@ public class CompositeSaleTests : IDisposable
             .UseSqlite(_connection)
             .Options;
 
-        _ctx = new AppDbContext(options,
-            new FakeCurrentUser { Id = _userId, Role = "Cashier", TenantId = _tenantId });
+        _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
 
         _items = new ItemRepository(_ctx);
@@ -41,7 +39,7 @@ public class CompositeSaleTests : IDisposable
         _transactions = new TransactionRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
-        _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General", TenantId = _tenantId });
+        _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
         _ctx.SaveChanges();
     }
 
@@ -55,7 +53,6 @@ public class CompositeSaleTests : IDisposable
             SellingPrice = price,
             Stock = stock,
             CategoryId = _categoryId,
-            TenantId = _tenantId,
             IsComposite = isComposite
         };
         await _items.AddAsync(item);
@@ -69,15 +66,14 @@ public class CompositeSaleTests : IDisposable
         {
             ParentItemId = parentId,
             ComponentItemId = componentId,
-            Quantity = qty,
-            TenantId = _tenantId
+            Quantity = qty
         });
         await _uow.SaveChangesAsync();
     }
 
     private CreateTransactionCommandHandler Handler() =>
         new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow,
-            new FakeCurrentUser { Id = _userId, Role = "Cashier", TenantId = _tenantId },
+            new FakeCurrentUser { Id = _userId, Role = "Cashier" },
             _composites);
 
     private static CreateTransactionCommand Sale(params (Guid id, int qty)[] lines) =>

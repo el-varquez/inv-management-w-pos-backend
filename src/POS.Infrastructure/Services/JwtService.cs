@@ -26,9 +26,6 @@ public class JwtService : IJwtService
             new Claim(ClaimTypes.Role, user.Role)
         };
 
-        if (user.TenantId is Guid tenantId)
-            claims.Add(new Claim("tenant_id", tenantId.ToString()));
-
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],

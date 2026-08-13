@@ -14,6 +14,5 @@ public record CashierDto(
 
 public record CashierListDto(
     IReadOnlyList<CashierDto> Cashiers,
-    int ActiveCount,
-    int CashierCap
+    int ActiveCount
 );

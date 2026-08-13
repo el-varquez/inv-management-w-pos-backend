@@ -44,3 +44,6 @@ local.properties
 Thumbs.db
 .DS_Store
 CLAUDE.md
+
+# Docs never get committed — working specs/plans/handoffs live in the workspace output/ folder
+docs/

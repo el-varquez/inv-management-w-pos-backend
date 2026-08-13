@@ -9,7 +9,6 @@ using POS.Application;
 using POS.Application.Common.Interfaces;
 using POS.Infrastructure;
 using POS.Infrastructure.Persistence;
-using POS.API.Cli;
 using POS.API.Middleware;
 using POS.API.Services;
 using System.Text.Json.Serialization;
@@ -71,17 +70,6 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
-    options.AddPolicy("register", httpContext =>
-        RateLimitPartition.GetSlidingWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new SlidingWindowRateLimiterOptions
-            {
-                PermitLimit = 3,
-                Window = TimeSpan.FromHours(1),
-                SegmentsPerWindow = 6,
-                QueueLimit = 0
-            }));
-
     options.OnRejected = async (context, token) =>
     {
         var ip = context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -93,7 +81,7 @@ builder.Services.AddRateLimiter(options =>
 
         var retryAfterSeconds = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
             ? (int)retryAfter.TotalSeconds
-            : context.HttpContext.Request.Path.StartsWithSegments("/api/auth/register") ? 600 : 60;
+            : 60;
         context.HttpContext.Response.Headers.RetryAfter = retryAfterSeconds.ToString();
 
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -111,9 +99,6 @@ builder.Services.AddHsts(options =>
 });
 
 var app = builder.Build();
-
-if (args.Length > 0 && args[0] == CreateSuperAdminCommand.Name)
-    return await CreateSuperAdminCommand.RunAsync(app.Services);
 
 using (var scope = app.Services.CreateScope())
 {
@@ -150,5 +135,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-return 0;
