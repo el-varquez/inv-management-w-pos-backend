@@ -29,6 +29,9 @@ public class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordComman
         var user = await _userRepository.GetByIdAsync(_currentUser.Id, ct)
             ?? throw new NotFoundException("User", _currentUser.Id);
 
+        if (string.IsNullOrEmpty(user.PasswordHash))
+            throw new DomainException("No password is set for this account.");
+
         if (!_passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
             throw new DomainException("Current password is incorrect.");
 

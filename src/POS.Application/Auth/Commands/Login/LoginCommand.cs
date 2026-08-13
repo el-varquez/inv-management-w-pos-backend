@@ -1,4 +1,5 @@
 using MediatR;
+using POS.Domain.Entities;
 
 namespace POS.Application.Auth.Commands.Login;
 
@@ -7,9 +8,4 @@ public record LoginCommand(
     string Password
 ) : IRequest<LoginResult>;
 
-public record LoginResult(
-    string Token,
-    string Name,
-    string Email,
-    string Role
-);
+public record LoginResult(User? User, bool PasswordSetupRequired);

@@ -8,43 +8,32 @@ namespace POS.Application.Auth.Commands.Login;
 public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
 {
     private readonly IUserRepository _userRepository;
-    private readonly IJwtService _jwtService;
-    private readonly IPasswordHasher _passwordHAsher;
-    private readonly ITenantRepository _tenantRepository;
+    private readonly IPasswordHasher _passwordHasher;
 
-    public LoginCommandHandler(
-        IUserRepository userRepository,
-        IJwtService jwtService,
-        IPasswordHasher passwordHasher,
-        ITenantRepository tenantRepository
-    )
+    public LoginCommandHandler(IUserRepository userRepository, IPasswordHasher passwordHasher)
     {
         _userRepository = userRepository;
-        _jwtService = jwtService;
-        _passwordHAsher = passwordHasher;
-        _tenantRepository = tenantRepository;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task<LoginResult> Handle(LoginCommand request, CancellationToken ct)
     {
-        var user = await _userRepository.GetByEmailAsync(request.Email, ct)
+        var user = await _userRepository.GetByEmailAsync(request.Email.Trim().ToLower(), ct)
             ?? throw new DomainException("Invalid email or password.");
 
-        if (!_passwordHAsher.Verify(request.Password, user.PasswordHash))
+        if (string.IsNullOrEmpty(user.PasswordHash))
+        {
+            if (!user.IsActive)
+                throw new DomainException("Account is inactive.");
+            return new LoginResult(null, PasswordSetupRequired: true);
+        }
+
+        if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
             throw new DomainException("Invalid email or password.");
 
         if (!user.IsActive)
             throw new DomainException("Account is inactive.");
 
-        if (user.TenantId is Guid tenantId)
-        {
-            var tenant = await _tenantRepository.GetByIdAsync(tenantId, ct);
-            if (tenant is not null && !tenant.IsActive)
-                throw new DomainException("This business account is suspended.");
-        }
-
-        var token = _jwtService.GenerateToken(user);
-
-        return new LoginResult(token, user.Name, user.Email, user.Role);
+        return new LoginResult(user, PasswordSetupRequired: false);
     }
 }

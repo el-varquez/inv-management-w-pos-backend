@@ -2,7 +2,8 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using POS.Application.Auth.Commands.Login;
-using POS.Application.Auth.Commands.Register;
+using POS.Application.Auth.Commands.SetupPassword;
+using POS.Application.Common.Interfaces;
 
 namespace POS.API.Controller;
 
@@ -11,21 +12,38 @@ namespace POS.API.Controller;
 public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
-    public AuthController(IMediator mediator) => _mediator = mediator;
+    private readonly IJwtService _jwtService;
+
+    public AuthController(IMediator mediator, IJwtService jwtService)
+    {
+        _mediator = mediator;
+        _jwtService = jwtService;
+    }
 
     [HttpPost("login")]
     [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginCommand command)
-    {
-        var result = await _mediator.Send(command);
-        return Ok(result);
-    }
+        => Ok(ToResponse(await _mediator.Send(command)));
 
-    [HttpPost("register")]
-    [EnableRateLimiting("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterCommand command)
+    [HttpPost("setup-password")]
+    [EnableRateLimiting("login")]
+    public async Task<IActionResult> SetupPassword([FromBody] SetupPasswordCommand command)
+        => Ok(ToResponse(await _mediator.Send(command)));
+
+    private LoginResponse ToResponse(LoginResult result)
     {
-        var result = await _mediator.Send(command);
-        return Ok(result);
+        if (result.PasswordSetupRequired)
+            return new LoginResponse(null, null, null, null, true);
+
+        var user = result.User!;
+        return new LoginResponse(
+            _jwtService.GenerateToken(user), user.Name, user.Email, user.Role, false);
     }
 }
+
+public record LoginResponse(
+    string? Token,
+    string? Name,
+    string? Email,
+    string? Role,
+    bool PasswordSetupRequired);
