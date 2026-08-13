@@ -1,9 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using POS.Application.Profile.Queries.GetProfile;
 using POS.Application.Profile.Commands.ChangePassword;
 using POS.Application.Profile.Commands.UpdateProfile;
-using POS.Application.Platform.Commands.CreateTenant;
+using POS.Application.Profile.Queries.GetProfile;
 using POS.Domain.Entities;
 using POS.Domain.Exceptions;
 using POS.Infrastructure.Persistence;
@@ -19,7 +18,6 @@ public class ProfileModuleTests : IDisposable
     private readonly SqliteConnection _connection;
     private readonly AppDbContext _ctx;
     private readonly UserRepository _users;
-    private readonly TenantRepository _tenants;
     private readonly UnitOfWork _uow;
     private readonly PasswordHasher _hasher = new();
 
@@ -31,56 +29,41 @@ public class ProfileModuleTests : IDisposable
             .UseSqlite(_connection)
             .Options;
 
-        _ctx = new AppDbContext(options, new FakeCurrentUser { TenantId = null });
+        _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
 
         _users = new UserRepository(_ctx);
-        _tenants = new TenantRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
     }
 
-    private async Task<Guid> SeedTenantAsync(string email = "owner@store.ph", int cap = 5)
-        => await new CreateTenantCommandHandler(_tenants, _users, _uow, _hasher).Handle(
-            new CreateTenantCommand("Store", "Owner", email, "password123", cap),
-            CancellationToken.None);
-
-    private async Task<User> AdminOf(Guid tenantId)
-        => await _ctx.Users.SingleAsync(u => u.TenantId == tenantId && u.Role == "Admin");
-
-    private async Task AddCashierAsync(Guid tenantId, string email, bool active = true)
+    private async Task<User> SeedAdminAsync(string email = "owner@store.ph")
     {
-        await _users.AddAsync(new User
+        var admin = new User
         {
-            Name = "Cashier",
+            Name = "Owner",
             Email = email,
             PasswordHash = _hasher.Hash("password123"),
-            Role = "Cashier",
-            IsActive = active,
-            TenantId = tenantId
-        });
+            Role = "Admin",
+            IsActive = true
+        };
+        await _users.AddAsync(admin);
         await _uow.SaveChangesAsync();
+        return admin;
     }
 
     [Fact]
-    public async Task GetProfile_returns_account_and_business_with_active_cashier_count()
+    public async Task GetProfile_returns_account()
     {
-        var tenantId = await SeedTenantAsync(cap: 5);
-        var admin = await AdminOf(tenantId);
-        await AddCashierAsync(tenantId, "a@store.ph", active: true);
-        await AddCashierAsync(tenantId, "b@store.ph", active: false);
+        var admin = await SeedAdminAsync();
 
         var handler = new GetProfileQueryHandler(
-            new FakeCurrentUser { Id = admin.Id, Role = "Admin", TenantId = tenantId },
-            _users, _tenants);
+            new FakeCurrentUser { Id = admin.Id, Role = "Admin" }, _users);
 
         var result = await handler.Handle(new GetProfileQuery(), CancellationToken.None);
 
-        Assert.Equal(admin.Id, result.Account.Id);
-        Assert.Equal("owner@store.ph", result.Account.Email);
-        Assert.Equal("Admin", result.Account.Role);
-        Assert.Equal("Store", result.Business.Name);
-        Assert.Equal(5, result.Business.CashierCap);
-        Assert.Equal(1, result.Business.ActiveCashiers);
+        Assert.Equal(admin.Id, result.Id);
+        Assert.Equal("owner@store.ph", result.Email);
+        Assert.Equal("Admin", result.Role);
     }
 
     private ChangePasswordCommandHandler ChangePasswordHandler(Guid userId) =>
@@ -89,8 +72,7 @@ public class ProfileModuleTests : IDisposable
     [Fact]
     public async Task ChangePassword_with_wrong_current_is_rejected_and_hash_unchanged()
     {
-        var tenantId = await SeedTenantAsync();
-        var admin = await AdminOf(tenantId);
+        var admin = await SeedAdminAsync();
         var originalHash = admin.PasswordHash;
 
         await Assert.ThrowsAsync<DomainException>(() =>
@@ -105,22 +87,20 @@ public class ProfileModuleTests : IDisposable
     [Fact]
     public async Task ChangePassword_with_correct_current_rehashes()
     {
-        var tenantId = await SeedTenantAsync();
-        var admin = await AdminOf(tenantId);
+        var admin = await SeedAdminAsync();
 
         await ChangePasswordHandler(admin.Id).Handle(
             new ChangePasswordCommand("password123", "newpassword123"),
             CancellationToken.None);
 
         var updated = await _ctx.Users.SingleAsync(u => u.Id == admin.Id);
-        Assert.True(_hasher.Verify("newpassword123", updated.PasswordHash));
+        Assert.True(_hasher.Verify("newpassword123", updated.PasswordHash!));
     }
 
     [Fact]
     public async Task ChangePassword_rejects_reusing_current_password()
     {
-        var tenantId = await SeedTenantAsync();
-        var admin = await AdminOf(tenantId);
+        var admin = await SeedAdminAsync();
 
         await Assert.ThrowsAsync<DomainException>(() =>
             ChangePasswordHandler(admin.Id).Handle(
@@ -142,8 +122,7 @@ public class ProfileModuleTests : IDisposable
     [Fact]
     public async Task UpdateProfile_changes_name()
     {
-        var tenantId = await SeedTenantAsync();
-        var admin = await AdminOf(tenantId);
+        var admin = await SeedAdminAsync();
 
         await UpdateProfileHandler(admin.Id).Handle(
             new UpdateProfileCommand("Renamed Owner"),

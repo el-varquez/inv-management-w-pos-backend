@@ -1,0 +1,13 @@
+using FluentValidation;
+
+namespace POS.Application.Settings.Commands.UpdateStoreSettings;
+
+public class UpdateStoreSettingsCommandValidator : AbstractValidator<UpdateStoreSettingsCommand>
+{
+    public UpdateStoreSettingsCommandValidator()
+    {
+        RuleFor(x => x.StoreName).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Address).MaximumLength(500);
+        RuleFor(x => x.ReceiptFooter).MaximumLength(500);
+    }
+}
