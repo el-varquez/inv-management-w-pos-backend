@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using POS.Application.Inventory.Commands.AddStock;
+using POS.Application.Inventory.Commands.ReceiveStock;
 using POS.Application.Inventory.Commands.AdjustStock;
 using POS.Application.Inventory.Commands.CompleteInventoryCount;
 using POS.Application.Inventory.Commands.CreateInventoryCount;
@@ -37,11 +37,11 @@ public class InventoryController : ControllerBase
     public async Task<IActionResult> GetLowStock()
         => Ok(await _mediator.Send(new GetLowStockItemsQuery()));
 
-    [HttpPost("add-stock")]
-    public async Task<IActionResult> AddStock([FromBody] AddStockCommand command)
+    [HttpPost("receive-stock")]
+    public async Task<IActionResult> ReceiveStock([FromBody] ReceiveStockCommand command)
     {
-        var id = await _mediator.Send(command);
-        return Ok(new { id });
+        var count = await _mediator.Send(command);
+        return Ok(new { count });
     }
 
     [HttpPost("adjust-stock")]

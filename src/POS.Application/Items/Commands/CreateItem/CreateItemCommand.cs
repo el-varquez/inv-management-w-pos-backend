@@ -6,6 +6,7 @@ public record CreateItemCommand(
     string Name,
     string? Description,
     string? Sku,
+    string? Barcode,
     decimal CostPrice,
     decimal SellingPrice,
     int LowStockThreshold,

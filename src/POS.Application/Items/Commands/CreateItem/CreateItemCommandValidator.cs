@@ -10,6 +10,9 @@ public class CreateItemCommandValidator : AbstractValidator<CreateItemCommand>
             .NotEmpty().WithMessage("Item name is required.")
             .MaximumLength(100);
 
+        RuleFor(x => x.Barcode)
+            .MaximumLength(64).WithMessage("Barcode must be 64 characters or fewer.");
+
         RuleFor(x => x.CostPrice)
             .GreaterThanOrEqualTo(0).WithMessage("Cost price must be 0 or greater.");
 

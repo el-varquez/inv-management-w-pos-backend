@@ -32,6 +32,7 @@ public class GetSellableItemsQueryHandler : IRequestHandler<GetSellableItemsQuer
                 i.Name,
                 i.Description,
                 i.Sku,
+                i.Barcode,
                 i.CostPrice,
                 i.SellingPrice,
                 stock,

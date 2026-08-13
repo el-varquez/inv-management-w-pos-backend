@@ -34,6 +34,7 @@ public class GetItemsQueryHandler : IRequestHandler<GetItemsQuery, PagedResult<I
                 i.Name,
                 i.Description,
                 i.Sku,
+                i.Barcode,
                 i.CostPrice,
                 i.SellingPrice,
                 stock,
