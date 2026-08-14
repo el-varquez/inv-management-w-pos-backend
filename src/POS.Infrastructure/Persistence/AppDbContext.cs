@@ -33,7 +33,9 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(builder);
 
-        builder.Entity<User>().HasIndex(u => u.Email).IsUnique();
+        builder.Entity<User>().Property(u => u.Username).HasMaxLength(64);
+        builder.Entity<User>().HasIndex(u => u.Username).IsUnique();
+        builder.Entity<User>().Property(u => u.Email).HasMaxLength(256);
 
         builder.Entity<Item>().Property(i => i.CostPrice).HasPrecision(18, 2);
         builder.Entity<Item>().Property(i => i.SellingPrice).HasPrecision(18, 2);

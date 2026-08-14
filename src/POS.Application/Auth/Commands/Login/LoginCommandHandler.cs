@@ -18,8 +18,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
 
     public async Task<LoginResult> Handle(LoginCommand request, CancellationToken ct)
     {
-        var user = await _userRepository.GetByEmailAsync(request.Email.Trim().ToLower(), ct)
-            ?? throw new DomainException("Invalid email or password.");
+        var user = await _userRepository.GetByUsernameAsync(request.Username.Trim().ToLower(), ct)
+            ?? throw new DomainException("Invalid username or password.");
 
         if (string.IsNullOrEmpty(user.PasswordHash))
         {
@@ -29,7 +29,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
         }
 
         if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
-            throw new DomainException("Invalid email or password.");
+            throw new DomainException("Invalid username or password.");
 
         if (!user.IsActive)
             throw new DomainException("Account is inactive.");

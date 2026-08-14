@@ -40,12 +40,12 @@ public class LoginGateTests : IDisposable
     }
 
     private async Task<User> SeedUserAsync(
-        string email, string? password = "password123", string role = "Admin", bool isActive = true)
+        string username, string? password = "password123", string role = "Admin", bool isActive = true)
     {
         var user = new User
         {
             Name = "User",
-            Email = email,
+            Username = username,
             PasswordHash = password is null ? null : _hasher.Hash(password),
             Role = role,
             IsActive = isActive
@@ -58,41 +58,41 @@ public class LoginGateTests : IDisposable
     [Fact]
     public async Task Login_returns_user_for_valid_credentials()
     {
-        await SeedUserAsync("admin@store.ph");
+        await SeedUserAsync("admin");
 
         var result = await _login.Handle(
-            new LoginCommand("admin@store.ph", "password123"), CancellationToken.None);
+            new LoginCommand("admin", "password123"), CancellationToken.None);
 
         Assert.False(result.PasswordSetupRequired);
         Assert.NotNull(result.User);
-        Assert.Equal("admin@store.ph", result.User!.Email);
+        Assert.Equal("admin", result.User!.Username);
     }
 
     [Fact]
     public async Task Login_rejects_wrong_password()
     {
-        await SeedUserAsync("admin@store.ph");
+        await SeedUserAsync("admin");
 
         await Assert.ThrowsAsync<DomainException>(() =>
-            _login.Handle(new LoginCommand("admin@store.ph", "wrong"), CancellationToken.None));
+            _login.Handle(new LoginCommand("admin", "wrong"), CancellationToken.None));
     }
 
     [Fact]
     public async Task Login_rejects_inactive_account()
     {
-        await SeedUserAsync("gone@store.ph", isActive: false);
+        await SeedUserAsync("gone", isActive: false);
 
         await Assert.ThrowsAsync<DomainException>(() =>
-            _login.Handle(new LoginCommand("gone@store.ph", "password123"), CancellationToken.None));
+            _login.Handle(new LoginCommand("gone", "password123"), CancellationToken.None));
     }
 
     [Fact]
     public async Task Login_signals_password_setup_when_no_password_set()
     {
-        await SeedUserAsync("new@store.ph", password: null);
+        await SeedUserAsync("newbie", password: null);
 
         var result = await _login.Handle(
-            new LoginCommand("new@store.ph", "anything"), CancellationToken.None);
+            new LoginCommand("newbie", "anything"), CancellationToken.None);
 
         Assert.True(result.PasswordSetupRequired);
         Assert.Null(result.User);
@@ -101,10 +101,10 @@ public class LoginGateTests : IDisposable
     [Fact]
     public async Task SetupPassword_sets_hash_and_signs_in()
     {
-        var seeded = await SeedUserAsync("new@store.ph", password: null);
+        var seeded = await SeedUserAsync("newbie", password: null);
 
         var result = await _setup.Handle(
-            new SetupPasswordCommand("new@store.ph", "newpassword123"), CancellationToken.None);
+            new SetupPasswordCommand("newbie", "newpassword123"), CancellationToken.None);
 
         Assert.False(result.PasswordSetupRequired);
         Assert.Equal(seeded.Id, result.User!.Id);
@@ -116,17 +116,17 @@ public class LoginGateTests : IDisposable
     [Fact]
     public async Task SetupPassword_rejected_when_password_already_set()
     {
-        await SeedUserAsync("admin@store.ph");
+        await SeedUserAsync("admin");
 
         await Assert.ThrowsAsync<DomainException>(() =>
-            _setup.Handle(new SetupPasswordCommand("admin@store.ph", "newpassword123"), CancellationToken.None));
+            _setup.Handle(new SetupPasswordCommand("admin", "newpassword123"), CancellationToken.None));
     }
 
     [Fact]
     public void SetupPassword_validator_rejects_short_password()
     {
         var result = new SetupPasswordCommandValidator()
-            .Validate(new SetupPasswordCommand("new@store.ph", "short"));
+            .Validate(new SetupPasswordCommand("newbie", "short"));
         Assert.False(result.IsValid);
     }
 

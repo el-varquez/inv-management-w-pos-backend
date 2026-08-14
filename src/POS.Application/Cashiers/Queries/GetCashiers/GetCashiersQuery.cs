@@ -7,7 +7,8 @@ public record GetCashiersQuery : IRequest<CashierListDto>;
 public record CashierDto(
     Guid Id,
     string Name,
-    string Email,
+    string Username,
+    string? Email,
     bool IsActive,
     DateTime CreatedAt
 );

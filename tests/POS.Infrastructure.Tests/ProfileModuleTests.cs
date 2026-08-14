@@ -36,12 +36,12 @@ public class ProfileModuleTests : IDisposable
         _uow = new UnitOfWork(_ctx);
     }
 
-    private async Task<User> SeedAdminAsync(string email = "owner@store.ph")
+    private async Task<User> SeedAdminAsync(string username = "owner")
     {
         var admin = new User
         {
             Name = "Owner",
-            Email = email,
+            Username = username,
             PasswordHash = _hasher.Hash("password123"),
             Role = "Admin",
             IsActive = true
@@ -62,7 +62,7 @@ public class ProfileModuleTests : IDisposable
         var result = await handler.Handle(new GetProfileQuery(), CancellationToken.None);
 
         Assert.Equal(admin.Id, result.Id);
-        Assert.Equal("owner@store.ph", result.Email);
+        Assert.Equal("owner", result.Username);
         Assert.Equal("Admin", result.Role);
     }
 

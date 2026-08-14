@@ -17,7 +17,7 @@ public class GetCashiersQueryHandler : IRequestHandler<GetCashiersQuery, Cashier
         var cashiers = await _userRepository.GetCashiersAsync(ct);
 
         var dtos = cashiers
-            .Select(c => new CashierDto(c.Id, c.Name, c.Email, c.IsActive, c.CreatedAt))
+            .Select(c => new CashierDto(c.Id, c.Name, c.Username, c.Email, c.IsActive, c.CreatedAt))
             .ToList();
 
         var activeCount = dtos.Count(c => c.IsActive);
