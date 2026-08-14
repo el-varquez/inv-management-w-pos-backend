@@ -4,7 +4,7 @@ using POS.Domain.Entities;
 namespace POS.Application.Auth.Commands.Login;
 
 public record LoginCommand(
-    string Email,
+    string Username,
     string Password
 ) : IRequest<LoginResult>;
 

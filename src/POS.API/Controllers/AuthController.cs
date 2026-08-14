@@ -37,13 +37,13 @@ public class AuthController : ControllerBase
 
         var user = result.User!;
         return new LoginResponse(
-            _jwtService.GenerateToken(user), user.Name, user.Email, user.Role, false);
+            _jwtService.GenerateToken(user), user.Name, user.Username, user.Role, false);
     }
 }
 
 public record LoginResponse(
     string? Token,
     string? Name,
-    string? Email,
+    string? Username,
     string? Role,
     bool PasswordSetupRequired);

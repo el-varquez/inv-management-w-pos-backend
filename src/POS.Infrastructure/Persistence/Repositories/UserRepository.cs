@@ -10,8 +10,8 @@ public class UserRepository : IUserRepository
 
     public UserRepository(AppDbContext context) => _context = context;
 
-    public async Task<User?> GetByEmailAsync(string email, CancellationToken ct = default)
-        => await _context.Users.FirstOrDefaultAsync(u => u.Email == email.ToLower(), ct);
+    public async Task<User?> GetByUsernameAsync(string username, CancellationToken ct = default)
+        => await _context.Users.FirstOrDefaultAsync(u => u.Username == username.ToLower(), ct);
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => await _context.Users.FindAsync(new object[] { id }, ct);

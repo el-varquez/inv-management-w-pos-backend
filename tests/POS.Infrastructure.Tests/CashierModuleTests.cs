@@ -42,30 +42,30 @@ public class CashierModuleTests : IDisposable
     public async Task Create_stamps_role_and_active()
     {
         var id = await CreateHandler().Handle(
-            new CreateCashierCommand("Cashier One", "one@store.ph", "password123"),
+            new CreateCashierCommand("Cashier One", "one", "password123"),
             CancellationToken.None);
 
         var cashier = await _ctx.Users.SingleAsync(u => u.Id == id);
         Assert.Equal("Cashier", cashier.Role);
         Assert.True(cashier.IsActive);
-        Assert.Equal("one@store.ph", cashier.Email);
+        Assert.Equal("one", cashier.Username);
     }
 
     [Fact]
-    public async Task Create_rejects_duplicate_email()
+    public async Task Create_rejects_duplicate_username()
     {
         await CreateHandler().Handle(
-            new CreateCashierCommand("A", "dup@store.ph", "password123"), CancellationToken.None);
+            new CreateCashierCommand("A", "dup", "password123"), CancellationToken.None);
 
         await Assert.ThrowsAsync<DomainException>(() =>
-            CreateHandler().Handle(new CreateCashierCommand("B", "DUP@store.ph", "password123"), CancellationToken.None));
+            CreateHandler().Handle(new CreateCashierCommand("B", "DUP", "password123"), CancellationToken.None));
     }
 
     [Fact]
     public async Task Reset_password_changes_hash()
     {
         var id = await CreateHandler().Handle(
-            new CreateCashierCommand("A", "a@store.ph", "password123"), CancellationToken.None);
+            new CreateCashierCommand("A", "cashier.a", "password123"), CancellationToken.None);
 
         var reset = new ResetCashierPasswordCommandHandler(_users, _uow, _hasher);
         await reset.Handle(new ResetCashierPasswordCommand(id, "newpassword123"), CancellationToken.None);
@@ -80,9 +80,9 @@ public class CashierModuleTests : IDisposable
         var createHandler = CreateHandler();
 
         var id = await createHandler.Handle(
-            new CreateCashierCommand("A", "a@store.ph", "password123"), CancellationToken.None);
+            new CreateCashierCommand("A", "cashier.a", "password123"), CancellationToken.None);
         await createHandler.Handle(
-            new CreateCashierCommand("B", "b@store.ph", "password123"), CancellationToken.None);
+            new CreateCashierCommand("B", "cashier.b", "password123"), CancellationToken.None);
 
         var deactivate = new DeactivateCashierCommandHandler(_users, _uow);
         await deactivate.Handle(new DeactivateCashierCommand(id), CancellationToken.None);

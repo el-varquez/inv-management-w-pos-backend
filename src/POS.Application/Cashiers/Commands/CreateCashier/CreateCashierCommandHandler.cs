@@ -24,15 +24,18 @@ public class CreateCashierCommandHandler : IRequestHandler<CreateCashierCommand,
 
     public async Task<Guid> Handle(CreateCashierCommand request, CancellationToken ct)
     {
-        var email = request.Email.Trim().ToLower();
+        var username = request.Username.Trim().ToLower();
 
-        if (await _userRepository.GetByEmailAsync(email, ct) is not null)
-            throw new DomainException("An account with this email already exists.");
+        if (await _userRepository.GetByUsernameAsync(username, ct) is not null)
+            throw new DomainException("An account with this username already exists.");
+
+        var email = request.Email?.Trim();
 
         var cashier = new User
         {
             Name = request.Name.Trim(),
-            Email = email,
+            Username = username,
+            Email = string.IsNullOrWhiteSpace(email) ? null : email.ToLower(),
             PasswordHash = _passwordHasher.Hash(request.Password),
             Role = "Cashier",
             IsActive = true

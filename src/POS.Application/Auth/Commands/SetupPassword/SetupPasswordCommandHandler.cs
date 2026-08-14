@@ -24,8 +24,8 @@ public class SetupPasswordCommandHandler : IRequestHandler<SetupPasswordCommand,
 
     public async Task<LoginResult> Handle(SetupPasswordCommand request, CancellationToken ct)
     {
-        var user = await _userRepository.GetByEmailAsync(request.Email.Trim().ToLower(), ct)
-            ?? throw new DomainException("Invalid email or password.");
+        var user = await _userRepository.GetByUsernameAsync(request.Username.Trim().ToLower(), ct)
+            ?? throw new DomainException("Invalid username or password.");
 
         if (!user.IsActive)
             throw new DomainException("Account is inactive.");

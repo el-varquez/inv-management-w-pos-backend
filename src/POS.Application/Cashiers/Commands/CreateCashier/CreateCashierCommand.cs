@@ -4,6 +4,7 @@ namespace POS.Application.Cashiers.Commands.CreateCashier;
 
 public record CreateCashierCommand(
     string Name,
-    string Email,
-    string Password
+    string Username,
+    string Password,
+    string? Email = null
 ) : IRequest<Guid>;

@@ -21,6 +21,6 @@ public class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, ProfileAc
         var user = await _userRepository.GetByIdAsync(_currentUser.Id, ct)
             ?? throw new NotFoundException("User", _currentUser.Id);
 
-        return new ProfileAccountDto(user.Id, user.Name, user.Email, user.Role);
+        return new ProfileAccountDto(user.Id, user.Name, user.Username, user.Email, user.Role);
     }
 }
