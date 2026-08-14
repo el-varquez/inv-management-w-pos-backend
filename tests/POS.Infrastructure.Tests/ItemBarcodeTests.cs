@@ -45,7 +45,7 @@ public class ItemBarcodeTests : IDisposable
         => new(_items, _uow);
 
     private static CreateItemCommand NewItem(string name, string? barcode)
-        => new(name, null, null, barcode, 10m, 15m, 5, Guid.Empty);
+        => new(name, null, null, barcode, 10m, 15m, 5, Guid.Empty, null);
 
     [Fact]
     public async Task Create_with_barcode_persists_it()
@@ -94,7 +94,7 @@ public class ItemBarcodeTests : IDisposable
 
         var update = new UpdateItemCommand(
             otherId, "Kopiko Black", null, null, "4800361413480",
-            10m, 15m, 5, _categoryId, true);
+            10m, 15m, 5, _categoryId, true, null);
 
         await Assert.ThrowsAsync<DomainException>(() =>
             UpdateHandler().Handle(update, CancellationToken.None));
@@ -109,7 +109,7 @@ public class ItemBarcodeTests : IDisposable
 
         var update = new UpdateItemCommand(
             id, "Kopiko Blanca Twin", null, null, "4800361413480",
-            11m, 16m, 5, _categoryId, true);
+            11m, 16m, 5, _categoryId, true, null);
 
         await UpdateHandler().Handle(update, CancellationToken.None);
 

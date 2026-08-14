@@ -62,6 +62,7 @@ public class CreateItemCommandHandler : IRequestHandler<CreateItemCommand, Guid>
             Barcode = barcode,
             CostPrice = request.CostPrice,
             SellingPrice = request.SellingPrice,
+            UtangMarkup = request.UtangMarkup,
             LowStockThreshold = request.LowStockThreshold,
             CategoryId = request.CategoryId,
             Stock = 0

@@ -14,6 +14,7 @@ public record ItemDto(
     string? Barcode,
     decimal CostPrice,
     decimal SellingPrice,
+    decimal? UtangMarkup,
     int Stock,
     int LowStockThreshold,
     bool IsLowStock,

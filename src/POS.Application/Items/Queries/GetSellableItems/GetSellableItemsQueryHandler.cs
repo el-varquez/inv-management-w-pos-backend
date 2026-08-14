@@ -35,6 +35,7 @@ public class GetSellableItemsQueryHandler : IRequestHandler<GetSellableItemsQuer
                 i.Barcode,
                 i.CostPrice,
                 i.SellingPrice,
+                i.UtangMarkup,
                 stock,
                 i.LowStockThreshold,
                 stock <= i.LowStockThreshold,

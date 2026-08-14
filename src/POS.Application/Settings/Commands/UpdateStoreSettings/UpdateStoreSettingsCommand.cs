@@ -6,5 +6,6 @@ public record UpdateStoreSettingsCommand(
     string StoreName,
     string Address,
     string ReceiptFooter,
-    bool AcceptUtang
+    bool AcceptUtang,
+    decimal DefaultUtangMarkup
 ) : IRequest;

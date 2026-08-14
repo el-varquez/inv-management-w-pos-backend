@@ -50,7 +50,7 @@ public class StoreSettingsTests : IDisposable
         var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
 
         await update.Handle(
-            new UpdateStoreSettingsCommand("Aling Nena's", "123 Rizal St", "Salamat po!", true),
+            new UpdateStoreSettingsCommand("Aling Nena's", "123 Rizal St", "Salamat po!", true, 0m),
             CancellationToken.None);
 
         Assert.Equal(1, await _ctx.StoreSettings.CountAsync());
@@ -65,9 +65,9 @@ public class StoreSettingsTests : IDisposable
         var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
 
         await update.Handle(
-            new UpdateStoreSettingsCommand("First", "A", "x", true), CancellationToken.None);
+            new UpdateStoreSettingsCommand("First", "A", "x", true, 0m), CancellationToken.None);
         await update.Handle(
-            new UpdateStoreSettingsCommand("Second", "B", "y", false), CancellationToken.None);
+            new UpdateStoreSettingsCommand("Second", "B", "y", false, 0m), CancellationToken.None);
 
         Assert.Equal(1, await _ctx.StoreSettings.CountAsync());
         var row = await _ctx.StoreSettings.SingleAsync();
@@ -80,7 +80,49 @@ public class StoreSettingsTests : IDisposable
     public void Update_validator_rejects_blank_store_name()
     {
         var result = new UpdateStoreSettingsCommandValidator()
-            .Validate(new UpdateStoreSettingsCommand("  ", "", "", true));
+            .Validate(new UpdateStoreSettingsCommand("  ", "", "", true, 0m));
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task Get_returns_zero_default_markup_when_no_row_exists()
+    {
+        var handler = new GetStoreSettingsQueryHandler(_settings);
+
+        var result = await handler.Handle(new GetStoreSettingsQuery(), CancellationToken.None);
+
+        Assert.Equal(0m, result.DefaultUtangMarkup);
+    }
+
+    [Fact]
+    public async Task Update_persists_the_default_markup()
+    {
+        var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
+
+        await update.Handle(
+            new UpdateStoreSettingsCommand("Aling Nena's", "123 Rizal St", "Salamat po!", true, 1m),
+            CancellationToken.None);
+
+        var read = new GetStoreSettingsQueryHandler(_settings);
+        var result = await read.Handle(new GetStoreSettingsQuery(), CancellationToken.None);
+        Assert.Equal(1m, result.DefaultUtangMarkup);
+    }
+
+    [Fact]
+    public void Update_validator_rejects_a_negative_default_markup()
+    {
+        var result = new UpdateStoreSettingsCommandValidator()
+            .Validate(new UpdateStoreSettingsCommand("Store", "", "", true, -1m));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void Update_validator_rejects_more_than_two_decimal_places()
+    {
+        var result = new UpdateStoreSettingsCommandValidator()
+            .Validate(new UpdateStoreSettingsCommand("Store", "", "", true, 1.005m));
+
         Assert.False(result.IsValid);
     }
 

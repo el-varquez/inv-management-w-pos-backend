@@ -11,6 +11,7 @@ public class Item : BaseEntity
     public string? Barcode { get; set; }
     public decimal CostPrice { get; set; }
     public decimal SellingPrice { get; set; }
+    public decimal? UtangMarkup { get; set; }
     public int Stock { get ; set; }
     public int LowStockThreshold { get; set; } = 5;
     public bool IsActive { get; set; } = true;

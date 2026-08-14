@@ -21,5 +21,11 @@ public class CreateItemCommandValidator : AbstractValidator<CreateItemCommand>
             
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("Category is required.");
+
+        RuleFor(x => x.UtangMarkup)
+            .GreaterThanOrEqualTo(0m).WithMessage("Utang markup must be 0 or greater.")
+            .Must(m => decimal.Round(m!.Value, 2) == m.Value)
+                .WithMessage("Utang markup cannot have more than 2 decimal places.")
+            .When(x => x.UtangMarkup.HasValue);
     }
 }

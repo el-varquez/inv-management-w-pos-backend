@@ -12,5 +12,6 @@ public record UpdateItemCommand(
     decimal SellingPrice,
     int LowStockThreshold,
     Guid CategoryId,
-    bool IsActive
+    bool IsActive,
+    decimal? UtangMarkup
 ) : IRequest;
