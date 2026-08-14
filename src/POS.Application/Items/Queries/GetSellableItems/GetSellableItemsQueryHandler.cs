@@ -31,7 +31,7 @@ public class GetSellableItemsQueryHandler : IRequestHandler<GetSellableItemsQuer
                 i.Id,
                 i.Name,
                 i.Description,
-                i.Sku,
+                i.ItemCode,
                 i.Barcode,
                 i.CostPrice,
                 i.SellingPrice,

@@ -33,7 +33,7 @@ public class GetItemsQueryHandler : IRequestHandler<GetItemsQuery, PagedResult<I
                 i.Id,
                 i.Name,
                 i.Description,
-                i.Sku,
+                i.ItemCode,
                 i.Barcode,
                 i.CostPrice,
                 i.SellingPrice,

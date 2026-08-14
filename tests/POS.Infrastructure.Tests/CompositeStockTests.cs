@@ -22,6 +22,7 @@ public class CompositeStockTests : IDisposable
     private readonly CompositeItemRepository _composites;
     private readonly UnitOfWork _uow;
     private readonly Guid _categoryId = Guid.NewGuid();
+    private int _codeSeq;
 
     public CompositeStockTests()
     {
@@ -48,6 +49,7 @@ public class CompositeStockTests : IDisposable
         var item = new Item
         {
             Name = name,
+            ItemCode = $"T{++_codeSeq:D4}",
             Stock = stock,
             CostPrice = cost,
             SellingPrice = 100m,

@@ -16,6 +16,7 @@ public class SearchItemsTests : IDisposable
     private readonly CompositeItemRepository _composites;
     private readonly UnitOfWork _uow;
     private readonly Guid _categoryId = Guid.NewGuid();
+    private int _codeSeq;
 
     public SearchItemsTests()
     {
@@ -39,14 +40,14 @@ public class SearchItemsTests : IDisposable
     private SearchItemsQueryHandler Handler() => new(_items, _composites);
 
     private async Task<Item> SeedAsync(
-        string name, string? barcode = null, string? sku = null,
+        string name, string? barcode = null, string? itemCode = null,
         int stock = 10, bool isActive = true, bool isComposite = false)
     {
         var item = new Item
         {
             Name = name,
             Barcode = barcode,
-            Sku = sku,
+            ItemCode = itemCode ?? $"T{++_codeSeq:D4}",
             Stock = stock,
             CostPrice = 10m,
             SellingPrice = 15m,
@@ -72,15 +73,15 @@ public class SearchItemsTests : IDisposable
     }
 
     [Fact]
-    public async Task Exact_sku_ranks_before_name_contains()
+    public async Task Exact_item_code_ranks_before_name_contains()
     {
         await SeedAsync("ACE Detergent");                 // name contains "ace"
-        var skuHit = await SeedAsync("Zonrox Bleach", sku: "ACE");
+        var codeHit = await SeedAsync("Zonrox Bleach", itemCode: "ACE");
 
         var result = await Handler().Handle(
             new SearchItemsQuery("ace"), CancellationToken.None);
 
-        Assert.Equal(skuHit.Id, result.First().Id);
+        Assert.Equal(codeHit.Id, result.First().Id);
     }
 
     [Fact]

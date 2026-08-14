@@ -9,7 +9,7 @@ public record SearchItemDto(
     Guid Id,
     string Name,
     string? Barcode,
-    string? Sku,
+    string ItemCode,
     int Stock,
     decimal CostPrice,
     decimal SellingPrice,

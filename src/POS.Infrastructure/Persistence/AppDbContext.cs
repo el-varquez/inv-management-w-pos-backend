@@ -39,6 +39,8 @@ public class AppDbContext : DbContext
         builder.Entity<Item>().Property(i => i.SellingPrice).HasPrecision(18, 2);
         builder.Entity<Item>().Property(i => i.Barcode).HasMaxLength(64);
         builder.Entity<Item>().HasIndex(i => i.Barcode).IsUnique();
+        builder.Entity<Item>().Property(i => i.ItemCode).HasMaxLength(64);
+        builder.Entity<Item>().HasIndex(i => i.ItemCode).IsUnique();
         builder.Entity<Item>()
             .HasOne(i => i.Category)
             .WithMany(c => c.Items)

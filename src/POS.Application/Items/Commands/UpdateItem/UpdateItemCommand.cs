@@ -6,7 +6,7 @@ public record UpdateItemCommand(
     Guid Id,
     string Name,
     string? Description,
-    string? Sku,
+    string? ItemCode,
     string? Barcode,
     decimal CostPrice,
     decimal SellingPrice,

@@ -1,4 +1,5 @@
 using MediatR;
+using POS.Application.Common;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
@@ -31,9 +32,24 @@ public class UpdateItemCommandHandler : IRequestHandler<UpdateItemCommand>
                     $"Barcode {barcode} is already used by \"{existing.Name}\".");
         }
 
+        var itemCode = string.IsNullOrWhiteSpace(request.ItemCode)
+            ? null
+            : request.ItemCode.Trim();
+        if (itemCode is not null)
+        {
+            var existing = await _itemRepository.GetByItemCodeAsync(itemCode, ct);
+            if (existing is not null && existing.Id != request.Id)
+                throw new DomainException(
+                    $"Item code {itemCode} is already used by \"{existing.Name}\".");
+        }
+        else
+        {
+            itemCode = ItemCodeGenerator.Next(await _itemRepository.GetItemCodesAsync(ct));
+        }
+
         item.Name = request.Name;
         item.Description = request.Description;
-        item.Sku = request.Sku;
+        item.ItemCode = itemCode;
         item.Barcode = barcode;
         item.CostPrice = request.CostPrice;
         item.SellingPrice = request.SellingPrice;
