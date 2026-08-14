@@ -38,7 +38,7 @@ public class SearchItemsQueryHandler
                 i.Id,
                 i.Name,
                 i.Barcode,
-                i.Sku,
+                i.ItemCode,
                 stock,
                 i.CostPrice,
                 i.SellingPrice,

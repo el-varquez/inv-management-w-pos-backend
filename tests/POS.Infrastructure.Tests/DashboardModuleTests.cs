@@ -15,6 +15,7 @@ public class DashboardModuleTests : IDisposable
     private readonly AppDbContext _ctx;
     private readonly TransactionRepository _transactions;
     private readonly ItemRepository _items;
+    private int _codeSeq;
 
     // 2 AM local today / yesterday, as the UTC instants the DB stores.
     private static readonly DateTime TodayUtc =
@@ -68,6 +69,7 @@ public class DashboardModuleTests : IDisposable
         _ctx.Items.Add(new Item
         {
             Name = name,
+            ItemCode = $"T{++_codeSeq:D4}",
             CostPrice = 5,
             SellingPrice = 10,
             Stock = stock,

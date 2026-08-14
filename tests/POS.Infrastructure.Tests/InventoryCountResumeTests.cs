@@ -24,6 +24,7 @@ public class InventoryCountResumeTests : IDisposable
     private readonly UnitOfWork _uow;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _categoryId = Guid.NewGuid();
+    private int _codeSeq;
 
     public InventoryCountResumeTests()
     {
@@ -49,7 +50,8 @@ public class InventoryCountResumeTests : IDisposable
     {
         var item = new Item
         {
-            Name = name, CostPrice = 1m, SellingPrice = 10m, Stock = stock,
+            Name = name, ItemCode = $"T{++_codeSeq:D4}",
+            CostPrice = 1m, SellingPrice = 10m, Stock = stock,
             CategoryId = _categoryId
         };
         await _items.AddAsync(item);

@@ -20,6 +20,7 @@ public class ReceiveStockTests : IDisposable
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
+    private int _codeSeq;
 
     public ReceiveStockTests()
     {
@@ -50,6 +51,7 @@ public class ReceiveStockTests : IDisposable
         var item = new Item
         {
             Name = name,
+            ItemCode = $"T{++_codeSeq:D4}",
             Stock = stock,
             CostPrice = cost,
             SellingPrice = price,

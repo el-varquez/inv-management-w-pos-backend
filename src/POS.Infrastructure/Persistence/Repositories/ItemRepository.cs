@@ -18,6 +18,12 @@ public class ItemRepository : IItemRepository
     public async Task<Item?> GetByBarcodeAsync(string barcode, CancellationToken ct = default)
         => await _context.Items.FirstOrDefaultAsync(i => i.Barcode == barcode, ct);
 
+    public async Task<Item?> GetByItemCodeAsync(string itemCode, CancellationToken ct = default)
+        => await _context.Items.FirstOrDefaultAsync(i => i.ItemCode == itemCode, ct);
+
+    public async Task<IList<string>> GetItemCodesAsync(CancellationToken ct = default)
+        => await _context.Items.Select(i => i.ItemCode).ToListAsync(ct);
+
     public async Task<IList<Item>> SearchAsync(string term, int limit, CancellationToken ct = default)
     {
         var lowered = term.ToLower();
@@ -25,11 +31,11 @@ public class ItemRepository : IItemRepository
             .Include(i => i.Category)
             .Where(i =>
                 i.Barcode == term ||
-                (i.Sku != null && i.Sku.ToLower() == lowered) ||
+                i.ItemCode.ToLower() == lowered ||
                 i.Name.ToLower().Contains(lowered) ||
-                (i.Sku != null && i.Sku.ToLower().Contains(lowered)))
+                i.ItemCode.ToLower().Contains(lowered))
             .OrderByDescending(i => i.Barcode == term)
-            .ThenByDescending(i => i.Sku != null && i.Sku.ToLower() == lowered)
+            .ThenByDescending(i => i.ItemCode.ToLower() == lowered)
             .ThenBy(i => i.Name)
             .Take(limit)
             .ToListAsync(ct);

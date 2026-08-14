@@ -5,7 +5,7 @@ namespace POS.Application.Items.Commands.CreateItem;
 public record CreateItemCommand(
     string Name,
     string? Description,
-    string? Sku,
+    string? ItemCode,
     string? Barcode,
     decimal CostPrice,
     decimal SellingPrice,

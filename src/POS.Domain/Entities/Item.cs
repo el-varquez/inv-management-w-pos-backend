@@ -7,7 +7,7 @@ public class Item : BaseEntity
 {
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public string? Sku { get; set; }
+    public string ItemCode { get; set; } = string.Empty;
     public string? Barcode { get; set; }
     public decimal CostPrice { get; set; }
     public decimal SellingPrice { get; set; }
