@@ -39,6 +39,7 @@ public class AppDbContext : DbContext
 
         builder.Entity<Item>().Property(i => i.CostPrice).HasPrecision(18, 2);
         builder.Entity<Item>().Property(i => i.SellingPrice).HasPrecision(18, 2);
+        builder.Entity<Item>().Property(i => i.UtangMarkup).HasPrecision(18, 2);
         builder.Entity<Item>().Property(i => i.Barcode).HasMaxLength(64);
         builder.Entity<Item>().HasIndex(i => i.Barcode).IsUnique();
         builder.Entity<Item>().Property(i => i.ItemCode).HasMaxLength(64);
@@ -91,6 +92,8 @@ public class AppDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<CompositeItem>().Property(c => c.Quantity).HasPrecision(18, 3);
+
+        builder.Entity<StoreSettings>().Property(s => s.DefaultUtangMarkup).HasPrecision(18, 2);
 
         builder.Entity<InventoryCount>().HasIndex(ic => ic.Reference).IsUnique();
 

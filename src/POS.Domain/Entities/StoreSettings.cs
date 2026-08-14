@@ -8,4 +8,5 @@ public class StoreSettings : BaseEntity
     public string Address { get; set; } = string.Empty;
     public string ReceiptFooter { get; set; } = string.Empty;
     public bool AcceptUtang { get; set; } = true;
+    public decimal DefaultUtangMarkup { get; set; }
 }
