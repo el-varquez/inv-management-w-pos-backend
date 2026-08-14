@@ -53,6 +53,7 @@ public class UpdateItemCommandHandler : IRequestHandler<UpdateItemCommand>
         item.Barcode = barcode;
         item.CostPrice = request.CostPrice;
         item.SellingPrice = request.SellingPrice;
+        item.UtangMarkup = request.UtangMarkup;
         item.LowStockThreshold = request.LowStockThreshold;
         item.CategoryId = request.CategoryId;
         item.IsActive = request.IsActive;

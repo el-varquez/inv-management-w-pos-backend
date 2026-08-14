@@ -37,6 +37,7 @@ public class GetItemsQueryHandler : IRequestHandler<GetItemsQuery, PagedResult<I
                 i.Barcode,
                 i.CostPrice,
                 i.SellingPrice,
+                i.UtangMarkup,
                 stock,
                 i.LowStockThreshold,
                 stock <= i.LowStockThreshold,
