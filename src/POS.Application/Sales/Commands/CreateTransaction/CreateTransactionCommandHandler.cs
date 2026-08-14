@@ -86,7 +86,7 @@ public class CreateTransactionCommandHandler
         foreach (var (itemId, required) in demand)
         {
             var stockItem = await _itemRepository.GetByIdAsync(itemId, ct);
-            if (stockItem is null) continue;
+            if (stockItem is null || !stockItem.TracksStock) continue;
             if (stockItem.Stock < required)
                 throw new InsufficientStockException(stockItem.Name, required, stockItem.Stock);
         }

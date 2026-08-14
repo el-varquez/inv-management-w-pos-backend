@@ -29,7 +29,7 @@ public class SaleRefundedEventHandler : INotificationHandler<SaleRefundedEvent>
         foreach (var (itemId, quantity) in notification.RefundedItems)
         {
             var item = await _itemRepository.GetByIdAsync(itemId, ct);
-            if (item is null) continue;
+            if (item is null || !item.TracksStock) continue;
 
             if (item.IsComposite)
             {

@@ -74,7 +74,7 @@ public class ItemRepository : IItemRepository
     public async Task<IList<Item>> GetLowStockAsync(CancellationToken ct = default)
         => await _context.Items
             .Include(i => i.Category)
-            .Where(i => i.IsActive && i.Stock <= i.LowStockThreshold)
+            .Where(i => i.IsActive && i.TracksStock && i.Stock <= i.LowStockThreshold)
             .ToListAsync(ct);
 
     public async Task AddAsync(Item item, CancellationToken ct = default)

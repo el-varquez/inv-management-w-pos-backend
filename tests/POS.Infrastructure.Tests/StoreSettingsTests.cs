@@ -50,7 +50,7 @@ public class StoreSettingsTests : IDisposable
         var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
 
         await update.Handle(
-            new UpdateStoreSettingsCommand("Aling Nena's", "123 Rizal St", "Salamat po!", true, 0m),
+            new UpdateStoreSettingsCommand("Aling Nena's", "123 Rizal St", "Salamat po!", true, 0m, false, null),
             CancellationToken.None);
 
         Assert.Equal(1, await _ctx.StoreSettings.CountAsync());
@@ -65,9 +65,11 @@ public class StoreSettingsTests : IDisposable
         var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
 
         await update.Handle(
-            new UpdateStoreSettingsCommand("First", "A", "x", true, 0m), CancellationToken.None);
+            new UpdateStoreSettingsCommand("First", "A", "x", true, 0m, false, null),
+            CancellationToken.None);
         await update.Handle(
-            new UpdateStoreSettingsCommand("Second", "B", "y", false, 0m), CancellationToken.None);
+            new UpdateStoreSettingsCommand("Second", "B", "y", false, 0m, false, null),
+            CancellationToken.None);
 
         Assert.Equal(1, await _ctx.StoreSettings.CountAsync());
         var row = await _ctx.StoreSettings.SingleAsync();
@@ -80,7 +82,7 @@ public class StoreSettingsTests : IDisposable
     public void Update_validator_rejects_blank_store_name()
     {
         var result = new UpdateStoreSettingsCommandValidator()
-            .Validate(new UpdateStoreSettingsCommand("  ", "", "", true, 0m));
+            .Validate(new UpdateStoreSettingsCommand("  ", "", "", true, 0m, false, null));
         Assert.False(result.IsValid);
     }
 
@@ -100,7 +102,8 @@ public class StoreSettingsTests : IDisposable
         var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
 
         await update.Handle(
-            new UpdateStoreSettingsCommand("Aling Nena's", "123 Rizal St", "Salamat po!", true, 1m),
+            new UpdateStoreSettingsCommand(
+                "Aling Nena's", "123 Rizal St", "Salamat po!", true, 1m, false, null),
             CancellationToken.None);
 
         var read = new GetStoreSettingsQueryHandler(_settings);
@@ -112,7 +115,7 @@ public class StoreSettingsTests : IDisposable
     public void Update_validator_rejects_a_negative_default_markup()
     {
         var result = new UpdateStoreSettingsCommandValidator()
-            .Validate(new UpdateStoreSettingsCommand("Store", "", "", true, -1m));
+            .Validate(new UpdateStoreSettingsCommand("Store", "", "", true, -1m, false, null));
 
         Assert.False(result.IsValid);
     }
@@ -121,9 +124,38 @@ public class StoreSettingsTests : IDisposable
     public void Update_validator_rejects_more_than_two_decimal_places()
     {
         var result = new UpdateStoreSettingsCommandValidator()
-            .Validate(new UpdateStoreSettingsCommand("Store", "", "", true, 1.005m));
+            .Validate(new UpdateStoreSettingsCommand("Store", "", "", true, 1.005m, false, null));
 
         Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task Gcash_wallet_tracking_defaults_to_off()
+    {
+        var handler = new GetStoreSettingsQueryHandler(_settings);
+
+        var result = await handler.Handle(new GetStoreSettingsQuery(), CancellationToken.None);
+
+        Assert.False(result.TrackGcashWallet);
+        Assert.Null(result.GcashFeeItemId);
+    }
+
+    [Fact]
+    public async Task Update_persists_the_gcash_wallet_settings()
+    {
+        var feeItemId = Guid.NewGuid();
+        var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
+
+        await update.Handle(
+            new UpdateStoreSettingsCommand(
+                "Aling Nena's", "123 Rizal St", "Salamat po!", true, 0m, true, feeItemId),
+            CancellationToken.None);
+
+        var read = new GetStoreSettingsQueryHandler(_settings);
+        var result = await read.Handle(new GetStoreSettingsQuery(), CancellationToken.None);
+
+        Assert.True(result.TrackGcashWallet);
+        Assert.Equal(feeItemId, result.GcashFeeItemId);
     }
 
     public void Dispose()

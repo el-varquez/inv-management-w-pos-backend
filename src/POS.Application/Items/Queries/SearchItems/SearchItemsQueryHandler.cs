@@ -44,6 +44,7 @@ public class SearchItemsQueryHandler
                 i.SellingPrice,
                 i.IsActive,
                 i.IsComposite,
+                i.TracksStock,
                 i.Category.Name
             ));
         }

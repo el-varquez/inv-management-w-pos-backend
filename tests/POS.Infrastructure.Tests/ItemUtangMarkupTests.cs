@@ -41,7 +41,7 @@ public class ItemUtangMarkupTests : IDisposable
     }
 
     private CreateItemCommand NewItem(decimal? utangMarkup) => new(
-        "Marlboro Stick", null, null, null, 3m, 4m, 5, _categoryId, utangMarkup);
+        "Marlboro Stick", null, null, null, 3m, 4m, 5, _categoryId, utangMarkup, true);
 
     [Fact]
     public async Task Create_persists_a_null_utang_markup()
@@ -73,7 +73,7 @@ public class ItemUtangMarkupTests : IDisposable
 
         var update = new UpdateItemCommandHandler(_items, _uow);
         await update.Handle(
-            new UpdateItemCommand(id, "Marlboro Stick", null, null, null, 3m, 4m, 5, _categoryId, true, null),
+            new UpdateItemCommand(id, "Marlboro Stick", null, null, null, 3m, 4m, 5, _categoryId, true, null, true),
             CancellationToken.None);
 
         var stored = await _ctx.Items.AsNoTracking().SingleAsync(i => i.Id == id);

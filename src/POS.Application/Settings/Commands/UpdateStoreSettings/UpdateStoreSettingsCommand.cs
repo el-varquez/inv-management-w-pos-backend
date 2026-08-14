@@ -7,5 +7,7 @@ public record UpdateStoreSettingsCommand(
     string Address,
     string ReceiptFooter,
     bool AcceptUtang,
-    decimal DefaultUtangMarkup
+    decimal DefaultUtangMarkup,
+    bool TrackGcashWallet,
+    Guid? GcashFeeItemId
 ) : IRequest;

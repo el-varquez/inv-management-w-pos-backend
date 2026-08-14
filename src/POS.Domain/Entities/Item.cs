@@ -15,6 +15,7 @@ public class Item : BaseEntity
     public int Stock { get ; set; }
     public int LowStockThreshold { get; set; } = 5;
     public bool IsActive { get; set; } = true;
+    public bool TracksStock { get; set; } = true;
 
     public Guid CategoryId { get; set; }
     public Category Category { get; set; } = null!;

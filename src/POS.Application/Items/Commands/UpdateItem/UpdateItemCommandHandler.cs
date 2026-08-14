@@ -55,6 +55,7 @@ public class UpdateItemCommandHandler : IRequestHandler<UpdateItemCommand>
         item.SellingPrice = request.SellingPrice;
         item.UtangMarkup = request.UtangMarkup;
         item.LowStockThreshold = request.LowStockThreshold;
+        item.TracksStock = request.TracksStock;
         item.CategoryId = request.CategoryId;
         item.IsActive = request.IsActive;
         item.UpdatedAt = DateTime.UtcNow;

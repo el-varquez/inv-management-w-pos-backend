@@ -11,5 +11,6 @@ public record CreateItemCommand(
     decimal SellingPrice,
     int LowStockThreshold,
     Guid CategoryId,
-    decimal? UtangMarkup
+    decimal? UtangMarkup,
+    bool TracksStock
 ) : IRequest<Guid>;

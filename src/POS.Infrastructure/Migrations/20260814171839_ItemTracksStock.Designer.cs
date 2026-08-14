@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using POS.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using POS.Infrastructure.Persistence;
 namespace POS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260814171839_ItemTracksStock")]
+    partial class ItemTracksStock
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -281,9 +284,6 @@ namespace POS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<Guid?>("GcashFeeItemId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("ReceiptFooter")
                         .IsRequired()
                         .HasColumnType("text");
@@ -291,9 +291,6 @@ namespace POS.Infrastructure.Migrations
                     b.Property<string>("StoreName")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<bool>("TrackGcashWallet")
-                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");

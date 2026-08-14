@@ -45,7 +45,7 @@ public class ItemCodeTests : IDisposable
         => new(_items, _uow);
 
     private CreateItemCommand NewItem(string name, string? itemCode = null, string? barcode = null)
-        => new(name, null, itemCode, barcode, 10m, 15m, 5, _categoryId, null);
+        => new(name, null, itemCode, barcode, 10m, 15m, 5, _categoryId, null, true);
 
     [Fact]
     public async Task Create_with_blank_code_gets_00001()
@@ -123,7 +123,7 @@ public class ItemCodeTests : IDisposable
 
         var update = new UpdateItemCommand(
             id, "Kopiko Black", null, null, null,
-            10m, 15m, 5, _categoryId, true, null);
+            10m, 15m, 5, _categoryId, true, null, true);
         await UpdateHandler().Handle(update, CancellationToken.None);
 
         var item = await _ctx.Items.FindAsync(id);
@@ -140,7 +140,7 @@ public class ItemCodeTests : IDisposable
 
         var update = new UpdateItemCommand(
             otherId, "Kopiko Blanca", null, "KB-1", null,
-            10m, 15m, 5, _categoryId, true, null);
+            10m, 15m, 5, _categoryId, true, null, true);
 
         await Assert.ThrowsAsync<DomainException>(() =>
             UpdateHandler().Handle(update, CancellationToken.None));
@@ -154,7 +154,7 @@ public class ItemCodeTests : IDisposable
 
         var update = new UpdateItemCommand(
             id, "Kopiko Black Twin", null, "KB-1", null,
-            11m, 16m, 5, _categoryId, true, null);
+            11m, 16m, 5, _categoryId, true, null, true);
         await UpdateHandler().Handle(update, CancellationToken.None);
 
         var item = await _ctx.Items.FindAsync(id);
