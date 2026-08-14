@@ -41,6 +41,7 @@ public class StoreSettingsTests : IDisposable
         Assert.Equal("My Store", result.StoreName);
         Assert.Equal(string.Empty, result.Address);
         Assert.Equal(string.Empty, result.ReceiptFooter);
+        Assert.True(result.AcceptUtang);
     }
 
     [Fact]
@@ -49,7 +50,7 @@ public class StoreSettingsTests : IDisposable
         var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
 
         await update.Handle(
-            new UpdateStoreSettingsCommand("Aling Nena's", "123 Rizal St", "Salamat po!"),
+            new UpdateStoreSettingsCommand("Aling Nena's", "123 Rizal St", "Salamat po!", true),
             CancellationToken.None);
 
         Assert.Equal(1, await _ctx.StoreSettings.CountAsync());
@@ -64,21 +65,22 @@ public class StoreSettingsTests : IDisposable
         var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
 
         await update.Handle(
-            new UpdateStoreSettingsCommand("First", "A", "x"), CancellationToken.None);
+            new UpdateStoreSettingsCommand("First", "A", "x", true), CancellationToken.None);
         await update.Handle(
-            new UpdateStoreSettingsCommand("Second", "B", "y"), CancellationToken.None);
+            new UpdateStoreSettingsCommand("Second", "B", "y", false), CancellationToken.None);
 
         Assert.Equal(1, await _ctx.StoreSettings.CountAsync());
         var row = await _ctx.StoreSettings.SingleAsync();
         Assert.Equal("Second", row.StoreName);
         Assert.Equal("B", row.Address);
+        Assert.False(row.AcceptUtang);
     }
 
     [Fact]
     public void Update_validator_rejects_blank_store_name()
     {
         var result = new UpdateStoreSettingsCommandValidator()
-            .Validate(new UpdateStoreSettingsCommand("  ", "", ""));
+            .Validate(new UpdateStoreSettingsCommand("  ", "", "", true));
         Assert.False(result.IsValid);
     }
 
