@@ -1,0 +1,44 @@
+{
+  "src/POS.Domain/POS.Domain.csproj": {
+    "projects": [],
+    "packages": ["MediatR.Contracts"]
+  },
+  "src/POS.Application/POS.Application.csproj": {
+    "projects": ["POS.Domain"],
+    "packages": [
+      "AutoMapper",
+      "FluentValidation",
+      "FluentValidation.DependencyInjectionExtensions",
+      "MediatR",
+      "Microsoft.Extensions.DependencyInjection.Abstractions"
+    ]
+  },
+  "src/POS.Infrastructure/POS.Infrastructure.csproj": {
+    "projects": ["POS.Application"],
+    "packages": [
+      "BCrypt.Net-Next",
+      "Microsoft.EntityFrameworkCore",
+      "Microsoft.EntityFrameworkCore.Tools",
+      "Npgsql.EntityFrameworkCore.PostgreSQL",
+      "System.IdentityModel.Tokens.Jwt"
+    ]
+  },
+  "src/POS.API/POS.API.csproj": {
+    "projects": ["POS.Infrastructure", "POS.Application"],
+    "packages": [
+      "DotNetEnv",
+      "Microsoft.AspNetCore.Authentication.JwtBearer",
+      "Swashbuckle.AspNetCore"
+    ]
+  },
+  "tests/POS.Infrastructure.Tests/POS.Infrastructure.Tests.csproj": {
+    "projects": ["POS.Infrastructure", "POS.Application", "POS.Domain"],
+    "packages": [
+      "coverlet.collector",
+      "Microsoft.EntityFrameworkCore.Sqlite",
+      "Microsoft.NET.Test.Sdk",
+      "xunit",
+      "xunit.runner.visualstudio"
+    ]
+  }
+}
