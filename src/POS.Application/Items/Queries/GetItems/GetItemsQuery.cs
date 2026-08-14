@@ -20,6 +20,7 @@ public record ItemDto(
     bool IsLowStock,
     bool IsActive,
     bool IsComposite,
+    bool TracksStock,
     Guid CategoryId,
     string CategoryName,
     DateTime CreatedAt

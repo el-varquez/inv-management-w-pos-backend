@@ -40,9 +40,10 @@ public class GetItemsQueryHandler : IRequestHandler<GetItemsQuery, PagedResult<I
                 i.UtangMarkup,
                 stock,
                 i.LowStockThreshold,
-                stock <= i.LowStockThreshold,
+                i.TracksStock && stock <= i.LowStockThreshold,
                 i.IsActive,
                 i.IsComposite,
+                i.TracksStock,
                 i.CategoryId,
                 i.Category.Name,
                 i.CreatedAt

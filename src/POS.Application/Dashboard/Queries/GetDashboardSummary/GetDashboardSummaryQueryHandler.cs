@@ -55,7 +55,7 @@ public class GetDashboardSummaryQueryHandler
             .ToList();
 
         var items = (await _itemRepository.GetAllAsync(ct))
-            .Where(i => i.IsActive && !i.IsComposite)
+            .Where(i => i.IsActive && !i.IsComposite && i.TracksStock)
             .ToList();
 
         var outOfStock = items.Count(i => i.Stock <= 0);

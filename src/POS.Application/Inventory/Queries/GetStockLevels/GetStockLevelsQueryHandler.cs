@@ -29,6 +29,8 @@ public class GetStockLevelsQueryHandler
         var dtos = new List<StockLevelDto>();
         foreach (var i in items)
         {
+            if (!i.TracksStock) continue;
+
             var stock = await StockOfAsync(i, ct);
             dtos.Add(new StockLevelDto(
                 i.Id,

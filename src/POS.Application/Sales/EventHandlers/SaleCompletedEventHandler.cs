@@ -30,7 +30,7 @@ public class SaleCompletedEventHandler : INotificationHandler<SaleCompletedEvent
         foreach (var (itemId, quantity) in notification.SoldItems)
         {
             var item = await _itemRepository.GetByIdAsync(itemId, ct);
-            if (item is null) continue;
+            if (item is null || !item.TracksStock) continue;
 
             if (item.IsComposite)
             {

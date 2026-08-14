@@ -15,5 +15,6 @@ public record SearchItemDto(
     decimal SellingPrice,
     bool IsActive,
     bool IsComposite,
+    bool TracksStock,
     string CategoryName
 );

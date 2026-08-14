@@ -36,6 +36,10 @@ public class SetCompositeItemCommandHandler : IRequestHandler<SetCompositeItemCo
             if (input.ComponentItemId == request.ParentItemId)
                 throw new DomainException("An item cannot be a component of itself.");
 
+            if (!component.TracksStock)
+                throw new DomainException(
+                    $"\"{component.Name}\" is not a physical item and cannot be a component.");
+
             await _compositeItemRepository.AddAsync(new CompositeItem
             {
                 ParentItemId = request.ParentItemId,

@@ -30,12 +30,14 @@ public class CreateInventoryCountCommandHandler
     {
         var items = await _itemRepository.GetAllAsync(ct);
 
-        var lines = items.Select(item => new InventoryCountLine
-        {
-            ItemId = item.Id,
-            ExpectedQty = item.Stock,
-            ActualQty = null
-        }).ToList();
+        var lines = items
+            .Where(item => item.TracksStock)
+            .Select(item => new InventoryCountLine
+            {
+                ItemId = item.Id,
+                ExpectedQty = item.Stock,
+                ActualQty = null
+            }).ToList();
 
         var reference = $"COUNT-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}";
 

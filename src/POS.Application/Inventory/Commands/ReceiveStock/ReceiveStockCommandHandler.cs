@@ -47,6 +47,10 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, i
                 throw new DomainException(
                     $"\"{item.Name}\" is a composite item — its stock is built from components.");
 
+            if (!item.TracksStock)
+                throw new DomainException(
+                    $"\"{item.Name}\" is not a physical item — it has no stock to receive.");
+
             resolved.Add((item, line));
         }
 
