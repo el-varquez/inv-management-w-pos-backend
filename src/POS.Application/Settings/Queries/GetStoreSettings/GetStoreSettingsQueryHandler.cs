@@ -12,7 +12,7 @@ public class GetStoreSettingsQueryHandler : IRequestHandler<GetStoreSettingsQuer
     {
         var settings = await _settings.GetAsync(ct);
         return settings is null
-            ? new StoreSettingsDto("My Store", string.Empty, string.Empty)
-            : new StoreSettingsDto(settings.StoreName, settings.Address, settings.ReceiptFooter);
+            ? new StoreSettingsDto("My Store", string.Empty, string.Empty, true)
+            : new StoreSettingsDto(settings.StoreName, settings.Address, settings.ReceiptFooter, settings.AcceptUtang);
     }
 }
