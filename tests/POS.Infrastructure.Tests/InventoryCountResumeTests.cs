@@ -186,6 +186,22 @@ public class InventoryCountResumeTests : IDisposable
     }
 
     [Fact]
+    public async Task Back_to_back_counts_get_distinct_sequenced_references()
+    {
+        await SeedItemAsync("Rice", stock: 10);
+
+        var firstId = await StartCountAsync();
+        var secondId = await StartCountAsync();
+
+        var first = await _counts.GetByIdAsync(firstId, CancellationToken.None);
+        var second = await _counts.GetByIdAsync(secondId, CancellationToken.None);
+
+        var today = $"{DateTime.UtcNow:yyyyMMdd}";
+        Assert.Equal($"COUNT-{today}-0001", first!.Reference);
+        Assert.Equal($"COUNT-{today}-0002", second!.Reference);
+    }
+
+    [Fact]
     public async Task GetInventoryCounts_lists_drafts_filtered_and_paged()
     {
         var rice = await SeedItemAsync("Rice", stock: 10);
