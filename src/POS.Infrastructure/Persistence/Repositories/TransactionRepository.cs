@@ -66,6 +66,12 @@ public class TransactionRepository : ITransactionRepository
         return (items, total);
     }
 
+    public async Task<IList<Transaction>> GetByShiftAsync(
+        Guid shiftId, CancellationToken ct = default)
+        => await _context.Transactions
+            .Where(t => t.ShiftId == shiftId)
+            .ToListAsync(ct);
+
     public async Task<int> GetCountForTodayAsync(CancellationToken ct = default)
     {
         var today = DateTime.UtcNow.Date;

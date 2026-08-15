@@ -39,7 +39,9 @@ public class CreateInventoryCountCommandHandler
                 ActualQty = null
             }).ToList();
 
-        var reference = $"COUNT-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}";
+        var todayCount = await _countRepository.GetCountForTodayAsync(ct);
+        var sequence = (todayCount + 1).ToString("D4");
+        var reference = $"COUNT-{DateTime.UtcNow:yyyyMMdd}-{sequence}";
 
         var count = new InventoryCount
         {

@@ -29,8 +29,8 @@ public class UpdateStoreSettingsCommandHandler : IRequestHandler<UpdateStoreSett
         settings.ReceiptFooter = request.ReceiptFooter.Trim();
         settings.AcceptUtang = request.AcceptUtang;
         settings.DefaultUtangMarkup = request.DefaultUtangMarkup;
-        settings.TrackGcashWallet = request.TrackGcashWallet;
-        settings.GcashFeeItemId = request.GcashFeeItemId;
+        settings.TrackEWalletFloat = request.TrackEWalletFloat;
+        settings.EWalletFeeItemId = request.EWalletFeeItemId;
 
         await _unitOfWork.SaveChangesAsync(ct);
     }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using POS.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using POS.Infrastructure.Persistence;
 namespace POS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260815062617_RenameGcashSettingsToEWallet")]
+    partial class RenameGcashSettingsToEWallet
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,49 +24,6 @@ namespace POS.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("POS.Domain.Entities.CashDrawerMovement", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsVoided")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Note")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<Guid>("ShiftId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("VoidedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("VoidedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ShiftId");
-
-                    b.ToTable("CashDrawerMovements");
-                });
 
             modelBuilder.Entity("POS.Domain.Entities.Category", b =>
                 {
@@ -260,69 +220,6 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("Items");
                 });
 
-            modelBuilder.Entity("POS.Domain.Entities.Shift", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ClosedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ClosedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("ClosedLate")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Number")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("OpenedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OpenedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("StartingCash")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime?>("StartingCashCorrectedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("StartingCashCorrectedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("StartingCashCorrectionReason")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<decimal?>("StartingCashOriginal")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal?>("StartingEWalletBalance")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Number")
-                        .IsUnique();
-
-                    b.ToTable("Shifts");
-                });
-
             modelBuilder.Entity("POS.Domain.Entities.StockMovement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -446,9 +343,6 @@ namespace POS.Infrastructure.Migrations
                     b.Property<Guid?>("RefundedFromId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ShiftId")
-                        .HasColumnType("uuid");
-
                     b.Property<decimal>("Subtotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -464,8 +358,6 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasIndex("ReceiptNumber")
                         .IsUnique();
-
-                    b.HasIndex("ShiftId");
 
                     b.ToTable("Transactions");
                 });
@@ -563,17 +455,6 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("POS.Domain.Entities.CashDrawerMovement", b =>
-                {
-                    b.HasOne("POS.Domain.Entities.Shift", "Shift")
-                        .WithMany("DrawerMovements")
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Shift");
-                });
-
             modelBuilder.Entity("POS.Domain.Entities.CompositeItem", b =>
                 {
                     b.HasOne("POS.Domain.Entities.Item", "ComponentItem")
@@ -623,85 +504,6 @@ namespace POS.Infrastructure.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("POS.Domain.Entities.Shift", b =>
-                {
-                    b.OwnsOne("POS.Domain.Entities.ZReadSnapshot", "Snapshot", b1 =>
-                        {
-                            b1.Property<Guid>("ShiftId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<decimal>("CashSales")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal>("CashVariance")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<DateTime?>("CorrectedAt")
-                                .HasColumnType("timestamp with time zone");
-
-                            b1.Property<Guid?>("CorrectedBy")
-                                .HasColumnType("uuid");
-
-                            b1.Property<string>("CorrectionReason")
-                                .HasMaxLength(256)
-                                .HasColumnType("character varying(256)");
-
-                            b1.Property<decimal>("CountedCash")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal?>("CountedCashOriginal")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal?>("CountedEWalletBalance")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal>("DrawerMovementsNet")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal?>("EWalletVariance")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal>("ExpectedCash")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal?>("ExpectedEWalletBalance")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal>("GcashSales")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal>("MayaSales")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal>("NetSales")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<int>("TransactionCount")
-                                .HasColumnType("integer");
-
-                            b1.HasKey("ShiftId");
-
-                            b1.ToTable("Shifts");
-
-                            b1.WithOwner()
-                                .HasForeignKey("ShiftId");
-                        });
-
-                    b.Navigation("Snapshot");
-                });
-
             modelBuilder.Entity("POS.Domain.Entities.StockMovement", b =>
                 {
                     b.HasOne("POS.Domain.Entities.Item", "Item")
@@ -711,16 +513,6 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Item");
-                });
-
-            modelBuilder.Entity("POS.Domain.Entities.Transaction", b =>
-                {
-                    b.HasOne("POS.Domain.Entities.Shift", "Shift")
-                        .WithMany()
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Shift");
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.TransactionItem", b =>
@@ -761,11 +553,6 @@ namespace POS.Infrastructure.Migrations
                     b.Navigation("TransactionItems");
 
                     b.Navigation("UsedInItems");
-                });
-
-            modelBuilder.Entity("POS.Domain.Entities.Shift", b =>
-                {
-                    b.Navigation("DrawerMovements");
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Transaction", b =>

@@ -10,5 +10,5 @@ public record StoreSettingsDto(
     string ReceiptFooter,
     bool AcceptUtang,
     decimal DefaultUtangMarkup,
-    bool TrackGcashWallet,
-    Guid? GcashFeeItemId);
+    bool TrackEWalletFloat,
+    Guid? EWalletFeeItemId);

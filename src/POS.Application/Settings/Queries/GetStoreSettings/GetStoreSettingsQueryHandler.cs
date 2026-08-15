@@ -19,7 +19,7 @@ public class GetStoreSettingsQueryHandler : IRequestHandler<GetStoreSettingsQuer
                 settings.ReceiptFooter,
                 settings.AcceptUtang,
                 settings.DefaultUtangMarkup,
-                settings.TrackGcashWallet,
-                settings.GcashFeeItemId);
+                settings.TrackEWalletFloat,
+                settings.EWalletFeeItemId);
     }
 }

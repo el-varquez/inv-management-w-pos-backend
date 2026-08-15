@@ -29,6 +29,7 @@ public class NonPhysicalItemTests : IDisposable
     private readonly CompositeItemRepository _composites;
     private readonly StockMovementRepository _movements;
     private readonly TransactionRepository _transactions;
+    private readonly ShiftRepository _shifts;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -50,6 +51,7 @@ public class NonPhysicalItemTests : IDisposable
         _composites = new CompositeItemRepository(_ctx);
         _movements = new StockMovementRepository(_ctx);
         _transactions = new TransactionRepository(_ctx);
+        _shifts = new ShiftRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -75,8 +77,22 @@ public class NonPhysicalItemTests : IDisposable
         return item;
     }
 
+    private async Task SeedOpenShiftAsync()
+    {
+        _ctx.Shifts.Add(new Shift
+        {
+            Number = 1,
+            Status = ShiftStatus.Open,
+            StartingCash = 1000m,
+            OpenedAt = DateTime.UtcNow,
+            OpenedBy = _user.Id
+        });
+        await _ctx.SaveChangesAsync();
+    }
+
     private CreateTransactionCommandHandler SaleHandler() =>
-        new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow, _user, _composites);
+        new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow, _user, _composites,
+            _shifts);
 
     [Fact]
     public async Task Items_track_stock_by_default()
@@ -122,6 +138,7 @@ public class NonPhysicalItemTests : IDisposable
     [Fact]
     public async Task A_non_physical_item_sells_at_zero_stock()
     {
+        await SeedOpenShiftAsync();
         var fee = await SeedAsync("GCash fee", tracksStock: false, stock: 0);
 
         var result = await SaleHandler().Handle(

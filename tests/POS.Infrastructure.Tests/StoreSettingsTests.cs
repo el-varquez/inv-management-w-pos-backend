@@ -130,18 +130,18 @@ public class StoreSettingsTests : IDisposable
     }
 
     [Fact]
-    public async Task Gcash_wallet_tracking_defaults_to_off()
+    public async Task E_wallet_float_tracking_defaults_to_off()
     {
         var handler = new GetStoreSettingsQueryHandler(_settings);
 
         var result = await handler.Handle(new GetStoreSettingsQuery(), CancellationToken.None);
 
-        Assert.False(result.TrackGcashWallet);
-        Assert.Null(result.GcashFeeItemId);
+        Assert.False(result.TrackEWalletFloat);
+        Assert.Null(result.EWalletFeeItemId);
     }
 
     [Fact]
-    public async Task Update_persists_the_gcash_wallet_settings()
+    public async Task Update_persists_the_e_wallet_float_settings()
     {
         var feeItemId = Guid.NewGuid();
         var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
@@ -154,8 +154,8 @@ public class StoreSettingsTests : IDisposable
         var read = new GetStoreSettingsQueryHandler(_settings);
         var result = await read.Handle(new GetStoreSettingsQuery(), CancellationToken.None);
 
-        Assert.True(result.TrackGcashWallet);
-        Assert.Equal(feeItemId, result.GcashFeeItemId);
+        Assert.True(result.TrackEWalletFloat);
+        Assert.Equal(feeItemId, result.EWalletFeeItemId);
     }
 
     public void Dispose()

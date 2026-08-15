@@ -24,6 +24,13 @@ public class InventoryCountRepository : IInventoryCountRepository
             .OrderByDescending(ic => ic.CreatedAt)
             .ToListAsync(ct);
 
+    public async Task<int> GetCountForTodayAsync(CancellationToken ct = default)
+    {
+        var today = DateTime.UtcNow.Date;
+        return await _context.InventoryCounts
+            .CountAsync(ic => ic.CreatedAt >= today, ct);
+    }
+
     public async Task AddAsync(InventoryCount count, CancellationToken ct = default)
         => await _context.InventoryCounts.AddAsync(count, ct);
 
