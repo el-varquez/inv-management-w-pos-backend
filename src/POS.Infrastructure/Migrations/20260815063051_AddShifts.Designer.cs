@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using POS.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using POS.Infrastructure.Persistence;
 namespace POS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260815063051_AddShifts")]
+    partial class AddShifts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -28,35 +31,14 @@ namespace POS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsVoided")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Note")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
 
                     b.Property<Guid>("ShiftId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("VoidedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("VoidedBy")
-                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -446,9 +428,6 @@ namespace POS.Infrastructure.Migrations
                     b.Property<Guid?>("RefundedFromId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ShiftId")
-                        .HasColumnType("uuid");
-
                     b.Property<decimal>("Subtotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -464,8 +443,6 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasIndex("ReceiptNumber")
                         .IsUnique();
-
-                    b.HasIndex("ShiftId");
 
                     b.ToTable("Transactions");
                 });
@@ -711,16 +688,6 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Item");
-                });
-
-            modelBuilder.Entity("POS.Domain.Entities.Transaction", b =>
-                {
-                    b.HasOne("POS.Domain.Entities.Shift", "Shift")
-                        .WithMany()
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Shift");
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.TransactionItem", b =>

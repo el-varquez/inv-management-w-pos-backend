@@ -19,6 +19,7 @@ public interface ITransactionRepository
         int page,
         int pageSize,
         CancellationToken ct = default);
+    Task<IList<Transaction>> GetByShiftAsync(Guid shiftId, CancellationToken ct = default);
     Task<int> GetCountForTodayAsync(CancellationToken ct = default);
     Task AddAsync(Transaction transaction, CancellationToken ct = default);
     Task UpdateAsync(Transaction transaction, CancellationToken ct = default);

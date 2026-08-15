@@ -19,6 +19,7 @@ public class CompositeSaleTests : IDisposable
     private readonly ItemRepository _items;
     private readonly CompositeItemRepository _composites;
     private readonly TransactionRepository _transactions;
+    private readonly ShiftRepository _shifts;
     private readonly UnitOfWork _uow;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -38,6 +39,7 @@ public class CompositeSaleTests : IDisposable
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
         _transactions = new TransactionRepository(_ctx);
+        _shifts = new ShiftRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -73,10 +75,23 @@ public class CompositeSaleTests : IDisposable
         await _uow.SaveChangesAsync();
     }
 
+    private async Task SeedOpenShiftAsync()
+    {
+        _ctx.Shifts.Add(new Shift
+        {
+            Number = 1,
+            Status = ShiftStatus.Open,
+            StartingCash = 1000m,
+            OpenedAt = DateTime.UtcNow,
+            OpenedBy = _userId
+        });
+        await _ctx.SaveChangesAsync();
+    }
+
     private CreateTransactionCommandHandler Handler() =>
         new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow,
             new FakeCurrentUser { Id = _userId, Role = "Cashier" },
-            _composites);
+            _composites, _shifts);
 
     private static CreateTransactionCommand Sale(params (Guid id, int qty)[] lines) =>
         new(
@@ -88,6 +103,7 @@ public class CompositeSaleTests : IDisposable
     [Fact]
     public async Task Sale_of_composite_with_insufficient_component_stock_is_rejected()
     {
+        await SeedOpenShiftAsync();
         var beans = await SeedItemAsync("Beans", stock: 1, cost: 5m);
         var latte = await SeedItemAsync("Latte", stock: 0, cost: 0m, isComposite: true);
         await LinkComponentAsync(latte.Id, beans.Id, qty: 2m);
@@ -99,6 +115,7 @@ public class CompositeSaleTests : IDisposable
     [Fact]
     public async Task Aggregate_demand_across_lines_is_rejected_when_total_exceeds_stock()
     {
+        await SeedOpenShiftAsync();
         var beans = await SeedItemAsync("Beans", stock: 3, cost: 5m);
         var latte = await SeedItemAsync("Latte", stock: 0, cost: 0m, isComposite: true);
         await LinkComponentAsync(latte.Id, beans.Id, qty: 2m);
@@ -110,6 +127,7 @@ public class CompositeSaleTests : IDisposable
     [Fact]
     public async Task Sale_of_composite_with_sufficient_component_stock_succeeds()
     {
+        await SeedOpenShiftAsync();
         var beans = await SeedItemAsync("Beans", stock: 10, cost: 5m);
         var latte = await SeedItemAsync("Latte", stock: 0, cost: 0m, isComposite: true);
         await LinkComponentAsync(latte.Id, beans.Id, qty: 2m);
@@ -122,6 +140,7 @@ public class CompositeSaleTests : IDisposable
     [Fact]
     public async Task Composite_sale_snapshots_cost_as_sum_of_component_costs()
     {
+        await SeedOpenShiftAsync();
         var beans = await SeedItemAsync("Beans", stock: 100, cost: 5m);
         var milk = await SeedItemAsync("Milk", stock: 100, cost: 3m);
         var latte = await SeedItemAsync("Latte", stock: 0, cost: 0m, price: 120m, isComposite: true);

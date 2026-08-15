@@ -8,6 +8,6 @@ public record UpdateStoreSettingsCommand(
     string ReceiptFooter,
     bool AcceptUtang,
     decimal DefaultUtangMarkup,
-    bool TrackGcashWallet,
-    Guid? GcashFeeItemId
+    bool TrackEWalletFloat,
+    Guid? EWalletFeeItemId
 ) : IRequest;

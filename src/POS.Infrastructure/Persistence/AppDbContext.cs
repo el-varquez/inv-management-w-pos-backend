@@ -28,6 +28,8 @@ public class AppDbContext : DbContext
     public DbSet<InventoryCount> InventoryCounts => Set<InventoryCount>();
     public DbSet<InventoryCountLine> InventoryCountLines => Set<InventoryCountLine>();
     public DbSet<StoreSettings> StoreSettings => Set<StoreSettings>();
+    public DbSet<Shift> Shifts => Set<Shift>();
+    public DbSet<CashDrawerMovement> CashDrawerMovements => Set<CashDrawerMovement>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -63,6 +65,11 @@ public class AppDbContext : DbContext
         builder.Entity<Transaction>().Property(t => t.AmountTendered).HasPrecision(18, 2);
         builder.Entity<Transaction>().Property(t => t.Change).HasPrecision(18, 2);
         builder.Entity<Transaction>().HasIndex(t => t.ReceiptNumber).IsUnique();
+        builder.Entity<Transaction>()
+            .HasOne(t => t.Shift)
+            .WithMany()
+            .HasForeignKey(t => t.ShiftId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<TransactionItem>().Property(ti => ti.UnitPrice).HasPrecision(18, 2);
         builder.Entity<TransactionItem>().Property(ti => ti.CostPrice).HasPrecision(18, 2);
@@ -108,6 +115,38 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(l => l.ItemId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<Shift>().HasIndex(s => s.Number).IsUnique();
+        builder.Entity<Shift>().Property(s => s.StartingCash).HasPrecision(18, 2);
+        builder.Entity<Shift>().Property(s => s.StartingCashOriginal).HasPrecision(18, 2);
+        builder.Entity<Shift>().Property(s => s.StartingEWalletBalance).HasPrecision(18, 2);
+        builder.Entity<Shift>().Property(s => s.StartingCashCorrectionReason).HasMaxLength(256);
+
+        builder.Entity<Shift>().OwnsOne(s => s.Snapshot, snapshot =>
+        {
+            snapshot.Property(x => x.NetSales).HasPrecision(18, 2);
+            snapshot.Property(x => x.CashSales).HasPrecision(18, 2);
+            snapshot.Property(x => x.GcashSales).HasPrecision(18, 2);
+            snapshot.Property(x => x.MayaSales).HasPrecision(18, 2);
+            snapshot.Property(x => x.DrawerMovementsNet).HasPrecision(18, 2);
+            snapshot.Property(x => x.ExpectedCash).HasPrecision(18, 2);
+            snapshot.Property(x => x.CountedCash).HasPrecision(18, 2);
+            snapshot.Property(x => x.CashVariance).HasPrecision(18, 2);
+            snapshot.Property(x => x.CountedCashOriginal).HasPrecision(18, 2);
+            snapshot.Property(x => x.ExpectedEWalletBalance).HasPrecision(18, 2);
+            snapshot.Property(x => x.CountedEWalletBalance).HasPrecision(18, 2);
+            snapshot.Property(x => x.EWalletVariance).HasPrecision(18, 2);
+            snapshot.Property(x => x.CorrectionReason).HasMaxLength(256);
+        });
+
+        builder.Entity<CashDrawerMovement>()
+            .HasOne(m => m.Shift)
+            .WithMany(s => s.DrawerMovements)
+            .HasForeignKey(m => m.ShiftId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CashDrawerMovement>().Property(m => m.Amount).HasPrecision(18, 2);
+        builder.Entity<CashDrawerMovement>().Property(m => m.Note).HasMaxLength(256);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)

@@ -16,6 +16,7 @@ public class CreateTransactionCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly ICompositeItemRepository _compositeItemRepository;
+    private readonly IShiftRepository _shifts;
 
     public CreateTransactionCommandHandler(
         IItemRepository itemRepository,
@@ -23,7 +24,8 @@ public class CreateTransactionCommandHandler
         IReceiptNumberGenerator receiptGenerator,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
-        ICompositeItemRepository compositeItemRepository)
+        ICompositeItemRepository compositeItemRepository,
+        IShiftRepository shifts)
     {
         _itemRepository = itemRepository;
         _transactionRepository = transactionRepository;
@@ -31,11 +33,16 @@ public class CreateTransactionCommandHandler
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _compositeItemRepository = compositeItemRepository;
+        _shifts = shifts;
     }
 
     public async Task<CreateTransactionResult> Handle(
         CreateTransactionCommand request, CancellationToken ct)
     {
+        var shift = await _shifts.GetOpenAsync(ct)
+            ?? throw new DomainException(
+                "No open shift — declare starting cash to start selling.");
+
         var transactionItems = new List<TransactionItem>();
         var soldItems = new List<(Guid ItemId, int Quantity)>();
         var demand = new Dictionary<Guid, int>();
@@ -114,6 +121,7 @@ public class CreateTransactionCommandHandler
             AmountTendered = request.AmountTendered,
             Change = change,
             CreatedBy = _currentUser.Id,
+            ShiftId = shift.Id,
             Items = transactionItems
         };
 

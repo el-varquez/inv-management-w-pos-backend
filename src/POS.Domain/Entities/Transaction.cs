@@ -15,6 +15,8 @@ public class Transaction : BaseEntity
     public bool IsRefunded { get; set; }
     public Guid? RefundedFromId { get; set; }
     public Guid CreatedBy { get; set; }
+    public Guid? ShiftId { get; set; }
+    public Shift? Shift { get; set; }
 
     public ICollection<TransactionItem> Items { get; set; } = new List<TransactionItem>();
 }
