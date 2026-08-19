@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using POS.Application.Auth.Commands.Login;
 using POS.Application.Cashiers.Commands.CreateCashier;
 using POS.Application.Cashiers.Commands.DeactivateCashier;
 using POS.Application.Cashiers.Commands.ResetCashierPassword;
@@ -37,6 +38,21 @@ public class CashierModuleTests : IDisposable
 
     private CreateCashierCommandHandler CreateHandler() =>
         new(_users, _uow, _hasher);
+
+    [Fact]
+    public async Task Create_without_password_leaves_hash_null_for_register_claim()
+    {
+        var id = await CreateHandler().Handle(
+            new CreateCashierCommand("Nena", "nena"), CancellationToken.None);
+
+        var cashier = await _ctx.Users.SingleAsync(u => u.Id == id);
+        Assert.Null(cashier.PasswordHash);
+
+        var login = new LoginCommandHandler(_users, _hasher);
+        var result = await login.Handle(new LoginCommand("nena", "anything"), CancellationToken.None);
+        Assert.True(result.PasswordSetupRequired);
+        Assert.Equal("Cashier", result.User!.Role);
+    }
 
     [Fact]
     public async Task Create_stamps_role_and_active()

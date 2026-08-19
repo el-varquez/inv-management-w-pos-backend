@@ -89,13 +89,15 @@ public class LoginGateTests : IDisposable
     [Fact]
     public async Task Login_signals_password_setup_when_no_password_set()
     {
-        await SeedUserAsync("newbie", password: null);
+        await SeedUserAsync("newbie", password: null, role: "Cashier");
 
         var result = await _login.Handle(
             new LoginCommand("newbie", "anything"), CancellationToken.None);
 
         Assert.True(result.PasswordSetupRequired);
-        Assert.Null(result.User);
+        Assert.NotNull(result.User);
+        Assert.Equal("newbie", result.User!.Username);
+        Assert.Equal("Cashier", result.User!.Role);
     }
 
     [Fact]

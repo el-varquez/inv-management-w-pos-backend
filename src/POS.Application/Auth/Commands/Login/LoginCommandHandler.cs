@@ -25,7 +25,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
         {
             if (!user.IsActive)
                 throw new DomainException("Account is inactive.");
-            return new LoginResult(null, PasswordSetupRequired: true);
+            return new LoginResult(user, PasswordSetupRequired: true);
         }
 
         if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
