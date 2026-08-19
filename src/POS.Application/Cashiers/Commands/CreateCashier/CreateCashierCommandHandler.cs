@@ -36,7 +36,9 @@ public class CreateCashierCommandHandler : IRequestHandler<CreateCashierCommand,
             Name = request.Name.Trim(),
             Username = username,
             Email = string.IsNullOrWhiteSpace(email) ? null : email.ToLower(),
-            PasswordHash = _passwordHasher.Hash(request.Password),
+            PasswordHash = string.IsNullOrWhiteSpace(request.Password)
+                ? null
+                : _passwordHasher.Hash(request.Password),
             Role = "Cashier",
             IsActive = true
         };
