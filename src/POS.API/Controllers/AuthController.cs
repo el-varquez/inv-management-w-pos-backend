@@ -32,10 +32,10 @@ public class AuthController : ControllerBase
 
     private LoginResponse ToResponse(LoginResult result)
     {
-        if (result.PasswordSetupRequired)
-            return new LoginResponse(null, null, null, null, true);
-
         var user = result.User!;
+        if (result.PasswordSetupRequired)
+            return new LoginResponse(null, user.Name, user.Username, user.Role, true);
+
         return new LoginResponse(
             _jwtService.GenerateToken(user), user.Name, user.Username, user.Role, false);
     }
