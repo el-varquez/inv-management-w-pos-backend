@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using POS.Application.Settings.Commands.UpdateStoreSettings;
+using POS.Application.Settings.Queries.GetStoreName;
 using POS.Application.Settings.Queries.GetStoreSettings;
 
 namespace POS.API.Controllers;
@@ -17,6 +18,11 @@ public class SettingsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get()
         => Ok(await _mediator.Send(new GetStoreSettingsQuery()));
+
+    [HttpGet("store-name")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetStoreName()
+        => Ok(await _mediator.Send(new GetStoreNameQuery()));
 
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdateStoreSettingsCommand command)

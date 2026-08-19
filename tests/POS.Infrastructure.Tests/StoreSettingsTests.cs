@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Settings.Commands.UpdateStoreSettings;
+using POS.Application.Settings.Queries.GetStoreName;
 using POS.Application.Settings.Queries.GetStoreSettings;
 using POS.Infrastructure.Persistence;
 using POS.Infrastructure.Persistence.Repositories;
@@ -156,6 +157,30 @@ public class StoreSettingsTests : IDisposable
 
         Assert.True(result.TrackEWalletFloat);
         Assert.Equal(feeItemId, result.EWalletFeeItemId);
+    }
+
+    [Fact]
+    public async Task StoreName_returns_default_when_no_row_exists()
+    {
+        var handler = new GetStoreNameQueryHandler(_settings);
+
+        var result = await handler.Handle(new GetStoreNameQuery(), CancellationToken.None);
+
+        Assert.Equal("My Store", result.StoreName);
+    }
+
+    [Fact]
+    public async Task StoreName_returns_saved_value()
+    {
+        var update = new UpdateStoreSettingsCommandHandler(_settings, _uow);
+        await update.Handle(
+            new UpdateStoreSettingsCommand("Aling Nena's", "", "", true, 0m, false, null),
+            CancellationToken.None);
+
+        var handler = new GetStoreNameQueryHandler(_settings);
+        var result = await handler.Handle(new GetStoreNameQuery(), CancellationToken.None);
+
+        Assert.Equal("Aling Nena's", result.StoreName);
     }
 
     public void Dispose()
