@@ -83,7 +83,14 @@ public class CompositeSaleTests : IDisposable
             Status = ShiftStatus.Open,
             StartingCash = 1000m,
             OpenedAt = DateTime.UtcNow,
-            OpenedBy = _userId
+            OpenedBy = _userId,
+            BusinessDay = new BusinessDay
+            {
+                Number = 1,
+                Status = DayStatus.Open,
+                OpenedAt = DateTime.UtcNow,
+                OpenedBy = _userId
+            }
         });
         await _ctx.SaveChangesAsync();
     }

@@ -23,7 +23,6 @@ public class GetShiftsQueryHandler
             s.Id,
             s.Number,
             s.Status == ShiftStatus.Closed,
-            s.ClosedLate,
             s.OpenedAt,
             s.ClosedAt,
             s.StartingCash,

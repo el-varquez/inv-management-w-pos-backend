@@ -9,7 +9,6 @@ public record ShiftSummaryDto(
     Guid Id,
     int Number,
     bool IsClosed,
-    bool ClosedLate,
     DateTime OpenedAt,
     DateTime? ClosedAt,
     decimal StartingCash,

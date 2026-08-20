@@ -55,7 +55,7 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
 
         var closedAt = DateTime.UtcNow;
 
-        var snapshot = new ZReadSnapshot
+        var snapshot = new XReadSnapshot
         {
             NetSales = PaidSales.Net(transactions),
             TransactionCount = PaidSales.Count(transactions),
@@ -80,7 +80,6 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         shift.Status = ShiftStatus.Closed;
         shift.ClosedAt = closedAt;
         shift.ClosedBy = _currentUser.Id;
-        shift.ClosedLate = shift.OpenedAt.ToLocalTime().Date < closedAt.ToLocalTime().Date;
         shift.UpdatedAt = closedAt;
 
         await _shifts.UpdateAsync(shift, ct);

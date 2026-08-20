@@ -29,6 +29,7 @@ public class AppDbContext : DbContext
     public DbSet<InventoryCountLine> InventoryCountLines => Set<InventoryCountLine>();
     public DbSet<StoreSettings> StoreSettings => Set<StoreSettings>();
     public DbSet<Shift> Shifts => Set<Shift>();
+    public DbSet<BusinessDay> BusinessDays => Set<BusinessDay>();
     public DbSet<CashDrawerMovement> CashDrawerMovements => Set<CashDrawerMovement>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -138,6 +139,25 @@ public class AppDbContext : DbContext
             snapshot.Property(x => x.EWalletVariance).HasPrecision(18, 2);
             snapshot.Property(x => x.CorrectionReason).HasMaxLength(256);
         });
+
+        builder.Entity<BusinessDay>().HasIndex(d => d.Number).IsUnique();
+
+        builder.Entity<BusinessDay>().OwnsOne(d => d.Snapshot, snapshot =>
+        {
+            snapshot.Property(x => x.NetSales).HasPrecision(18, 2);
+            snapshot.Property(x => x.CashSales).HasPrecision(18, 2);
+            snapshot.Property(x => x.GcashSales).HasPrecision(18, 2);
+            snapshot.Property(x => x.MayaSales).HasPrecision(18, 2);
+            snapshot.Property(x => x.DrawerMovementsNet).HasPrecision(18, 2);
+            snapshot.Property(x => x.CountedCash).HasPrecision(18, 2);
+            snapshot.Property(x => x.CashVariance).HasPrecision(18, 2);
+        });
+
+        builder.Entity<Shift>()
+            .HasOne(s => s.BusinessDay)
+            .WithMany(d => d.Shifts)
+            .HasForeignKey(s => s.BusinessDayId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<CashDrawerMovement>()
             .HasOne(m => m.Shift)
