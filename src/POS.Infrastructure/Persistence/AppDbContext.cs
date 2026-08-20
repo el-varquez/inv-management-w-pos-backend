@@ -141,6 +141,7 @@ public class AppDbContext : DbContext
         });
 
         builder.Entity<BusinessDay>().HasIndex(d => d.Number).IsUnique();
+        builder.Entity<BusinessDay>().Property(d => d.ReopenReason).HasMaxLength(256);
 
         builder.Entity<BusinessDay>().OwnsOne(d => d.Snapshot, snapshot =>
         {

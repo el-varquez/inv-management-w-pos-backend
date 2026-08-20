@@ -14,6 +14,10 @@ public class BusinessDay : BaseEntity
     public Guid? ClosedBy { get; set; }
     public bool ClosedLate { get; set; }
 
+    public DateTime? ReopenedAt { get; set; }
+    public Guid? ReopenedBy { get; set; }
+    public string? ReopenReason { get; set; }
+
     public ZReadSnapshot? Snapshot { get; set; }
 
     public ICollection<Shift> Shifts { get; set; } = new List<Shift>();

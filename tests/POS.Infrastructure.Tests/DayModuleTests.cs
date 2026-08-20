@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Days.Commands.CloseDay;
+using POS.Application.Days.Commands.ReopenDay;
 using POS.Application.Days.Queries.GetCurrentDay;
 using POS.Application.Sales.Commands.CreateTransaction;
 using POS.Application.Shifts.Commands.CloseShift;
@@ -12,6 +13,7 @@ using POS.Domain.Enums;
 using POS.Domain.Exceptions;
 using POS.Infrastructure.Persistence;
 using POS.Infrastructure.Persistence.Repositories;
+using POS.Infrastructure.Services;
 using POS.Infrastructure.Tests.Fakes;
 using Xunit;
 
@@ -27,7 +29,9 @@ public class DayModuleTests : IDisposable
     private readonly TransactionRepository _transactions;
     private readonly CompositeItemRepository _composites;
     private readonly StoreSettingsRepository _settings;
+    private readonly UserRepository _users;
     private readonly UnitOfWork _uow;
+    private readonly PasswordHasher _hasher = new();
     private readonly FakeCurrentUser _user = new();
     private readonly FakeReceiptNumberGenerator _receipts = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -49,6 +53,7 @@ public class DayModuleTests : IDisposable
         _transactions = new TransactionRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
+        _users = new UserRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -64,6 +69,9 @@ public class DayModuleTests : IDisposable
     private CloseDayCommandHandler CloseDayHandler()
         => new(_days, _shifts, _uow, _user);
 
+    private ReopenDayCommandHandler ReopenHandler()
+        => new(_days, _users, _hasher, _uow);
+
     private CreateTransactionCommandHandler SaleHandler()
         => new(_items, _transactions, _receipts, _uow, _user,
             _composites, _shifts);
@@ -74,6 +82,32 @@ public class DayModuleTests : IDisposable
             0m,
             payment,
             item.SellingPrice * qty);
+
+    private const string AdminPassword = "admin-pass-1";
+
+    private async Task<User> SeedAdminAsync()
+    {
+        var admin = new User
+        {
+            Name = "Boss",
+            Username = "boss",
+            PasswordHash = _hasher.Hash(AdminPassword),
+            Role = "Admin"
+        };
+        await _users.AddAsync(admin);
+        await _uow.SaveChangesAsync();
+        return admin;
+    }
+
+    private async Task<BusinessDay> CloseOneDayAsync(decimal startingCash = 2000m)
+    {
+        var shiftId = await OpenHandler().Handle(
+            new OpenShiftCommand(startingCash, null), CancellationToken.None);
+        await CloseHandler().Handle(
+            new CloseShiftCommand(shiftId, startingCash, null), CancellationToken.None);
+        await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
+        return await _ctx.BusinessDays.OrderByDescending(d => d.Number).FirstAsync();
+    }
 
     private async Task<Item> SeedItemAsync(string name, int stock = 100, decimal price = 10m)
     {
@@ -337,6 +371,115 @@ public class DayModuleTests : IDisposable
         var day = await _ctx.BusinessDays.AsNoTracking().SingleAsync();
         Assert.Equal(9000m, day.Snapshot!.CountedCash);
         Assert.Equal(8000m, day.Snapshot.CashVariance);
+    }
+
+    [Fact]
+    public async Task Reopen_restores_the_day_and_discards_the_z_snapshot()
+    {
+        var admin = await SeedAdminAsync();
+        var closed = await CloseOneDayAsync();
+        Assert.NotNull(closed.Snapshot);
+
+        await ReopenHandler().Handle(
+            new ReopenDayCommand(closed.Id, "boss", AdminPassword, "Clicked Z at 6 PM"),
+            CancellationToken.None);
+
+        var day = await _ctx.BusinessDays.AsNoTracking().SingleAsync();
+        Assert.Equal(DayStatus.Open, day.Status);
+        Assert.Null(day.Snapshot);
+        Assert.Null(day.ClosedAt);
+        Assert.Null(day.ClosedBy);
+        Assert.False(day.ClosedLate);
+        Assert.NotNull(day.ReopenedAt);
+        Assert.Equal(admin.Id, day.ReopenedBy);
+        Assert.Equal("Clicked Z at 6 PM", day.ReopenReason);
+
+        var newShiftId = await OpenHandler().Handle(
+            new OpenShiftCommand(1500m, null), CancellationToken.None);
+        var newShift = await _ctx.Shifts.AsNoTracking().SingleAsync(s => s.Id == newShiftId);
+        Assert.Equal(day.Id, newShift.BusinessDayId);
+    }
+
+    [Fact]
+    public async Task Reopen_is_blocked_for_a_previous_date()
+    {
+        await SeedAdminAsync();
+        var closed = await CloseOneDayAsync();
+        closed.OpenedAt = DateTime.UtcNow.AddDays(-1);
+        await _ctx.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<DomainException>(() => ReopenHandler().Handle(
+            new ReopenDayCommand(closed.Id, "boss", AdminPassword, "too late"),
+            CancellationToken.None));
+
+        Assert.Equal(
+            "Day #1 belongs to a previous date — a Z read can only be undone on the day it happened.",
+            ex.Message);
+    }
+
+    [Fact]
+    public async Task Reopen_is_blocked_for_an_open_day()
+    {
+        await SeedAdminAsync();
+        await OpenHandler().Handle(new OpenShiftCommand(2000m, null), CancellationToken.None);
+        var day = await _ctx.BusinessDays.SingleAsync();
+
+        var ex = await Assert.ThrowsAsync<DomainException>(() => ReopenHandler().Handle(
+            new ReopenDayCommand(day.Id, "boss", AdminPassword, "nothing to undo"),
+            CancellationToken.None));
+
+        Assert.Equal("Day #1 is still open — there is no Z read to undo.", ex.Message);
+    }
+
+    [Fact]
+    public async Task Reopen_only_touches_the_most_recent_day()
+    {
+        await SeedAdminAsync();
+        var first = await CloseOneDayAsync();
+        first.OpenedAt = DateTime.UtcNow.AddDays(-1);
+        await _ctx.SaveChangesAsync();
+        await CloseOneDayAsync();
+
+        var ex = await Assert.ThrowsAsync<DomainException>(() => ReopenHandler().Handle(
+            new ReopenDayCommand(first.Id, "boss", AdminPassword, "wrong day"),
+            CancellationToken.None));
+
+        Assert.Equal("Only the most recent day can be reopened.", ex.Message);
+    }
+
+    [Fact]
+    public async Task Reopen_rejects_wrong_password_and_non_admins()
+    {
+        await SeedAdminAsync();
+        var cashier = new User
+        {
+            Name = "Nena",
+            Username = "nena",
+            PasswordHash = _hasher.Hash("cashier-pass"),
+            Role = "Cashier"
+        };
+        await _users.AddAsync(cashier);
+        await _uow.SaveChangesAsync();
+        var closed = await CloseOneDayAsync();
+
+        var wrongPassword = await Assert.ThrowsAsync<DomainException>(() => ReopenHandler().Handle(
+            new ReopenDayCommand(closed.Id, "boss", "not-the-password", "oops"),
+            CancellationToken.None));
+        var cashierCreds = await Assert.ThrowsAsync<DomainException>(() => ReopenHandler().Handle(
+            new ReopenDayCommand(closed.Id, "nena", "cashier-pass", "oops"),
+            CancellationToken.None));
+
+        Assert.Equal("Those credentials don't belong to an active admin account.", wrongPassword.Message);
+        Assert.Equal("Those credentials don't belong to an active admin account.", cashierCreds.Message);
+    }
+
+    [Fact]
+    public void Reopen_validator_rejects_a_blank_reason()
+    {
+        var result = new ReopenDayCommandValidator().Validate(
+            new ReopenDayCommand(Guid.NewGuid(), "boss", AdminPassword, ""));
+
+        Assert.False(result.IsValid);
     }
 
     public void Dispose()
