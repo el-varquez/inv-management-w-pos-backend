@@ -151,6 +151,8 @@ public class AppDbContext : DbContext
             snapshot.Property(x => x.DrawerMovementsNet).HasPrecision(18, 2);
             snapshot.Property(x => x.CountedCash).HasPrecision(18, 2);
             snapshot.Property(x => x.CashVariance).HasPrecision(18, 2);
+            snapshot.Property(x => x.CountedEWalletBalance).HasPrecision(18, 2);
+            snapshot.Property(x => x.EWalletVariance).HasPrecision(18, 2);
         });
 
         builder.Entity<Shift>()

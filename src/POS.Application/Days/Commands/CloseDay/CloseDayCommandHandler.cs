@@ -53,6 +53,10 @@ public class CloseDayCommandHandler : IRequestHandler<CloseDayCommand>
             DrawerMovementsNet = reads.Sum(x => x.DrawerMovementsNet),
             CashVariance = reads.Sum(x => x.CashVariance),
             CountedCash = lastRead?.CountedCash ?? 0m,
+            CountedEWalletBalance = lastRead?.CountedEWalletBalance,
+            EWalletVariance = reads.Any(x => x.EWalletVariance is not null)
+                ? reads.Sum(x => x.EWalletVariance ?? 0m)
+                : null,
             ShiftCount = shifts.Count
         };
 
