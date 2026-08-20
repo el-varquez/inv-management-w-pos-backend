@@ -14,22 +14,29 @@ public class ProcessRefundCommandHandler
     private readonly IReceiptNumberGenerator _receiptGenerator;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
+    private readonly IShiftRepository _shifts;
 
     public ProcessRefundCommandHandler(
         ITransactionRepository transactionRepository,
         IReceiptNumberGenerator receiptGenerator,
         IUnitOfWork unitOfWork,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser,
+        IShiftRepository shifts)
     {
         _transactionRepository = transactionRepository;
         _receiptGenerator = receiptGenerator;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _shifts = shifts;
     }
 
     public async Task<RefundResult> Handle(
         ProcessRefundCommand request, CancellationToken ct)
     {
+        var shift = await _shifts.GetOpenAsync(ct)
+            ?? throw new DomainException(
+                "No open shift — voids land in the current shift. Declare starting cash first.");
+
         var original = await _transactionRepository.GetByIdAsync(request.TransactionId, ct)
             ?? throw new NotFoundException("Transaction", request.TransactionId);
 
@@ -54,6 +61,7 @@ public class ProcessRefundCommandHandler
             IsRefunded = false,
             RefundedFromId = original.Id,
             CreatedBy = _currentUser.Id,
+            ShiftId = shift.Id,
             Items = original.Items.Select(i => new TransactionItem
             {
                 ItemId = i.ItemId,
@@ -73,8 +81,19 @@ public class ProcessRefundCommandHandler
             new SaleRefundedEvent(refund.Id, refundedItems, _currentUser.Id));
 
         await _transactionRepository.AddAsync(refund, ct);
-        await _unitOfWork.SaveChangesAsync(ct);
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(ct);
+                break;
+            }
+            catch (ReceiptNumberCollisionException) when (attempt < 2)
+            {
+                refund.ReceiptNumber = await _receiptGenerator.GenerateAsync(ct);
+            }
+        }
 
-        return new RefundResult(refund.Id, receiptNumber, original.Total);
+        return new RefundResult(refund.Id, refund.ReceiptNumber, original.Total);
     }
 }

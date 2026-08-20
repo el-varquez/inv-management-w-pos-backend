@@ -26,6 +26,7 @@ public class SalesController : ControllerBase
     }
 
     [HttpPost("{id:guid}/refund")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Refund(Guid id)
     {
         var result = await _mediator.Send(new ProcessRefundCommand(id));
