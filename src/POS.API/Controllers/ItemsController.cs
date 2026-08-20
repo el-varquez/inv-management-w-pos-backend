@@ -5,8 +5,10 @@ using POS.Application.Items.Commands.CreateItem;
 using POS.Application.Items.Commands.DeleteItem;
 using POS.Application.Items.Commands.UpdateItem;
 using POS.Application.Items.Queries.GetItems;
+using POS.Application.Items.Queries.GetPopularItems;
 using POS.Application.Items.Queries.GetSellableItems;
 using POS.Application.Items.Queries.SearchItems;
+using POS.Application.Items.Queries.SearchSellableItems;
 
 namespace POS.API.Controller;
 
@@ -35,6 +37,16 @@ public class ItemsController : ControllerBase
         [FromQuery] string? term,
         [FromQuery] int? limit)
         => Ok(await _mediator.Send(new SearchItemsQuery(term ?? string.Empty, limit)));
+
+    [HttpGet("search-sellable")]
+    public async Task<IActionResult> SearchSellable(
+        [FromQuery] string? term,
+        [FromQuery] int? limit)
+        => Ok(await _mediator.Send(new SearchSellableItemsQuery(term ?? string.Empty, limit)));
+
+    [HttpGet("popular")]
+    public async Task<IActionResult> Popular()
+        => Ok(await _mediator.Send(new GetPopularItemsQuery()));
 
     [HttpPost]
     [Authorize(Roles = "Admin")]

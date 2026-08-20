@@ -22,5 +22,8 @@ public class CreateTransactionCommandValidator : AbstractValidator<CreateTransac
 
         RuleFor(x => x.AmountTendered)
             .GreaterThanOrEqualTo(0).WithMessage("Amount tendered cannot be negative.");
+
+        RuleFor(x => x.ReferenceNumber)
+            .MaximumLength(64).WithMessage("Reference number is too long.");
     }
 }

@@ -12,8 +12,8 @@ public class ReceiptNumberGenerator : IReceiptNumberGenerator
 
     public async Task<string> GenerateAsync(CancellationToken ct = default)
     {
-        var todayCount = await _transactionRepository.GetCountForTodayAsync(ct);
-        var sequence = (todayCount + 1).ToString("D4");
-        return $"R-{DateTime.UtcNow:yyyyMMdd}-{sequence}";
+        var prefix = $"R-{DateTime.Now:yyyyMMdd}-";
+        var next = await _transactionRepository.GetMaxReceiptSequenceAsync(prefix, ct) + 1;
+        return $"{prefix}{next:D4}";
     }
 }

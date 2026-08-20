@@ -41,6 +41,24 @@ public class ItemRepository : IItemRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IList<Item>> SearchActiveAsync(string term, int limit, CancellationToken ct = default)
+    {
+        var lowered = term.ToLower();
+        return await _context.Items
+            .Include(i => i.Category)
+            .Where(i => i.IsActive)
+            .Where(i =>
+                i.Barcode == term ||
+                i.ItemCode.ToLower() == lowered ||
+                i.Name.ToLower().Contains(lowered) ||
+                i.ItemCode.ToLower().Contains(lowered))
+            .OrderByDescending(i => i.Barcode == term)
+            .ThenByDescending(i => i.ItemCode.ToLower() == lowered)
+            .ThenBy(i => i.Name)
+            .Take(limit)
+            .ToListAsync(ct);
+    }
+
     public async Task<IList<Item>> GetAllAsync(CancellationToken ct = default)
         => await _context.Items
             .Include(i => i.Category)

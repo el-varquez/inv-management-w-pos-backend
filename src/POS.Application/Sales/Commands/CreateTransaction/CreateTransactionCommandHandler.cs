@@ -119,6 +119,9 @@ public class CreateTransactionCommandHandler
             Total = total,
             PaymentType = request.PaymentType,
             AmountTendered = request.AmountTendered,
+            ReferenceNumber = string.IsNullOrWhiteSpace(request.ReferenceNumber)
+                ? null
+                : request.ReferenceNumber.Trim(),
             Change = change,
             CreatedBy = _currentUser.Id,
             ShiftId = shift.Id,
@@ -129,11 +132,22 @@ public class CreateTransactionCommandHandler
             new SaleCompletedEvent(transaction.Id, soldItems, _currentUser.Id));
 
         await _transactionRepository.AddAsync(transaction, ct);
-        await _unitOfWork.SaveChangesAsync(ct);
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(ct);
+                break;
+            }
+            catch (ReceiptNumberCollisionException) when (attempt < 2)
+            {
+                transaction.ReceiptNumber = await _receiptGenerator.GenerateAsync(ct);
+            }
+        }
 
         return new CreateTransactionResult(
             transaction.Id,
-            receiptNumber,
+            transaction.ReceiptNumber,
             subtotal,
             totalDiscount,
             total,

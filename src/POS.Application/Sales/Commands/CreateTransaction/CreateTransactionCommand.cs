@@ -11,9 +11,10 @@ public record CartItemInput(
 
 public record CreateTransactionCommand(
     IList<CartItemInput> Items,
-    decimal TransactionDiscount,   
+    decimal TransactionDiscount,
     PaymentType PaymentType,
-    decimal AmountTendered
+    decimal AmountTendered,
+    string? ReferenceNumber = null
 ) : IRequest<CreateTransactionResult>;
 
 public record CreateTransactionResult(

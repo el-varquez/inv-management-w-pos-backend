@@ -72,11 +72,15 @@ public class TransactionRepository : ITransactionRepository
             .Where(t => t.ShiftId == shiftId)
             .ToListAsync(ct);
 
-    public async Task<int> GetCountForTodayAsync(CancellationToken ct = default)
+    public async Task<int> GetMaxReceiptSequenceAsync(string prefix, CancellationToken ct = default)
     {
-        var today = DateTime.UtcNow.Date;
-        return await _context.Transactions
-            .CountAsync(t => t.CreatedAt >= today, ct);
+        var numbers = await _context.Transactions
+            .Where(t => t.ReceiptNumber.StartsWith(prefix))
+            .Select(t => t.ReceiptNumber)
+            .ToListAsync(ct);
+        return numbers.Count == 0
+            ? 0
+            : numbers.Max(n => int.TryParse(n[prefix.Length..], out var seq) ? seq : 0);
     }
 
     public async Task AddAsync(Transaction transaction, CancellationToken ct = default)
