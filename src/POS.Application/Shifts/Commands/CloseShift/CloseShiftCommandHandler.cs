@@ -62,6 +62,8 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
             CashSales = cashSales,
             GcashSales = gcashSales,
             MayaSales = NetOf(transactions, PaymentType.Maya),
+            Refunds = PaidSales.Refunds(transactions),
+            RefundCount = PaidSales.RefundCount(transactions),
             DrawerMovementsNet = movementsNet,
             ExpectedCash = expectedCash,
             CountedCash = request.CountedCash,
