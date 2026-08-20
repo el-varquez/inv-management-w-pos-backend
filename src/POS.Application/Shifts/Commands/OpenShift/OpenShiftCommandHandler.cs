@@ -34,7 +34,7 @@ public class OpenShiftCommandHandler : IRequestHandler<OpenShiftCommand, Guid>
         var open = await _shifts.GetOpenAsync(ct);
         if (open is not null)
             throw new DomainException(
-                $"Shift #{open.Number} is still open — close it with a Z read before opening a new one.");
+                $"Shift #{open.Number} is still open — close it with an X read before opening a new one.");
 
         var settings = await _settings.GetAsync(ct);
         if (settings?.TrackEWalletFloat == true && request.StartingEWalletBalance is null)
