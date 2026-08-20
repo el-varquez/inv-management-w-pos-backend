@@ -19,6 +19,7 @@ public record TransactionDetailDto(
     decimal DiscountAmount,
     decimal Total,
     string PaymentType,
+    string? ReferenceNumber,
     decimal AmountTendered,
     decimal Change,
     bool IsRefunded,
