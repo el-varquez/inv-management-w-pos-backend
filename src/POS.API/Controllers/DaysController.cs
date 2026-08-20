@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using POS.Application.Days.Commands.CloseDay;
+using POS.Application.Days.Commands.ReopenDay;
 using POS.Application.Days.Queries.GetCurrentDay;
 using POS.Application.Days.Queries.GetDayRead;
 using POS.Application.Days.Queries.GetDays;
@@ -38,4 +40,15 @@ public class DaysController : ControllerBase
         await _mediator.Send(new CloseDayCommand());
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/reopen")]
+    [Authorize(Roles = "Admin")]
+    [EnableRateLimiting("login")]
+    public async Task<IActionResult> Reopen(Guid id, [FromBody] ReopenDayRequest body)
+    {
+        await _mediator.Send(new ReopenDayCommand(id, body.Username, body.Password, body.Reason));
+        return NoContent();
+    }
 }
+
+public record ReopenDayRequest(string Username, string Password, string Reason);
