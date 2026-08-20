@@ -10,7 +10,7 @@ namespace POS.API.Controllers;
 
 [ApiController]
 [Route("api/days")]
-[Authorize(Roles = "Admin")]
+[Authorize]
 public class DaysController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -32,6 +32,7 @@ public class DaysController : ControllerBase
         => Ok(await _mediator.Send(new GetDayReadQuery(id)));
 
     [HttpPost("close")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Close()
     {
         await _mediator.Send(new CloseDayCommand());

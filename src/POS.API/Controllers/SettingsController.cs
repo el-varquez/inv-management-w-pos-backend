@@ -9,7 +9,7 @@ namespace POS.API.Controllers;
 
 [ApiController]
 [Route("api/settings")]
-[Authorize(Roles = "Admin")]
+[Authorize]
 public class SettingsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -25,6 +25,7 @@ public class SettingsController : ControllerBase
         => Ok(await _mediator.Send(new GetStoreNameQuery()));
 
     [HttpPut]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update([FromBody] UpdateStoreSettingsCommand command)
     {
         await _mediator.Send(command);
