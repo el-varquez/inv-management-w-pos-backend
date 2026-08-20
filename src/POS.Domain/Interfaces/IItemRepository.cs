@@ -9,6 +9,7 @@ public interface IItemRepository
     Task<Item?> GetByItemCodeAsync(string itemCode, CancellationToken ct = default);
     Task<IList<string>> GetItemCodesAsync(CancellationToken ct = default);
     Task<IList<Item>> SearchAsync(string term, int limit, CancellationToken ct = default);
+    Task<IList<Item>> SearchActiveAsync(string term, int limit, CancellationToken ct = default);
     Task<IList<Item>> GetAllAsync(CancellationToken ct = default);
     Task<(IList<Item> Items, int Total)> GetPagedAsync(int page, int pageSize, bool? isComposite = null, CancellationToken ct = default);
     Task<IList<Item>> GetLowStockAsync(CancellationToken ct = default);
