@@ -14,7 +14,6 @@ public record ShiftReadDto(
     Guid Id,
     int Number,
     bool IsClosed,
-    bool ClosedLate,
     DateTime OpenedAt,
     DateTime? ClosedAt,
     decimal StartingCash,
@@ -52,7 +51,7 @@ public static class ShiftRead
         {
             var s = shift.Snapshot;
             return new ShiftReadDto(
-                shift.Id, shift.Number, true, shift.ClosedLate,
+                shift.Id, shift.Number, true,
                 shift.OpenedAt, shift.ClosedAt,
                 shift.StartingCash, shift.StartingCashOriginal,
                 shift.StartingCashCorrectionReason,
@@ -74,7 +73,7 @@ public static class ShiftRead
             : (decimal?)null;
 
         return new ShiftReadDto(
-            shift.Id, shift.Number, false, false,
+            shift.Id, shift.Number, false,
             shift.OpenedAt, null,
             shift.StartingCash, shift.StartingCashOriginal,
             shift.StartingCashCorrectionReason,

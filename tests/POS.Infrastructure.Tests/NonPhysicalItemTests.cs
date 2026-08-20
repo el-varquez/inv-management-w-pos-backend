@@ -85,7 +85,14 @@ public class NonPhysicalItemTests : IDisposable
             Status = ShiftStatus.Open,
             StartingCash = 1000m,
             OpenedAt = DateTime.UtcNow,
-            OpenedBy = _user.Id
+            OpenedBy = _user.Id,
+            BusinessDay = new BusinessDay
+            {
+                Number = 1,
+                Status = DayStatus.Open,
+                OpenedAt = DateTime.UtcNow,
+                OpenedBy = _user.Id
+            }
         });
         await _ctx.SaveChangesAsync();
     }

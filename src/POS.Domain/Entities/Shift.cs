@@ -20,9 +20,11 @@ public class Shift : BaseEntity
     public Guid OpenedBy { get; set; }
     public DateTime? ClosedAt { get; set; }
     public Guid? ClosedBy { get; set; }
-    public bool ClosedLate { get; set; }
 
-    public ZReadSnapshot? Snapshot { get; set; }
+    public Guid BusinessDayId { get; set; }
+    public BusinessDay BusinessDay { get; set; } = null!;
+
+    public XReadSnapshot? Snapshot { get; set; }
 
     public ICollection<CashDrawerMovement> DrawerMovements { get; set; }
         = new List<CashDrawerMovement>();

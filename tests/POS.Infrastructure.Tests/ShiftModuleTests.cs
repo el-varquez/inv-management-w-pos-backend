@@ -25,6 +25,7 @@ public class ShiftModuleTests : IDisposable
     private readonly SqliteConnection _connection;
     private readonly AppDbContext _ctx;
     private readonly ShiftRepository _shifts;
+    private readonly BusinessDayRepository _days;
     private readonly ItemRepository _items;
     private readonly TransactionRepository _transactions;
     private readonly CompositeItemRepository _composites;
@@ -45,6 +46,7 @@ public class ShiftModuleTests : IDisposable
         _ctx.Database.EnsureCreated();
 
         _shifts = new ShiftRepository(_ctx);
+        _days = new BusinessDayRepository(_ctx);
         _items = new ItemRepository(_ctx);
         _transactions = new TransactionRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
@@ -56,7 +58,21 @@ public class ShiftModuleTests : IDisposable
     }
 
     private OpenShiftCommandHandler OpenHandler()
-        => new(_shifts, _settings, _uow, _user);
+        => new(_shifts, _days, _settings, _uow, _user);
+
+    private async Task<BusinessDay> SeedOpenDayAsync()
+    {
+        var day = new BusinessDay
+        {
+            Number = 1,
+            Status = DayStatus.Open,
+            OpenedAt = DateTime.UtcNow.AddHours(-8),
+            OpenedBy = _user.Id
+        };
+        await _days.AddAsync(day);
+        await _uow.SaveChangesAsync();
+        return day;
+    }
 
     private CloseShiftCommandHandler CloseHandler()
         => new(_shifts, _transactions, _settings, _uow, _user);
@@ -91,6 +107,7 @@ public class ShiftModuleTests : IDisposable
     [Fact]
     public async Task Shift_round_trips_with_its_snapshot()
     {
+        var day = await SeedOpenDayAsync();
         var shift = new Shift
         {
             Number = 1,
@@ -100,7 +117,8 @@ public class ShiftModuleTests : IDisposable
             OpenedBy = _user.Id,
             ClosedAt = DateTime.UtcNow,
             ClosedBy = _user.Id,
-            Snapshot = new ZReadSnapshot
+            BusinessDayId = day.Id,
+            Snapshot = new XReadSnapshot
             {
                 NetSales = 4320m,
                 TransactionCount = 37,
@@ -298,23 +316,6 @@ public class ShiftModuleTests : IDisposable
 
         var stored = await _ctx.Shifts.AsNoTracking().SingleAsync(s => s.Id == shiftId);
         Assert.Equal(-500m, stored.Snapshot!.CashVariance);
-    }
-
-    [Fact]
-    public async Task Closing_a_shift_opened_on_an_earlier_day_flags_it_late()
-    {
-        var shiftId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
-
-        var shift = await _ctx.Shifts.SingleAsync(s => s.Id == shiftId);
-        shift.OpenedAt = DateTime.UtcNow.AddDays(-1);
-        await _ctx.SaveChangesAsync();
-
-        await CloseHandler().Handle(
-            new CloseShiftCommand(shiftId, 2000m, null), CancellationToken.None);
-
-        var stored = await _ctx.Shifts.AsNoTracking().SingleAsync(s => s.Id == shiftId);
-        Assert.True(stored.ClosedLate);
     }
 
     [Fact]
