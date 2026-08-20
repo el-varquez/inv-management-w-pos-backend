@@ -44,6 +44,13 @@ public class OpenShiftCommandHandler : IRequestHandler<OpenShiftCommand, Guid>
         var day = await _days.GetOpenAsync(ct);
         if (day is null)
         {
+            var (recent, _) = await _days.GetPagedAsync(1, 1, ct);
+            var lastDay = recent.FirstOrDefault();
+            if (lastDay is not null
+                && lastDay.OpenedAt.ToLocalTime().Date == DateTime.UtcNow.ToLocalTime().Date)
+                throw new DomainException(
+                    $"Day #{lastDay.Number} is already closed — the next business day opens after midnight.");
+
             day = new BusinessDay
             {
                 Number = await _days.GetLastNumberAsync(ct) + 1,

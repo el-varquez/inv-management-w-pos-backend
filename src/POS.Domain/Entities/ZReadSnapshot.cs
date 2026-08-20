@@ -14,5 +14,8 @@ public class ZReadSnapshot
     public decimal CountedCash { get; set; }
     public decimal CashVariance { get; set; }
 
+    public decimal? CountedEWalletBalance { get; set; }
+    public decimal? EWalletVariance { get; set; }
+
     public int ShiftCount { get; set; }
 }

@@ -194,9 +194,37 @@ public class DayModuleTests : IDisposable
         Assert.Equal(300m, day.Snapshot.DrawerMovementsNet);
         Assert.Equal(790m, day.Snapshot.CountedCash);
         Assert.Equal(-20m, day.Snapshot.CashVariance);
+        Assert.Null(day.Snapshot.CountedEWalletBalance);
+        Assert.Null(day.Snapshot.EWalletVariance);
         Assert.Equal(2, day.Snapshot.ShiftCount);
         Assert.Equal(_user.Id, day.ClosedBy);
         Assert.NotNull(day.ClosedAt);
+    }
+
+    [Fact]
+    public async Task Close_day_aggregates_the_e_wallet_like_cash()
+    {
+        _ctx.StoreSettings.Add(new StoreSettings { TrackEWalletFloat = true });
+        await _ctx.SaveChangesAsync();
+        var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
+
+        var firstId = await OpenHandler().Handle(
+            new OpenShiftCommand(2000m, 5000m), CancellationToken.None);
+        await SaleHandler().Handle(SaleOf(item, 3, PaymentType.Gcash), CancellationToken.None);
+        await CloseHandler().Handle(
+            new CloseShiftCommand(firstId, 2000m, 5000m), CancellationToken.None);
+
+        var secondId = await OpenHandler().Handle(
+            new OpenShiftCommand(1000m, 6000m), CancellationToken.None);
+        await CloseHandler().Handle(
+            new CloseShiftCommand(secondId, 1000m, 6010m), CancellationToken.None);
+
+        await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
+
+        var day = await _ctx.BusinessDays.AsNoTracking().SingleAsync();
+        Assert.NotNull(day.Snapshot);
+        Assert.Equal(6010m, day.Snapshot!.CountedEWalletBalance);
+        Assert.Equal(-20m, day.Snapshot.EWalletVariance);
     }
 
     [Fact]
@@ -225,6 +253,9 @@ public class DayModuleTests : IDisposable
         await CloseHandler().Handle(
             new CloseShiftCommand(firstId, 2000m, null), CancellationToken.None);
         await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
+        var closedDay = await _ctx.BusinessDays.SingleAsync();
+        closedDay.OpenedAt = DateTime.UtcNow.AddDays(-1);
+        await _ctx.SaveChangesAsync();
 
         var secondId = await OpenHandler().Handle(
             new OpenShiftCommand(2000m, null), CancellationToken.None);
@@ -234,6 +265,21 @@ public class DayModuleTests : IDisposable
             .SingleAsync(d => d.Id == second.BusinessDayId);
         Assert.Equal(2, newDay.Number);
         Assert.Equal(DayStatus.Open, newDay.Status);
+    }
+
+    [Fact]
+    public async Task A_new_day_cannot_open_on_the_same_date_the_last_day_opened()
+    {
+        var firstId = await OpenHandler().Handle(
+            new OpenShiftCommand(2000m, null), CancellationToken.None);
+        await CloseHandler().Handle(
+            new CloseShiftCommand(firstId, 2000m, null), CancellationToken.None);
+        await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
+
+        var ex = await Assert.ThrowsAsync<DomainException>(() => OpenHandler().Handle(
+            new OpenShiftCommand(2000m, null), CancellationToken.None));
+
+        Assert.Contains("after midnight", ex.Message);
     }
 
     [Fact]
