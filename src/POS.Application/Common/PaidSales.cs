@@ -16,4 +16,10 @@ public static class PaidSales
 
     public static int Count(IEnumerable<Transaction> transactions)
         => transactions.Count(t => t.RefundedFromId == null);
+
+    public static decimal Refunds(IEnumerable<Transaction> transactions)
+        => Math.Abs(transactions.Where(t => t.RefundedFromId != null).Sum(t => t.Total));
+
+    public static int RefundCount(IEnumerable<Transaction> transactions)
+        => transactions.Count(t => t.RefundedFromId != null);
 }

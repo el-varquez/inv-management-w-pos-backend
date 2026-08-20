@@ -130,6 +130,7 @@ public class AppDbContext : DbContext
             snapshot.Property(x => x.CashSales).HasPrecision(18, 2);
             snapshot.Property(x => x.GcashSales).HasPrecision(18, 2);
             snapshot.Property(x => x.MayaSales).HasPrecision(18, 2);
+            snapshot.Property(x => x.Refunds).HasPrecision(18, 2);
             snapshot.Property(x => x.DrawerMovementsNet).HasPrecision(18, 2);
             snapshot.Property(x => x.ExpectedCash).HasPrecision(18, 2);
             snapshot.Property(x => x.CountedCash).HasPrecision(18, 2);

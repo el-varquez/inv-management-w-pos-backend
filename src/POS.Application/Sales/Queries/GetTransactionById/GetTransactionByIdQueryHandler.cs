@@ -25,6 +25,7 @@ public class GetTransactionByIdQueryHandler
             t.DiscountAmount,
             t.Total,
             t.PaymentType.ToString(),
+            t.ReferenceNumber,
             t.AmountTendered,
             t.Change,
             t.IsRefunded,
