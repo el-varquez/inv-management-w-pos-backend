@@ -66,6 +66,7 @@ public class AppDbContext : DbContext
         builder.Entity<Transaction>().Property(t => t.AmountTendered).HasPrecision(18, 2);
         builder.Entity<Transaction>().Property(t => t.Change).HasPrecision(18, 2);
         builder.Entity<Transaction>().HasIndex(t => t.ReceiptNumber).IsUnique();
+        builder.Entity<Transaction>().Property(t => t.ReferenceNumber).HasMaxLength(64);
         builder.Entity<Transaction>()
             .HasOne(t => t.Shift)
             .WithMany()
