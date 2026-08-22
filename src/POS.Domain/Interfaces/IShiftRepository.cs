@@ -18,4 +18,13 @@ public interface IShiftRepository
         Guid id, CancellationToken ct = default);
     Task AddMovementAsync(
         CashDrawerMovement movement, CancellationToken ct = default);
+
+    Task<IList<EWalletTransaction>> GetEWalletTransactionsAsync(
+        Guid shiftId, CancellationToken ct = default);
+    Task<EWalletTransaction?> GetEWalletTransactionByIdAsync(
+        Guid id, CancellationToken ct = default);
+    Task<EWalletTransaction?> GetEWalletTransactionByFeeAsync(
+        Guid feeTransactionId, CancellationToken ct = default);
+    Task AddEWalletTransactionAsync(
+        EWalletTransaction transaction, CancellationToken ct = default);
 }

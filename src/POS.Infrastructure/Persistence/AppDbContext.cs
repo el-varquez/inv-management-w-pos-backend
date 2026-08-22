@@ -31,6 +31,7 @@ public class AppDbContext : DbContext
     public DbSet<Shift> Shifts => Set<Shift>();
     public DbSet<BusinessDay> BusinessDays => Set<BusinessDay>();
     public DbSet<CashDrawerMovement> CashDrawerMovements => Set<CashDrawerMovement>();
+    public DbSet<EWalletTransaction> EWalletTransactions => Set<EWalletTransaction>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -130,6 +131,8 @@ public class AppDbContext : DbContext
             snapshot.Property(x => x.CashSales).HasPrecision(18, 2);
             snapshot.Property(x => x.GcashSales).HasPrecision(18, 2);
             snapshot.Property(x => x.MayaSales).HasPrecision(18, 2);
+            snapshot.Property(x => x.EWalletCashIn).HasPrecision(18, 2);
+            snapshot.Property(x => x.EWalletCashOut).HasPrecision(18, 2);
             snapshot.Property(x => x.Refunds).HasPrecision(18, 2);
             snapshot.Property(x => x.DrawerMovementsNet).HasPrecision(18, 2);
             snapshot.Property(x => x.ExpectedCash).HasPrecision(18, 2);
@@ -172,6 +175,24 @@ public class AppDbContext : DbContext
 
         builder.Entity<CashDrawerMovement>().Property(m => m.Amount).HasPrecision(18, 2);
         builder.Entity<CashDrawerMovement>().Property(m => m.Note).HasMaxLength(256);
+
+        builder.Entity<EWalletTransaction>(entity =>
+        {
+            entity.Property(x => x.Principal).HasPrecision(18, 2);
+            entity.Property(x => x.WalletDelta).HasPrecision(18, 2);
+            entity.Property(x => x.DrawerDelta).HasPrecision(18, 2);
+            entity.Property(x => x.Reason).HasMaxLength(256);
+            entity.HasIndex(x => x.ShiftId);
+            entity.HasIndex(x => x.FeeTransactionId);
+            entity.HasOne(x => x.Shift)
+                .WithMany()
+                .HasForeignKey(x => x.ShiftId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.FeeTransaction)
+                .WithMany()
+                .HasForeignKey(x => x.FeeTransactionId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
