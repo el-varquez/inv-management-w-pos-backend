@@ -1,5 +1,4 @@
 using MediatR;
-using POS.Domain.Enums;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
@@ -18,25 +17,44 @@ public class GetSukiLedgerQueryHandler
         var suki = await _utang.GetSukiByIdAsync(request.SukiId, ct)
             ?? throw new NotFoundException("Suki", request.SukiId);
 
-        var entries = await _utang.GetEntriesBySukiAsync(suki.Id, ct);
-        var live = entries.Where(e => !e.IsVoided).ToList();
+        var charges = await _utang.GetChargesBySukiAsync(suki.Id, ct);
+        var payments = await _utang.GetPaymentsBySukiAsync(suki.Id, ct);
+        var liveCharged = charges.Where(c => !c.IsVoided).Sum(c => c.Amount);
+        var livePaid = payments.Where(p => !p.IsVoided).Sum(p => p.Amount);
+
+        var entries = charges
+            .Select(c => new UtangLedgerEntryDto(
+                c.Id,
+                "Charge",
+                c.Amount,
+                c.Markup,
+                c.TransactionId,
+                c.Transaction?.ReceiptNumber,
+                null,
+                c.IsVoided,
+                null,
+                c.CreatedAt))
+            .Concat(payments.Select(p => new UtangLedgerEntryDto(
+                p.Id,
+                "Payment",
+                p.Amount,
+                0m,
+                p.TransactionId,
+                p.Transaction?.ReceiptNumber,
+                p.TransactionId is null ? "Payment received" : "Down payment",
+                p.IsVoided,
+                p.EditedFrom,
+                p.CreatedAt)))
+            .OrderBy(e => e.CreatedAt)
+            .ThenBy(e => e.Id)
+            .ToList();
 
         return new SukiLedgerDto(
             suki.Id,
             suki.Name,
             suki.Phone,
-            live.Sum(e => e.Type == UtangEntryType.Charge ? e.Amount : -e.Amount),
-            live.Where(e => e.Type == UtangEntryType.Charge).Sum(e => e.Markup),
-            entries.Select(e => new UtangLedgerEntryDto(
-                e.Id,
-                e.Type.ToString(),
-                e.Amount,
-                e.Markup,
-                e.TransactionId,
-                e.Transaction?.ReceiptNumber,
-                e.Note,
-                e.IsVoided,
-                e.EditedFrom,
-                e.CreatedAt)).ToList());
+            liveCharged - livePaid,
+            charges.Where(c => !c.IsVoided).Sum(c => c.Markup),
+            entries);
     }
 }

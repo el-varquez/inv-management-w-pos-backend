@@ -35,8 +35,10 @@ public class GetCurrentDayQueryHandler : IRequestHandler<GetCurrentDayQuery, Day
             var transactions = await _transactions.GetByShiftAsync(shift.Id, ct);
             var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
             var eWalletTransactions = await _shifts.GetEWalletTransactionsAsync(shift.Id, ct);
-            var utangEntries = await _utang.GetEntriesByShiftAsync(shift.Id, ct);
-            reads.Add(ShiftRead.Build(shift, transactions, movements, eWalletTransactions, utangEntries));
+            var utangCharges = await _utang.GetChargesByShiftAsync(shift.Id, ct);
+            var utangPayments = await _utang.GetPaymentsByShiftAsync(shift.Id, ct);
+            reads.Add(ShiftRead.Build(
+                shift, transactions, movements, eWalletTransactions, utangCharges, utangPayments));
         }
 
         return DayRead.Build(day, reads);

@@ -1,5 +1,4 @@
 using MediatR;
-using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Utang.Queries.GetUtangSummary;
@@ -14,25 +13,24 @@ public class GetUtangSummaryQueryHandler
     public async Task<UtangSummaryDto> Handle(
         GetUtangSummaryQuery request, CancellationToken ct)
     {
-        var entries = await _utang.GetEntriesInRangeAsync(
-            request.From, request.To, ct);
-        var live = entries.Where(e => !e.IsVoided).ToList();
+        var charges = await _utang.GetChargesInRangeAsync(request.From, request.To, ct);
+        var payments = await _utang.GetPaymentsInRangeAsync(request.From, request.To, ct);
+        var liveCharges = charges.Where(c => !c.IsVoided).ToList();
 
-        var top = live
-            .Where(e => e.Type == UtangEntryType.Charge)
-            .GroupBy(e => e.SukiId)
+        var top = liveCharges
+            .GroupBy(c => c.SukiId)
             .Select(g => new
             {
                 g.First().Suki.Name,
-                Charged = g.Sum(e => e.Amount)
+                Charged = g.Sum(c => c.Amount)
             })
             .OrderByDescending(x => x.Charged)
             .ThenBy(x => x.Name)
             .FirstOrDefault();
 
         return new UtangSummaryDto(
-            live.Where(e => e.Type == UtangEntryType.Charge).Sum(e => e.Amount),
-            live.Where(e => e.Type == UtangEntryType.Payment).Sum(e => e.Amount),
+            liveCharges.Sum(c => c.Amount),
+            payments.Where(p => !p.IsVoided).Sum(p => p.Amount),
             top?.Name,
             top?.Charged ?? 0m);
     }

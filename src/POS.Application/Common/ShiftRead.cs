@@ -53,7 +53,8 @@ public static class ShiftRead
         IList<Transaction> transactions,
         IList<CashDrawerMovement> movements,
         IList<EWalletTransaction> eWalletTransactions,
-        IList<UtangEntry> utangEntries)
+        IList<UtangCharge> utangCharges,
+        IList<UtangPayment> utangPayments)
     {
         var movementDtos = movements
             .Select(m => new DrawerMovementDto(m.Id, m.Amount, m.Note, m.IsVoided, m.CreatedAt))
@@ -81,7 +82,7 @@ public static class ShiftRead
         }
 
         var wallet = EWalletTotals.Of(eWalletTransactions);
-        var utang = UtangTotals.Of(utangEntries);
+        var utang = UtangTotals.Of(utangCharges, utangPayments);
         var movementsNet = movements.Where(m => !m.IsVoided).Sum(m => m.Amount);
         var cashSales = NetOf(transactions, PaymentType.Cash);
         var gcashSales = NetOf(transactions, PaymentType.Gcash);
