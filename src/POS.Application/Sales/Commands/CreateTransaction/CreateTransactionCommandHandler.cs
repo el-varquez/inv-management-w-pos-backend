@@ -1,6 +1,8 @@
 using MediatR;
+using POS.Application.Common;
 using POS.Application.Common.Interfaces;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.Events;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
@@ -17,6 +19,8 @@ public class CreateTransactionCommandHandler
     private readonly ICurrentUser _currentUser;
     private readonly ICompositeItemRepository _compositeItemRepository;
     private readonly IShiftRepository _shifts;
+    private readonly IStoreSettingsRepository _settings;
+    private readonly IUtangRepository _utang;
 
     public CreateTransactionCommandHandler(
         IItemRepository itemRepository,
@@ -25,7 +29,9 @@ public class CreateTransactionCommandHandler
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
         ICompositeItemRepository compositeItemRepository,
-        IShiftRepository shifts)
+        IShiftRepository shifts,
+        IStoreSettingsRepository settings,
+        IUtangRepository utang)
     {
         _itemRepository = itemRepository;
         _transactionRepository = transactionRepository;
@@ -34,6 +40,8 @@ public class CreateTransactionCommandHandler
         _currentUser = currentUser;
         _compositeItemRepository = compositeItemRepository;
         _shifts = shifts;
+        _settings = settings;
+        _utang = utang;
     }
 
     public async Task<CreateTransactionResult> Handle(
@@ -42,6 +50,20 @@ public class CreateTransactionCommandHandler
         var shift = await _shifts.GetOpenAsync(ct)
             ?? throw new DomainException(
                 "No open shift — declare starting cash to start selling.");
+
+        var isUtang = request.PaymentType == PaymentType.Utang;
+        Suki? suki = null;
+        var defaultMarkup = 0m;
+        if (isUtang)
+        {
+            var settings = await _settings.GetAsync(ct);
+            if (settings?.AcceptUtang != true)
+                throw new DomainException("Utang is off — turn it on in web admin Settings.");
+            suki = await _utang.GetSukiByIdAsync(request.SukiId!.Value, ct)
+                ?? throw new NotFoundException("Suki", request.SukiId.Value);
+            defaultMarkup = settings.DefaultUtangMarkup;
+        }
+        decimal markupTotal = 0;
 
         var transactionItems = new List<TransactionItem>();
         var soldItems = new List<(Guid ItemId, int Quantity)>();
@@ -72,13 +94,21 @@ public class CreateTransactionCommandHandler
                 costPrice = item.CostPrice;
             }
 
-            var lineTotal = (item.SellingPrice * cartItem.Quantity) - cartItem.Discount;
+            var unitPrice = item.SellingPrice;
+            if (isUtang)
+            {
+                var utangPrice = UtangPricing.Resolve(item, defaultMarkup, cartItem.Quantity);
+                unitPrice = utangPrice.UnitPrice;
+                markupTotal += utangPrice.MarkupPerUnit * cartItem.Quantity;
+            }
+
+            var lineTotal = (unitPrice * cartItem.Quantity) - cartItem.Discount;
 
             transactionItems.Add(new TransactionItem
             {
                 ItemId = item.Id,
                 ItemName = item.Name,
-                UnitPrice = item.SellingPrice,
+                UnitPrice = unitPrice,
                 CostPrice = costPrice,
                 Quantity = cartItem.Quantity,
                 Discount = cartItem.Discount,
@@ -86,7 +116,7 @@ public class CreateTransactionCommandHandler
             });
 
             soldItems.Add((item.Id, cartItem.Quantity));
-            subtotal += item.SellingPrice * cartItem.Quantity;
+            subtotal += unitPrice * cartItem.Quantity;
             totalLineDiscounts += cartItem.Discount;
         }
 
@@ -104,12 +134,16 @@ public class CreateTransactionCommandHandler
         if (total < 0)
             throw new DomainException("Total cannot be negative after discounts.");
 
-        if (request.AmountTendered < total)
+        if (isUtang && request.DownPayment >= total)
+            throw new DomainException(
+                "The down payment covers the whole charge — ring it as a paid sale instead.");
+
+        if (!isUtang && request.AmountTendered < total)
             throw new DomainException(
                 $"Amount tendered ({request.AmountTendered:N2}) is less than total ({total:N2}).");
 
         var receiptNumber = await _receiptGenerator.GenerateAsync(ct);
-        var change = request.AmountTendered - total;
+        var change = isUtang ? 0m : request.AmountTendered - total;
 
         var transaction = new Transaction
         {
@@ -118,13 +152,14 @@ public class CreateTransactionCommandHandler
             DiscountAmount = totalDiscount,
             Total = total,
             PaymentType = request.PaymentType,
-            AmountTendered = request.AmountTendered,
+            AmountTendered = isUtang ? 0m : request.AmountTendered,
             ReferenceNumber = string.IsNullOrWhiteSpace(request.ReferenceNumber)
                 ? null
                 : request.ReferenceNumber.Trim(),
             Change = change,
             CreatedBy = _currentUser.Id,
             ShiftId = shift.Id,
+            SukiId = suki?.Id,
             Items = transactionItems
         };
 
@@ -132,6 +167,32 @@ public class CreateTransactionCommandHandler
             new SaleCompletedEvent(transaction.Id, soldItems, _currentUser.Id));
 
         await _transactionRepository.AddAsync(transaction, ct);
+        if (isUtang)
+        {
+            await _utang.AddEntryAsync(new UtangEntry
+            {
+                SukiId = suki!.Id,
+                Type = UtangEntryType.Charge,
+                Amount = total,
+                Markup = markupTotal,
+                Transaction = transaction,
+                ShiftId = shift.Id,
+                CreatedBy = _currentUser.Id
+            }, ct);
+            if (request.DownPayment > 0m)
+            {
+                await _utang.AddEntryAsync(new UtangEntry
+                {
+                    SukiId = suki.Id,
+                    Type = UtangEntryType.Payment,
+                    Amount = request.DownPayment,
+                    Transaction = transaction,
+                    Note = "Down payment",
+                    ShiftId = shift.Id,
+                    CreatedBy = _currentUser.Id
+                }, ct);
+            }
+        }
         for (var attempt = 0; ; attempt++)
         {
             try
@@ -151,7 +212,7 @@ public class CreateTransactionCommandHandler
             subtotal,
             totalDiscount,
             total,
-            request.AmountTendered,
+            transaction.AmountTendered,
             change
         );
     }

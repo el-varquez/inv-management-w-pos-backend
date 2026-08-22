@@ -25,6 +25,7 @@ public class RefundModuleTests : IDisposable
     private readonly TransactionRepository _transactions;
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
+    private readonly UtangRepository _utang;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -46,6 +47,7 @@ public class RefundModuleTests : IDisposable
         _transactions = new TransactionRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
+        _utang = new UtangRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -87,12 +89,12 @@ public class RefundModuleTests : IDisposable
     private CreateTransactionCommandHandler SaleHandler(
         POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null) =>
         new(_items, _transactions, generator ?? new ReceiptNumberGenerator(_transactions), _uow,
-            _user, _composites, _shifts);
+            _user, _composites, _shifts, _settings, _utang);
 
     private ProcessRefundCommandHandler RefundHandler(
         POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null) =>
         new(_transactions, generator ?? new ReceiptNumberGenerator(_transactions), _uow,
-            _user, _shifts);
+            _user, _shifts, _utang);
 
     private async Task<Guid> SellAsync(
         Item item, int qty = 1,
@@ -166,10 +168,10 @@ public class RefundModuleTests : IDisposable
     }
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user);
+        => new(_shifts, _transactions, _settings, _uow, _user, _utang);
 
     private GetShiftReadQueryHandler ReadHandler()
-        => new(_shifts, _transactions);
+        => new(_shifts, _transactions, _utang);
 
     [Fact]
     public async Task The_live_x_read_reports_the_refund()

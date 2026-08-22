@@ -29,6 +29,7 @@ public class GetTransactionByIdQueryHandler
             t.AmountTendered,
             t.Change,
             t.IsRefunded,
+            t.SukiId,
             t.Items.Select(i => new TransactionLineDto(
                 i.ItemName,
                 i.UnitPrice,

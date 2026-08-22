@@ -54,7 +54,7 @@ public class GetPopularItemsQueryHandler
                 : item.Stock;
             dtos.Add(new PopularItemDto(
                 item.Id, item.Name, item.Barcode, item.ItemCode, item.SellingPrice,
-                stock, item.IsComposite, item.TracksStock, sold));
+                item.UtangMarkup, stock, item.IsComposite, item.TracksStock, sold));
         }
         return dtos;
     }

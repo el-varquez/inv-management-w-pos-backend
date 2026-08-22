@@ -20,6 +20,8 @@ public class CompositeSaleTests : IDisposable
     private readonly CompositeItemRepository _composites;
     private readonly TransactionRepository _transactions;
     private readonly ShiftRepository _shifts;
+    private readonly StoreSettingsRepository _settings;
+    private readonly UtangRepository _utang;
     private readonly UnitOfWork _uow;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -40,6 +42,8 @@ public class CompositeSaleTests : IDisposable
         _composites = new CompositeItemRepository(_ctx);
         _transactions = new TransactionRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
+        _settings = new StoreSettingsRepository(_ctx);
+        _utang = new UtangRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -98,7 +102,7 @@ public class CompositeSaleTests : IDisposable
     private CreateTransactionCommandHandler Handler() =>
         new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow,
             new FakeCurrentUser { Id = _userId, Role = "Cashier" },
-            _composites, _shifts);
+            _composites, _shifts, _settings, _utang);
 
     private static CreateTransactionCommand Sale(params (Guid id, int qty)[] lines) =>
         new(

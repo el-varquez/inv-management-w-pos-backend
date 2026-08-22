@@ -30,6 +30,7 @@ public class GetTransactionsQueryHandler
             t.Change,
             t.IsRefunded,
             t.RefundedFromId,
+            t.SukiId,
             t.Items.Count,
             t.CreatedAt
         )).ToList();

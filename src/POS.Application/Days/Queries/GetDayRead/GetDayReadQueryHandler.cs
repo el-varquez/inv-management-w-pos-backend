@@ -10,15 +10,18 @@ public class GetDayReadQueryHandler : IRequestHandler<GetDayReadQuery, DayReadDt
     private readonly IBusinessDayRepository _days;
     private readonly IShiftRepository _shifts;
     private readonly ITransactionRepository _transactions;
+    private readonly IUtangRepository _utang;
 
     public GetDayReadQueryHandler(
         IBusinessDayRepository days,
         IShiftRepository shifts,
-        ITransactionRepository transactions)
+        ITransactionRepository transactions,
+        IUtangRepository utang)
     {
         _days = days;
         _shifts = shifts;
         _transactions = transactions;
+        _utang = utang;
     }
 
     public async Task<DayReadDto> Handle(GetDayReadQuery request, CancellationToken ct)
@@ -33,7 +36,8 @@ public class GetDayReadQueryHandler : IRequestHandler<GetDayReadQuery, DayReadDt
             var transactions = await _transactions.GetByShiftAsync(shift.Id, ct);
             var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
             var eWalletTransactions = await _shifts.GetEWalletTransactionsAsync(shift.Id, ct);
-            reads.Add(ShiftRead.Build(shift, transactions, movements, eWalletTransactions));
+            var utangEntries = await _utang.GetEntriesByShiftAsync(shift.Id, ct);
+            reads.Add(ShiftRead.Build(shift, transactions, movements, eWalletTransactions, utangEntries));
         }
 
         return DayRead.Build(day, reads);

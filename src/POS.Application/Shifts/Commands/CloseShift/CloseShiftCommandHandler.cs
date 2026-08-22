@@ -15,19 +15,22 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
     private readonly IStoreSettingsRepository _settings;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
+    private readonly IUtangRepository _utang;
 
     public CloseShiftCommandHandler(
         IShiftRepository shifts,
         ITransactionRepository transactions,
         IStoreSettingsRepository settings,
         IUnitOfWork unitOfWork,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser,
+        IUtangRepository utang)
     {
         _shifts = shifts;
         _transactions = transactions;
         _settings = settings;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _utang = utang;
     }
 
     public async Task Handle(CloseShiftCommand request, CancellationToken ct)
@@ -49,11 +52,14 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
         var eWalletTransactions = await _shifts.GetEWalletTransactionsAsync(shift.Id, ct);
         var wallet = EWalletTotals.Of(eWalletTransactions);
+        var utangEntries = await _utang.GetEntriesByShiftAsync(shift.Id, ct);
+        var utang = UtangTotals.Of(utangEntries);
 
         var movementsNet = movements.Where(m => !m.IsVoided).Sum(m => m.Amount);
         var cashSales = NetOf(transactions, PaymentType.Cash);
         var gcashSales = NetOf(transactions, PaymentType.Gcash);
-        var expectedCash = shift.StartingCash + cashSales + movementsNet + wallet.DrawerNet;
+        var expectedCash = shift.StartingCash + cashSales + movementsNet
+            + wallet.DrawerNet + utang.Collections;
 
         var closedAt = DateTime.UtcNow;
 
@@ -68,6 +74,10 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
             EWalletCashIn = wallet.CashIn,
             EWalletCashOutCount = wallet.CashOutCount,
             EWalletCashOut = wallet.CashOut,
+            UtangChargedCount = utang.ChargeCount,
+            UtangCharged = utang.Charged,
+            UtangMarkup = utang.Markup,
+            UtangCollections = utang.Collections,
             Refunds = PaidSales.Refunds(transactions),
             RefundCount = PaidSales.RefundCount(transactions),
             DrawerMovementsNet = movementsNet,

@@ -29,6 +29,7 @@ public class DayModuleTests : IDisposable
     private readonly TransactionRepository _transactions;
     private readonly CompositeItemRepository _composites;
     private readonly StoreSettingsRepository _settings;
+    private readonly UtangRepository _utang;
     private readonly UserRepository _users;
     private readonly UnitOfWork _uow;
     private readonly PasswordHasher _hasher = new();
@@ -53,6 +54,7 @@ public class DayModuleTests : IDisposable
         _transactions = new TransactionRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
+        _utang = new UtangRepository(_ctx);
         _users = new UserRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
@@ -64,7 +66,7 @@ public class DayModuleTests : IDisposable
         => new(_shifts, _days, _settings, _uow, _user);
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user);
+        => new(_shifts, _transactions, _settings, _uow, _user, _utang);
 
     private CloseDayCommandHandler CloseDayHandler()
         => new(_days, _shifts, _uow, _user);
@@ -74,7 +76,7 @@ public class DayModuleTests : IDisposable
 
     private CreateTransactionCommandHandler SaleHandler()
         => new(_items, _transactions, _receipts, _uow, _user,
-            _composites, _shifts);
+            _composites, _shifts, _settings, _utang);
 
     private static CreateTransactionCommand SaleOf(Item item, int qty, PaymentType payment)
         => new(
@@ -329,7 +331,7 @@ public class DayModuleTests : IDisposable
         await OpenHandler().Handle(new OpenShiftCommand(1000m, null), CancellationToken.None);
         await SaleHandler().Handle(SaleOf(item, 2, PaymentType.Cash), CancellationToken.None);
 
-        var query = new GetCurrentDayQueryHandler(_days, _shifts, _transactions);
+        var query = new GetCurrentDayQueryHandler(_days, _shifts, _transactions, _utang);
         var read = await query.Handle(new GetCurrentDayQuery(), CancellationToken.None);
 
         Assert.NotNull(read);

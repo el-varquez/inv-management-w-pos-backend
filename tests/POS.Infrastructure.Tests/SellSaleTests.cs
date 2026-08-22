@@ -20,6 +20,8 @@ public class SellSaleTests : IDisposable
     private readonly CompositeItemRepository _composites;
     private readonly TransactionRepository _transactions;
     private readonly ShiftRepository _shifts;
+    private readonly StoreSettingsRepository _settings;
+    private readonly UtangRepository _utang;
     private readonly UnitOfWork _uow;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -39,6 +41,8 @@ public class SellSaleTests : IDisposable
         _composites = new CompositeItemRepository(_ctx);
         _transactions = new TransactionRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
+        _settings = new StoreSettingsRepository(_ctx);
+        _utang = new UtangRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -79,7 +83,7 @@ public class SellSaleTests : IDisposable
     private CreateTransactionCommandHandler Handler(POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null) =>
         new(_items, _transactions, generator ?? new ReceiptNumberGenerator(_transactions), _uow,
             new FakeCurrentUser { Id = _userId, Role = "Cashier" },
-            _composites, _shifts);
+            _composites, _shifts, _settings, _utang);
 
     [Fact]
     public async Task A_gcash_sale_persists_its_reference_number()

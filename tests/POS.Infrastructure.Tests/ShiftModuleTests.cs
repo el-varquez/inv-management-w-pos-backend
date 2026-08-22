@@ -30,6 +30,7 @@ public class ShiftModuleTests : IDisposable
     private readonly TransactionRepository _transactions;
     private readonly CompositeItemRepository _composites;
     private readonly StoreSettingsRepository _settings;
+    private readonly UtangRepository _utang;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -51,6 +52,7 @@ public class ShiftModuleTests : IDisposable
         _transactions = new TransactionRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
+        _utang = new UtangRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -75,11 +77,11 @@ public class ShiftModuleTests : IDisposable
     }
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user);
+        => new(_shifts, _transactions, _settings, _uow, _user, _utang);
 
     private CreateTransactionCommandHandler SaleHandler()
         => new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow, _user,
-            _composites, _shifts);
+            _composites, _shifts, _settings, _utang);
 
     private static CreateTransactionCommand SaleOf(Item item, int qty)
         => new(
@@ -458,7 +460,7 @@ public class ShiftModuleTests : IDisposable
         var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
         await SaleHandler().Handle(SaleOf(item, 5), CancellationToken.None);
 
-        var query = new GetShiftReadQueryHandler(_shifts, _transactions);
+        var query = new GetShiftReadQueryHandler(_shifts, _transactions, _utang);
 
         var live = await query.Handle(new GetShiftReadQuery(shiftId), CancellationToken.None);
         Assert.False(live.IsClosed);
@@ -479,7 +481,7 @@ public class ShiftModuleTests : IDisposable
     [Fact]
     public async Task Current_shift_returns_null_when_none_is_open()
     {
-        var handler = new GetCurrentShiftQueryHandler(_shifts, _transactions);
+        var handler = new GetCurrentShiftQueryHandler(_shifts, _transactions, _utang);
 
         var result = await handler.Handle(new GetCurrentShiftQuery(), CancellationToken.None);
 

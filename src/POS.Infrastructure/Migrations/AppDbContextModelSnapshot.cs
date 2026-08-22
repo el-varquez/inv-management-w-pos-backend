@@ -520,6 +520,35 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("StoreSettings");
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.Suki", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Sukis");
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.Transaction", b =>
                 {
                     b.Property<Guid>("Id")
@@ -568,6 +597,9 @@ namespace POS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<Guid?>("SukiId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("Total")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -581,6 +613,8 @@ namespace POS.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("ShiftId");
+
+                    b.HasIndex("SukiId");
 
                     b.ToTable("Transactions");
                 });
@@ -676,6 +710,67 @@ namespace POS.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.UtangEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("EditedFrom")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<bool>("IsVoided")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("Markup")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("ShiftId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SukiId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("VoidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VoidedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SukiId");
+
+                    b.HasIndex("TransactionId");
+
+                    b.ToTable("UtangEntries");
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.BusinessDay", b =>
@@ -911,6 +1006,21 @@ namespace POS.Infrastructure.Migrations
                             b1.Property<int>("TransactionCount")
                                 .HasColumnType("integer");
 
+                            b1.Property<decimal>("UtangCharged")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
+                            b1.Property<int>("UtangChargedCount")
+                                .HasColumnType("integer");
+
+                            b1.Property<decimal>("UtangCollections")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
+                            b1.Property<decimal>("UtangMarkup")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
                             b1.HasKey("ShiftId");
 
                             b1.ToTable("Shifts");
@@ -960,6 +1070,24 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Item");
+
+                    b.Navigation("Transaction");
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.UtangEntry", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.Suki", "Suki")
+                        .WithMany()
+                        .HasForeignKey("SukiId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("POS.Domain.Entities.Transaction", "Transaction")
+                        .WithMany()
+                        .HasForeignKey("TransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Suki");
 
                     b.Navigation("Transaction");
                 });

@@ -1,4 +1,5 @@
 using FluentValidation;
+using POS.Domain.Enums;
 
 namespace POS.Application.Sales.Commands.CreateTransaction;
 
@@ -25,5 +26,12 @@ public class CreateTransactionCommandValidator : AbstractValidator<CreateTransac
 
         RuleFor(x => x.ReferenceNumber)
             .MaximumLength(64).WithMessage("Reference number is too long.");
+
+        RuleFor(x => x.SukiId)
+            .NotNull().WithMessage("Pick a suki to charge.")
+            .When(x => x.PaymentType == PaymentType.Utang);
+
+        RuleFor(x => x.DownPayment)
+            .GreaterThanOrEqualTo(0).WithMessage("Down payment cannot be negative.");
     }
 }

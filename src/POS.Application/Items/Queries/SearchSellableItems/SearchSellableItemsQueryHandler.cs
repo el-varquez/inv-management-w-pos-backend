@@ -39,7 +39,7 @@ public class SearchSellableItemsQueryHandler
                 ? CompositeStock.Buildable(await _compositeItemRepository.GetByParentIdAsync(i.Id, ct))
                 : i.Stock;
             dtos.Add(new SellableItemDto(
-                i.Id, i.Name, i.Barcode, i.ItemCode, i.SellingPrice, stock, i.IsComposite, i.TracksStock));
+                i.Id, i.Name, i.Barcode, i.ItemCode, i.SellingPrice, i.UtangMarkup, stock, i.IsComposite, i.TracksStock));
         }
         return dtos;
     }

@@ -1,4 +1,5 @@
 using MediatR;
+using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Reports.Queries.GetBestSellers;
@@ -17,18 +18,23 @@ public class GetBestSellersQueryHandler
         var transactions = await _transactionRepository.GetAllAsync(
             request.From, request.To, ct);
 
-        var lines = transactions.SelectMany(t => t.Items);
+        var lines = transactions
+            .SelectMany(t => t.Items.Select(i => (t.PaymentType, Line: i)));
 
         return lines
-            .GroupBy(i => i.ItemId)
+            .GroupBy(x => x.Line.ItemId)
             .Select(g =>
             {
-                var revenue = g.Sum(i => i.Total);
-                var profit = g.Sum(i => i.Total - i.CostPrice * i.Quantity);
+                var paidLines = g
+                    .Where(x => x.PaymentType != PaymentType.Utang)
+                    .Select(x => x.Line)
+                    .ToList();
+                var revenue = paidLines.Sum(i => i.Total);
+                var profit = paidLines.Sum(i => i.Total - i.CostPrice * i.Quantity);
                 return new BestSellerDto(
                     g.Key,
-                    g.Select(i => i.ItemName).FirstOrDefault() ?? string.Empty,
-                    g.Sum(i => i.Quantity),
+                    g.Select(x => x.Line.ItemName).FirstOrDefault() ?? string.Empty,
+                    g.Sum(x => x.Line.Quantity),
                     revenue,
                     profit,
                     revenue != 0 ? Math.Round(profit / revenue * 100, 2) : 0
