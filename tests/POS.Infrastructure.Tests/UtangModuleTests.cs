@@ -118,23 +118,56 @@ public class UtangModuleTests : IDisposable
         return item;
     }
 
-    private async Task<UtangEntry> SeedEntryAsync(
-        Guid sukiId, UtangEntryType type, decimal amount, bool voided = false,
-        DateTime? createdAt = null)
+    private async Task<Transaction> SeedSaleShellAsync()
     {
-        var entry = new UtangEntry
+        var transaction = new Transaction
+        {
+            ReceiptNumber = $"R-TEST-{Guid.NewGuid():N}",
+            PaymentType = PaymentType.Utang,
+            CreatedBy = _user.Id,
+            ShiftId = _shift.Id
+        };
+        _ctx.Transactions.Add(transaction);
+        await _ctx.SaveChangesAsync();
+        return transaction;
+    }
+
+    private async Task<UtangCharge> SeedChargeAsync(
+        Guid sukiId, decimal amount, bool voided = false,
+        DateTime? createdAt = null, decimal markup = 0m)
+    {
+        var charge = new UtangCharge
         {
             SukiId = sukiId,
-            Type = type,
+            Amount = amount,
+            Markup = markup,
+            TransactionId = (await SeedSaleShellAsync()).Id,
+            ShiftId = _shift.Id,
+            IsVoided = voided,
+            CreatedBy = _user.Id
+        };
+        if (createdAt is not null) charge.CreatedAt = createdAt.Value;
+        await _utang.AddChargeAsync(charge);
+        await _uow.SaveChangesAsync();
+        return charge;
+    }
+
+    private async Task<UtangPayment> SeedPaymentAsync(
+        Guid sukiId, decimal amount, bool voided = false,
+        DateTime? createdAt = null)
+    {
+        var payment = new UtangPayment
+        {
+            SukiId = sukiId,
             Amount = amount,
             ShiftId = _shift.Id,
             IsVoided = voided,
             CreatedBy = _user.Id
         };
-        if (createdAt is not null) entry.CreatedAt = createdAt.Value;
-        await _utang.AddEntryAsync(entry);
+        if (createdAt is not null) payment.CreatedAt = createdAt.Value;
+        await _utang.AddPaymentAsync(payment);
         await _uow.SaveChangesAsync();
-        return entry;
+        return payment;
     }
 
     [Fact]
@@ -157,9 +190,9 @@ public class UtangModuleTests : IDisposable
     {
         var rosa = await SeedSukiAsync("Aling Rosa");
         var tonyo = await SeedSukiAsync("Mang Tonyo");
-        await SeedEntryAsync(rosa.Id, UtangEntryType.Charge, 200m);
-        await SeedEntryAsync(rosa.Id, UtangEntryType.Payment, 50m);
-        await SeedEntryAsync(tonyo.Id, UtangEntryType.Charge, 80m);
+        await SeedChargeAsync(rosa.Id, 200m);
+        await SeedPaymentAsync(rosa.Id, 50m);
+        await SeedChargeAsync(tonyo.Id, 80m);
 
         var all = await new GetSukisQueryHandler(_utang).Handle(
             new GetSukisQuery(null, 1, 20), CancellationToken.None);
@@ -176,10 +209,10 @@ public class UtangModuleTests : IDisposable
     public async Task The_balance_excludes_voided_entries()
     {
         var suki = await SeedSukiAsync();
-        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 200m);
-        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 100m, voided: true);
-        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 30m);
-        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 10m, voided: true);
+        await SeedChargeAsync(suki.Id, 200m);
+        await SeedChargeAsync(suki.Id, 100m, voided: true);
+        await SeedPaymentAsync(suki.Id, 30m);
+        await SeedPaymentAsync(suki.Id, 10m, voided: true);
 
         Assert.Equal(170m, await _utang.GetBalanceAsync(suki.Id));
     }
@@ -188,10 +221,8 @@ public class UtangModuleTests : IDisposable
     public async Task The_ledger_lists_entries_chronologically_with_markup_earned()
     {
         var suki = await SeedSukiAsync();
-        var charge = await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 200m);
-        charge.Markup = 12m;
-        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 50m);
-        await _uow.SaveChangesAsync();
+        await SeedChargeAsync(suki.Id, 200m, markup: 12m);
+        await SeedPaymentAsync(suki.Id, 50m);
 
         var ledger = await new GetSukiLedgerQueryHandler(_utang).Handle(
             new GetSukiLedgerQuery(suki.Id), CancellationToken.None);
@@ -201,6 +232,8 @@ public class UtangModuleTests : IDisposable
         Assert.Equal(2, ledger.Entries.Count);
         Assert.Equal("Charge", ledger.Entries[0].Type);
         Assert.Equal("Payment", ledger.Entries[1].Type);
+        Assert.Null(ledger.Entries[0].Note);
+        Assert.Equal("Payment received", ledger.Entries[1].Note);
     }
 
     private CreateTransactionCommandHandler SaleHandler() =>
@@ -248,8 +281,7 @@ public class UtangModuleTests : IDisposable
             CancellationToken.None);
 
         Assert.Equal(72m, result.Total);
-        var charge = await _ctx.UtangEntries
-            .SingleAsync(e => e.Type == UtangEntryType.Charge);
+        var charge = await _ctx.UtangCharges.SingleAsync();
         Assert.Equal(3m, charge.Markup);
     }
 
@@ -262,14 +294,20 @@ public class UtangModuleTests : IDisposable
 
         var result = await UtangSaleAsync(suki, item, qty: 5, down: 50m);
 
-        var entries = await _utang.GetEntriesByTransactionAsync(result.TransactionId);
-        var charge = entries.Single(e => e.Type == UtangEntryType.Charge);
-        var down = entries.Single(e => e.Type == UtangEntryType.Payment);
+        var charge = Assert.Single(
+            await _utang.GetChargesByTransactionAsync(result.TransactionId));
+        var down = Assert.Single(
+            await _utang.GetPaymentsByTransactionAsync(result.TransactionId));
         Assert.Equal(205m, charge.Amount);
         Assert.Equal(50m, down.Amount);
-        Assert.Equal("Down payment", down.Note);
         Assert.Equal(_shift.Id, charge.ShiftId);
         Assert.Equal(155m, await _utang.GetBalanceAsync(suki.Id));
+
+        var ledger = await new GetSukiLedgerQueryHandler(_utang).Handle(
+            new GetSukiLedgerQuery(suki.Id), CancellationToken.None);
+        Assert.Equal(
+            "Down payment",
+            ledger.Entries.Single(e => e.Type == "Payment").Note);
     }
 
     [Fact]
@@ -326,16 +364,21 @@ public class UtangModuleTests : IDisposable
     {
         await SeedSettingsAsync();
         var suki = await SeedSukiAsync();
-        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 200m);
+        await SeedChargeAsync(suki.Id, 200m);
 
         await CollectHandler().Handle(
             new CollectUtangPaymentCommand(suki.Id, 120m), CancellationToken.None);
 
         Assert.Equal(80m, await _utang.GetBalanceAsync(suki.Id));
-        var payment = await _ctx.UtangEntries
-            .SingleAsync(e => e.Type == UtangEntryType.Payment);
-        Assert.Equal("Payment received", payment.Note);
+        var payment = await _ctx.UtangPayments.SingleAsync();
         Assert.Equal(_shift.Id, payment.ShiftId);
+        Assert.Null(payment.TransactionId);
+
+        var ledger = await new GetSukiLedgerQueryHandler(_utang).Handle(
+            new GetSukiLedgerQuery(suki.Id), CancellationToken.None);
+        Assert.Equal(
+            "Payment received",
+            ledger.Entries.Single(e => e.Type == "Payment").Note);
     }
 
     [Fact]
@@ -343,7 +386,7 @@ public class UtangModuleTests : IDisposable
     {
         await SeedSettingsAsync();
         var suki = await SeedSukiAsync();
-        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 100m);
+        await SeedChargeAsync(suki.Id, 100m);
 
         await Assert.ThrowsAsync<DomainException>(() => CollectHandler().Handle(
             new CollectUtangPaymentCommand(suki.Id, 150m), CancellationToken.None));
@@ -354,7 +397,7 @@ public class UtangModuleTests : IDisposable
     {
         await SeedSettingsAsync();
         var suki = await SeedSukiAsync();
-        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 100m);
+        await SeedChargeAsync(suki.Id, 100m);
         _shift.Status = ShiftStatus.Closed;
         _ctx.SaveChanges();
 
@@ -373,8 +416,10 @@ public class UtangModuleTests : IDisposable
         await RefundHandler().Handle(
             new ProcessRefundCommand(sale.TransactionId), CancellationToken.None);
 
-        var entries = await _utang.GetEntriesByTransactionAsync(sale.TransactionId);
-        Assert.All(entries, e => Assert.True(e.IsVoided));
+        var charges = await _utang.GetChargesByTransactionAsync(sale.TransactionId);
+        var payments = await _utang.GetPaymentsByTransactionAsync(sale.TransactionId);
+        Assert.All(charges, c => Assert.True(c.IsVoided));
+        Assert.All(payments, p => Assert.True(p.IsVoided));
         Assert.Equal(0m, await _utang.GetBalanceAsync(suki.Id));
         Assert.Empty(_ctx.CashDrawerMovements);
     }
@@ -425,12 +470,12 @@ public class UtangModuleTests : IDisposable
     }
 
     [Fact]
-    public async Task Payment_corrections_keep_the_first_original_and_reject_charges()
+    public async Task Payment_corrections_keep_the_first_original_and_charge_ids_are_unknown()
     {
         await SeedSettingsAsync();
         var suki = await SeedSukiAsync();
-        var charge = await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 200m);
-        var payment = await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 100m);
+        var charge = await SeedChargeAsync(suki.Id, 200m);
+        var payment = await SeedPaymentAsync(suki.Id, 100m);
         var edit = new EditUtangPaymentCommandHandler(_utang, _uow, _user);
 
         await edit.Handle(
@@ -440,11 +485,11 @@ public class UtangModuleTests : IDisposable
 
         Assert.Equal(60m, payment.Amount);
         Assert.Equal(100m, payment.EditedFrom);
-        await Assert.ThrowsAsync<DomainException>(() => edit.Handle(
+        await Assert.ThrowsAsync<NotFoundException>(() => edit.Handle(
             new EditUtangPaymentCommand(charge.Id, 50m), CancellationToken.None));
 
         var voidHandler = new VoidUtangPaymentCommandHandler(_utang, _uow, _user);
-        await Assert.ThrowsAsync<DomainException>(() => voidHandler.Handle(
+        await Assert.ThrowsAsync<NotFoundException>(() => voidHandler.Handle(
             new VoidUtangPaymentCommand(charge.Id), CancellationToken.None));
         await voidHandler.Handle(
             new VoidUtangPaymentCommand(payment.Id), CancellationToken.None);
@@ -545,10 +590,10 @@ public class UtangModuleTests : IDisposable
         await SeedSettingsAsync();
         var rosa = await SeedSukiAsync("Aling Rosa");
         var tonyo = await SeedSukiAsync("Mang Tonyo");
-        await SeedEntryAsync(rosa.Id, UtangEntryType.Charge, 200m);
-        await SeedEntryAsync(rosa.Id, UtangEntryType.Payment, 50m);
-        await SeedEntryAsync(tonyo.Id, UtangEntryType.Charge, 80m);
-        await SeedEntryAsync(tonyo.Id, UtangEntryType.Payment, 80m);
+        await SeedChargeAsync(rosa.Id, 200m);
+        await SeedPaymentAsync(rosa.Id, 50m);
+        await SeedChargeAsync(tonyo.Id, 80m);
+        await SeedPaymentAsync(tonyo.Id, 80m);
 
         var summary = await new GetDashboardSummaryQueryHandler(
                 _transactions, _items, _utang)
@@ -566,10 +611,10 @@ public class UtangModuleTests : IDisposable
     public async Task Summary_sums_charges_and_payments_and_excludes_voided()
     {
         var suki = await SeedSukiAsync();
-        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 100m);
-        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 50m, voided: true);
-        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 30m);
-        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 10m, voided: true);
+        await SeedChargeAsync(suki.Id, 100m);
+        await SeedChargeAsync(suki.Id, 50m, voided: true);
+        await SeedPaymentAsync(suki.Id, 30m);
+        await SeedPaymentAsync(suki.Id, 10m, voided: true);
 
         var handler = new GetUtangSummaryQueryHandler(_utang);
         var result = await handler.Handle(
@@ -587,13 +632,13 @@ public class UtangModuleTests : IDisposable
         var suki = await SeedSukiAsync();
         var from = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
         var to = new DateTime(2026, 8, 31, 23, 59, 59, DateTimeKind.Utc);
-        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 100m,
+        await SeedChargeAsync(suki.Id, 100m,
             createdAt: new DateTime(2026, 8, 10, 12, 0, 0, DateTimeKind.Utc));
-        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 40m,
+        await SeedChargeAsync(suki.Id, 40m,
             createdAt: new DateTime(2026, 7, 31, 12, 0, 0, DateTimeKind.Utc));
-        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 20m,
+        await SeedPaymentAsync(suki.Id, 20m,
             createdAt: new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc));
-        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 5m,
+        await SeedPaymentAsync(suki.Id, 5m,
             createdAt: new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc));
 
         var handler = new GetUtangSummaryQueryHandler(_utang);
@@ -610,11 +655,11 @@ public class UtangModuleTests : IDisposable
         var rosa = await SeedSukiAsync();
         var daisy = await SeedSukiAsync("Daisy Jane");
         var from = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
-        await SeedEntryAsync(rosa.Id, UtangEntryType.Charge, 500m,
+        await SeedChargeAsync(rosa.Id, 500m,
             createdAt: new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc));
-        await SeedEntryAsync(rosa.Id, UtangEntryType.Charge, 100m,
+        await SeedChargeAsync(rosa.Id, 100m,
             createdAt: new DateTime(2026, 8, 10, 12, 0, 0, DateTimeKind.Utc));
-        await SeedEntryAsync(daisy.Id, UtangEntryType.Charge, 200m,
+        await SeedChargeAsync(daisy.Id, 200m,
             createdAt: new DateTime(2026, 8, 12, 12, 0, 0, DateTimeKind.Utc));
 
         var handler = new GetUtangSummaryQueryHandler(_utang);
