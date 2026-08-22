@@ -30,6 +30,8 @@ public class NonPhysicalItemTests : IDisposable
     private readonly StockMovementRepository _movements;
     private readonly TransactionRepository _transactions;
     private readonly ShiftRepository _shifts;
+    private readonly StoreSettingsRepository _settings;
+    private readonly UtangRepository _utang;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -52,6 +54,8 @@ public class NonPhysicalItemTests : IDisposable
         _movements = new StockMovementRepository(_ctx);
         _transactions = new TransactionRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
+        _settings = new StoreSettingsRepository(_ctx);
+        _utang = new UtangRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -99,7 +103,7 @@ public class NonPhysicalItemTests : IDisposable
 
     private CreateTransactionCommandHandler SaleHandler() =>
         new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow, _user, _composites,
-            _shifts);
+            _shifts, _settings, _utang);
 
     [Fact]
     public async Task Items_track_stock_by_default()
@@ -235,7 +239,7 @@ public class NonPhysicalItemTests : IDisposable
         await SeedAsync("GCash fee", tracksStock: false, stock: 0, threshold: 5);
         var rice = await SeedAsync("Rice 1kg", stock: 2, threshold: 5);
 
-        var handler = new GetDashboardSummaryQueryHandler(_transactions, _items);
+        var handler = new GetDashboardSummaryQueryHandler(_transactions, _items, _utang);
 
         var result = await handler.Handle(new GetDashboardSummaryQuery(), CancellationToken.None);
 

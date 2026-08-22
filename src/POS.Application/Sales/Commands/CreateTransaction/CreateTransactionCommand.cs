@@ -14,7 +14,9 @@ public record CreateTransactionCommand(
     decimal TransactionDiscount,
     PaymentType PaymentType,
     decimal AmountTendered,
-    string? ReferenceNumber = null
+    string? ReferenceNumber = null,
+    Guid? SukiId = null,
+    decimal DownPayment = 0m
 ) : IRequest<CreateTransactionResult>;
 
 public record CreateTransactionResult(

@@ -23,6 +23,7 @@ public record TransactionDetailDto(
     decimal AmountTendered,
     decimal Change,
     bool IsRefunded,
+    Guid? SukiId,
     IList<TransactionLineDto> Lines,
     DateTime CreatedAt
 );
