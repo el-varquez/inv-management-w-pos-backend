@@ -30,6 +30,10 @@ public record ShiftReadDto(
     decimal EWalletCashIn,
     int EWalletCashOutCount,
     decimal EWalletCashOut,
+    int UtangChargedCount,
+    decimal UtangCharged,
+    decimal UtangMarkup,
+    decimal UtangCollections,
     decimal DrawerMovementsNet,
     decimal ExpectedCash,
     decimal? CountedCash,
@@ -48,7 +52,8 @@ public static class ShiftRead
         Shift shift,
         IList<Transaction> transactions,
         IList<CashDrawerMovement> movements,
-        IList<EWalletTransaction> eWalletTransactions)
+        IList<EWalletTransaction> eWalletTransactions,
+        IList<UtangEntry> utangEntries)
     {
         var movementDtos = movements
             .Select(m => new DrawerMovementDto(m.Id, m.Amount, m.Note, m.IsVoided, m.CreatedAt))
@@ -67,6 +72,7 @@ public static class ShiftRead
                 s.CashSales, s.GcashSales, s.MayaSales,
                 s.EWalletCashInCount, s.EWalletCashIn,
                 s.EWalletCashOutCount, s.EWalletCashOut,
+                s.UtangChargedCount, s.UtangCharged, s.UtangMarkup, s.UtangCollections,
                 s.DrawerMovementsNet, s.ExpectedCash,
                 s.CountedCash, s.CountedCashOriginal, s.CorrectionReason, s.CashVariance,
                 shift.StartingEWalletBalance, s.ExpectedEWalletBalance,
@@ -75,10 +81,12 @@ public static class ShiftRead
         }
 
         var wallet = EWalletTotals.Of(eWalletTransactions);
+        var utang = UtangTotals.Of(utangEntries);
         var movementsNet = movements.Where(m => !m.IsVoided).Sum(m => m.Amount);
         var cashSales = NetOf(transactions, PaymentType.Cash);
         var gcashSales = NetOf(transactions, PaymentType.Gcash);
-        var expectedCash = shift.StartingCash + cashSales + movementsNet + wallet.DrawerNet;
+        var expectedCash = shift.StartingCash + cashSales + movementsNet
+            + wallet.DrawerNet + utang.Collections;
         var expectedWallet = shift.StartingEWalletBalance.HasValue
             ? shift.StartingEWalletBalance.Value + gcashSales + wallet.WalletNet
             : (decimal?)null;
@@ -92,6 +100,7 @@ public static class ShiftRead
             PaidSales.Refunds(transactions), PaidSales.RefundCount(transactions),
             cashSales, gcashSales, NetOf(transactions, PaymentType.Maya),
             wallet.CashInCount, wallet.CashIn, wallet.CashOutCount, wallet.CashOut,
+            utang.ChargeCount, utang.Charged, utang.Markup, utang.Collections,
             movementsNet, expectedCash,
             null, null, null, null,
             shift.StartingEWalletBalance, expectedWallet,

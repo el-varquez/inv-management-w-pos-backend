@@ -14,6 +14,11 @@ public class XReadSnapshot
     public int EWalletCashOutCount { get; set; }
     public decimal EWalletCashOut { get; set; }
 
+    public int UtangChargedCount { get; set; }
+    public decimal UtangCharged { get; set; }
+    public decimal UtangMarkup { get; set; }
+    public decimal UtangCollections { get; set; }
+
     public decimal Refunds { get; set; }
     public int RefundCount { get; set; }
 
