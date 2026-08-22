@@ -1,6 +1,5 @@
 using MediatR;
 using POS.Application.Common.Interfaces;
-using POS.Domain.Enums;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
@@ -22,19 +21,15 @@ public class VoidUtangPaymentCommandHandler : IRequestHandler<VoidUtangPaymentCo
 
     public async Task Handle(VoidUtangPaymentCommand request, CancellationToken ct)
     {
-        var entry = await _utang.GetEntryByIdAsync(request.Id, ct)
-            ?? throw new NotFoundException("Utang entry", request.Id);
+        var payment = await _utang.GetPaymentByIdAsync(request.Id, ct)
+            ?? throw new NotFoundException("Utang payment", request.Id);
 
-        if (entry.Type == UtangEntryType.Charge)
-            throw new DomainException(
-                "A charge is voided by refunding its sale — refund the receipt instead.");
-
-        if (entry.IsVoided)
+        if (payment.IsVoided)
             throw new DomainException("This payment is already voided.");
 
-        entry.IsVoided = true;
-        entry.VoidedAt = DateTime.UtcNow;
-        entry.VoidedBy = _currentUser.Id;
+        payment.IsVoided = true;
+        payment.VoidedAt = DateTime.UtcNow;
+        payment.VoidedBy = _currentUser.Id;
 
         await _unitOfWork.SaveChangesAsync(ct);
     }

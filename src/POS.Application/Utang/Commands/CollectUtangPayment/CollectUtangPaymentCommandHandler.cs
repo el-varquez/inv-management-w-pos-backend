@@ -1,7 +1,6 @@
 using MediatR;
 using POS.Application.Common.Interfaces;
 using POS.Domain.Entities;
-using POS.Domain.Enums;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
@@ -42,19 +41,17 @@ public class CollectUtangPaymentCommandHandler
             throw new DomainException(
                 $"That's more than {suki.Name} owes — the balance is ₱{balance:N2}.");
 
-        var entry = new UtangEntry
+        var payment = new UtangPayment
         {
             SukiId = suki.Id,
-            Type = UtangEntryType.Payment,
             Amount = request.Amount,
-            Note = "Payment received",
             ShiftId = shift.Id,
             CreatedBy = _currentUser.Id
         };
 
-        await _utang.AddEntryAsync(entry, ct);
+        await _utang.AddPaymentAsync(payment, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 
-        return entry.Id;
+        return payment.Id;
     }
 }

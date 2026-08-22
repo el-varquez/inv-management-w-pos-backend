@@ -1,6 +1,5 @@
 using MediatR;
 using POS.Application.Common.Interfaces;
-using POS.Domain.Enums;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
@@ -22,19 +21,15 @@ public class EditUtangPaymentCommandHandler : IRequestHandler<EditUtangPaymentCo
 
     public async Task Handle(EditUtangPaymentCommand request, CancellationToken ct)
     {
-        var entry = await _utang.GetEntryByIdAsync(request.Id, ct)
-            ?? throw new NotFoundException("Utang entry", request.Id);
+        var payment = await _utang.GetPaymentByIdAsync(request.Id, ct)
+            ?? throw new NotFoundException("Utang payment", request.Id);
 
-        if (entry.Type == UtangEntryType.Charge)
-            throw new DomainException(
-                "Charges mirror their sale and are never edited — void the sale instead.");
-
-        if (entry.IsVoided)
+        if (payment.IsVoided)
             throw new DomainException("A voided payment can't be edited.");
 
-        entry.EditedFrom ??= entry.Amount;
-        entry.Amount = request.Amount;
-        entry.UpdatedAt = DateTime.UtcNow;
+        payment.EditedFrom ??= payment.Amount;
+        payment.Amount = request.Amount;
+        payment.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync(ct);
     }

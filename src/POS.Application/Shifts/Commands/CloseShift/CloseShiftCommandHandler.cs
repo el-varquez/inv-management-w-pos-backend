@@ -52,8 +52,9 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
         var eWalletTransactions = await _shifts.GetEWalletTransactionsAsync(shift.Id, ct);
         var wallet = EWalletTotals.Of(eWalletTransactions);
-        var utangEntries = await _utang.GetEntriesByShiftAsync(shift.Id, ct);
-        var utang = UtangTotals.Of(utangEntries);
+        var utangCharges = await _utang.GetChargesByShiftAsync(shift.Id, ct);
+        var utangPayments = await _utang.GetPaymentsByShiftAsync(shift.Id, ct);
+        var utang = UtangTotals.Of(utangCharges, utangPayments);
 
         var movementsNet = movements.Where(m => !m.IsVoided).Sum(m => m.Amount);
         var cashSales = NetOf(transactions, PaymentType.Cash);

@@ -1,5 +1,4 @@
 using POS.Domain.Entities;
-using POS.Domain.Enums;
 
 namespace POS.Application.Common;
 
@@ -8,15 +7,15 @@ public record UtangTotalsResult(
 
 public static class UtangTotals
 {
-    public static UtangTotalsResult Of(IEnumerable<UtangEntry> entries)
+    public static UtangTotalsResult Of(
+        IEnumerable<UtangCharge> charges, IEnumerable<UtangPayment> payments)
     {
-        var live = entries.Where(e => !e.IsVoided).ToList();
-        var charges = live.Where(e => e.Type == UtangEntryType.Charge).ToList();
+        var liveCharges = charges.Where(c => !c.IsVoided).ToList();
 
         return new UtangTotalsResult(
-            charges.Count,
-            charges.Sum(e => e.Amount),
-            charges.Sum(e => e.Markup),
-            live.Where(e => e.Type == UtangEntryType.Payment).Sum(e => e.Amount));
+            liveCharges.Count,
+            liveCharges.Sum(c => c.Amount),
+            liveCharges.Sum(c => c.Markup),
+            payments.Where(p => !p.IsVoided).Sum(p => p.Amount));
     }
 }

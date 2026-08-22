@@ -169,10 +169,9 @@ public class CreateTransactionCommandHandler
         await _transactionRepository.AddAsync(transaction, ct);
         if (isUtang)
         {
-            await _utang.AddEntryAsync(new UtangEntry
+            await _utang.AddChargeAsync(new UtangCharge
             {
                 SukiId = suki!.Id,
-                Type = UtangEntryType.Charge,
                 Amount = total,
                 Markup = markupTotal,
                 Transaction = transaction,
@@ -181,13 +180,11 @@ public class CreateTransactionCommandHandler
             }, ct);
             if (request.DownPayment > 0m)
             {
-                await _utang.AddEntryAsync(new UtangEntry
+                await _utang.AddPaymentAsync(new UtangPayment
                 {
                     SukiId = suki.Id,
-                    Type = UtangEntryType.Payment,
                     Amount = request.DownPayment,
                     Transaction = transaction,
-                    Note = "Down payment",
                     ShiftId = shift.Id,
                     CreatedBy = _currentUser.Id
                 }, ct);

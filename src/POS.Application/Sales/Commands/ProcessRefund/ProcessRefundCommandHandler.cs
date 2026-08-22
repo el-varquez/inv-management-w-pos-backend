@@ -1,7 +1,6 @@
 using MediatR;
 using POS.Application.Common.Interfaces;
 using POS.Domain.Entities;
-using POS.Domain.Enums;
 using POS.Domain.Events;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
@@ -94,18 +93,26 @@ public class ProcessRefundCommandHandler
             linked.VoidedBy = _currentUser.Id;
         }
 
-        var ledgerEntries = await _utang.GetEntriesByTransactionAsync(original.Id, ct);
-        foreach (var entry in ledgerEntries.Where(e => !e.IsVoided))
+        var charges = await _utang.GetChargesByTransactionAsync(original.Id, ct);
+        foreach (var charge in charges.Where(c => !c.IsVoided))
         {
-            entry.IsVoided = true;
-            entry.VoidedAt = DateTime.UtcNow;
-            entry.VoidedBy = _currentUser.Id;
-            if (entry.Type == UtangEntryType.Payment && entry.ShiftId != shift.Id)
+            charge.IsVoided = true;
+            charge.VoidedAt = DateTime.UtcNow;
+            charge.VoidedBy = _currentUser.Id;
+        }
+
+        var payments = await _utang.GetPaymentsByTransactionAsync(original.Id, ct);
+        foreach (var payment in payments.Where(p => !p.IsVoided))
+        {
+            payment.IsVoided = true;
+            payment.VoidedAt = DateTime.UtcNow;
+            payment.VoidedBy = _currentUser.Id;
+            if (payment.ShiftId != shift.Id)
             {
                 await _shifts.AddMovementAsync(new CashDrawerMovement
                 {
                     ShiftId = shift.Id,
-                    Amount = -entry.Amount,
+                    Amount = -payment.Amount,
                     Note = $"Utang void — down payment returned · {original.ReceiptNumber}",
                     CreatedBy = _currentUser.Id
                 }, ct);
