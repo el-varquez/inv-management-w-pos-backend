@@ -24,6 +24,7 @@ public class EWalletTransactionTests : IDisposable
     private readonly TransactionRepository _transactions;
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
+    private readonly UtangRepository _utang;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -45,6 +46,7 @@ public class EWalletTransactionTests : IDisposable
         _transactions = new TransactionRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
+        _utang = new UtangRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -238,10 +240,10 @@ public class EWalletTransactionTests : IDisposable
     }
 
     private GetShiftReadQueryHandler ReadHandler()
-        => new(_shifts, _transactions);
+        => new(_shifts, _transactions, _utang);
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user);
+        => new(_shifts, _transactions, _settings, _uow, _user, _utang);
 
     [Fact]
     public async Task A_cash_in_raises_expected_cash_and_lowers_expected_wallet()
@@ -307,7 +309,7 @@ public class EWalletTransactionTests : IDisposable
         => new(_shifts, _transactions, _uow, _user);
 
     private ProcessRefundCommandHandler RefundHandler()
-        => new(_transactions, new ReceiptNumberGenerator(_transactions), _uow, _user, _shifts);
+        => new(_transactions, new ReceiptNumberGenerator(_transactions), _uow, _user, _shifts, _utang);
 
     [Fact]
     public async Task Voiding_the_e_wallet_record_refunds_the_fee_sale()

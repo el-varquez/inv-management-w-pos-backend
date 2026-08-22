@@ -1,6 +1,7 @@
 using MediatR;
 using POS.Application.Common.Interfaces;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.Events;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
@@ -15,19 +16,22 @@ public class ProcessRefundCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly IShiftRepository _shifts;
+    private readonly IUtangRepository _utang;
 
     public ProcessRefundCommandHandler(
         ITransactionRepository transactionRepository,
         IReceiptNumberGenerator receiptGenerator,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
-        IShiftRepository shifts)
+        IShiftRepository shifts,
+        IUtangRepository utang)
     {
         _transactionRepository = transactionRepository;
         _receiptGenerator = receiptGenerator;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _shifts = shifts;
+        _utang = utang;
     }
 
     public async Task<RefundResult> Handle(
@@ -88,6 +92,24 @@ public class ProcessRefundCommandHandler
             linked.IsVoided = true;
             linked.VoidedAt = DateTime.UtcNow;
             linked.VoidedBy = _currentUser.Id;
+        }
+
+        var ledgerEntries = await _utang.GetEntriesByTransactionAsync(original.Id, ct);
+        foreach (var entry in ledgerEntries.Where(e => !e.IsVoided))
+        {
+            entry.IsVoided = true;
+            entry.VoidedAt = DateTime.UtcNow;
+            entry.VoidedBy = _currentUser.Id;
+            if (entry.Type == UtangEntryType.Payment && entry.ShiftId != shift.Id)
+            {
+                await _shifts.AddMovementAsync(new CashDrawerMovement
+                {
+                    ShiftId = shift.Id,
+                    Amount = -entry.Amount,
+                    Note = $"Utang void — down payment returned · {original.ReceiptNumber}",
+                    CreatedBy = _currentUser.Id
+                }, ct);
+            }
         }
 
         for (var attempt = 0; ; attempt++)
