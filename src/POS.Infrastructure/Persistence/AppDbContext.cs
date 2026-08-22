@@ -32,6 +32,8 @@ public class AppDbContext : DbContext
     public DbSet<BusinessDay> BusinessDays => Set<BusinessDay>();
     public DbSet<CashDrawerMovement> CashDrawerMovements => Set<CashDrawerMovement>();
     public DbSet<EWalletTransaction> EWalletTransactions => Set<EWalletTransaction>();
+    public DbSet<Suki> Sukis => Set<Suki>();
+    public DbSet<UtangEntry> UtangEntries => Set<UtangEntry>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -133,6 +135,9 @@ public class AppDbContext : DbContext
             snapshot.Property(x => x.MayaSales).HasPrecision(18, 2);
             snapshot.Property(x => x.EWalletCashIn).HasPrecision(18, 2);
             snapshot.Property(x => x.EWalletCashOut).HasPrecision(18, 2);
+            snapshot.Property(x => x.UtangCharged).HasPrecision(18, 2);
+            snapshot.Property(x => x.UtangMarkup).HasPrecision(18, 2);
+            snapshot.Property(x => x.UtangCollections).HasPrecision(18, 2);
             snapshot.Property(x => x.Refunds).HasPrecision(18, 2);
             snapshot.Property(x => x.DrawerMovementsNet).HasPrecision(18, 2);
             snapshot.Property(x => x.ExpectedCash).HasPrecision(18, 2);
@@ -193,6 +198,32 @@ public class AppDbContext : DbContext
                 .HasForeignKey(x => x.FeeTransactionId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        builder.Entity<Suki>(entity =>
+        {
+            entity.Property(x => x.Name).HasMaxLength(100);
+            entity.Property(x => x.Phone).HasMaxLength(32);
+        });
+
+        builder.Entity<UtangEntry>(entity =>
+        {
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.Markup).HasPrecision(18, 2);
+            entity.Property(x => x.EditedFrom).HasPrecision(18, 2);
+            entity.Property(x => x.Note).HasMaxLength(256);
+            entity.HasIndex(x => x.SukiId);
+            entity.HasIndex(x => x.TransactionId);
+            entity.HasOne(x => x.Suki)
+                .WithMany()
+                .HasForeignKey(x => x.SukiId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Transaction)
+                .WithMany()
+                .HasForeignKey(x => x.TransactionId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Transaction>().HasIndex(t => t.SukiId);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)

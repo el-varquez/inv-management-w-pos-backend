@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using POS.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using POS.Infrastructure.Persistence;
 namespace POS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260822102554_AddUtangLedger")]
+    partial class AddUtangLedger
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1005,21 +1008,6 @@ namespace POS.Infrastructure.Migrations
 
                             b1.Property<int>("TransactionCount")
                                 .HasColumnType("integer");
-
-                            b1.Property<decimal>("UtangCharged")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<int>("UtangChargedCount")
-                                .HasColumnType("integer");
-
-                            b1.Property<decimal>("UtangCollections")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal>("UtangMarkup")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
 
                             b1.HasKey("ShiftId");
 

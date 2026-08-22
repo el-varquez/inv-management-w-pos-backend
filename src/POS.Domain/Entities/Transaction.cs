@@ -18,6 +18,7 @@ public class Transaction : BaseEntity
     public Guid CreatedBy { get; set; }
     public Guid? ShiftId { get; set; }
     public Shift? Shift { get; set; }
+    public Guid? SukiId { get; set; }
 
     public ICollection<TransactionItem> Items { get; set; } = new List<TransactionItem>();
 }

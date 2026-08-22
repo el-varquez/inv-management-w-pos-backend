@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IStoreSettingsRepository, StoreSettingsRepository>();
         services.AddScoped<IShiftRepository, ShiftRepository>();
         services.AddScoped<IBusinessDayRepository, BusinessDayRepository>();
+        services.AddScoped<IUtangRepository, UtangRepository>();
         services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
 
         services.AddScoped<IJwtService, JwtService>();
