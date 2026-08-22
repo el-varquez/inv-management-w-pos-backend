@@ -14,6 +14,7 @@ using POS.Application.Utang.Commands.VoidUtangPayment;
 using POS.Application.Utang.Commands.CreateSuki;
 using POS.Application.Utang.Queries.GetSukiLedger;
 using POS.Application.Utang.Queries.GetSukis;
+using POS.Application.Utang.Queries.GetUtangSummary;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Exceptions;
@@ -118,7 +119,8 @@ public class UtangModuleTests : IDisposable
     }
 
     private async Task<UtangEntry> SeedEntryAsync(
-        Guid sukiId, UtangEntryType type, decimal amount, bool voided = false)
+        Guid sukiId, UtangEntryType type, decimal amount, bool voided = false,
+        DateTime? createdAt = null)
     {
         var entry = new UtangEntry
         {
@@ -129,6 +131,7 @@ public class UtangModuleTests : IDisposable
             IsVoided = voided,
             CreatedBy = _user.Id
         };
+        if (createdAt is not null) entry.CreatedAt = createdAt.Value;
         await _utang.AddEntryAsync(entry);
         await _uow.SaveChangesAsync();
         return entry;
@@ -557,6 +560,85 @@ public class UtangModuleTests : IDisposable
         var top = Assert.Single(summary.Utang.Top);
         Assert.Equal("Aling Rosa", top.Name);
         Assert.DoesNotContain(summary.PaymentsToday, p => p.Method == "Utang");
+    }
+
+    [Fact]
+    public async Task Summary_sums_charges_and_payments_and_excludes_voided()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 100m);
+        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 50m, voided: true);
+        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 30m);
+        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 10m, voided: true);
+
+        var handler = new GetUtangSummaryQueryHandler(_utang);
+        var result = await handler.Handle(
+            new GetUtangSummaryQuery(null, null), default);
+
+        Assert.Equal(100m, result.TotalCharged);
+        Assert.Equal(30m, result.TotalPaid);
+        Assert.Equal("Aling Rosa", result.TopSukiName);
+        Assert.Equal(100m, result.TopSukiCharged);
+    }
+
+    [Fact]
+    public async Task Summary_filters_entries_outside_the_period()
+    {
+        var suki = await SeedSukiAsync();
+        var from = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 8, 31, 23, 59, 59, DateTimeKind.Utc);
+        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 100m,
+            createdAt: new DateTime(2026, 8, 10, 12, 0, 0, DateTimeKind.Utc));
+        await SeedEntryAsync(suki.Id, UtangEntryType.Charge, 40m,
+            createdAt: new DateTime(2026, 7, 31, 12, 0, 0, DateTimeKind.Utc));
+        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 20m,
+            createdAt: new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc));
+        await SeedEntryAsync(suki.Id, UtangEntryType.Payment, 5m,
+            createdAt: new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc));
+
+        var handler = new GetUtangSummaryQueryHandler(_utang);
+        var result = await handler.Handle(
+            new GetUtangSummaryQuery(from, to), default);
+
+        Assert.Equal(100m, result.TotalCharged);
+        Assert.Equal(20m, result.TotalPaid);
+    }
+
+    [Fact]
+    public async Task Summary_picks_the_suki_with_the_largest_charges_in_period()
+    {
+        var rosa = await SeedSukiAsync();
+        var daisy = await SeedSukiAsync("Daisy Jane");
+        var from = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+        await SeedEntryAsync(rosa.Id, UtangEntryType.Charge, 500m,
+            createdAt: new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc));
+        await SeedEntryAsync(rosa.Id, UtangEntryType.Charge, 100m,
+            createdAt: new DateTime(2026, 8, 10, 12, 0, 0, DateTimeKind.Utc));
+        await SeedEntryAsync(daisy.Id, UtangEntryType.Charge, 200m,
+            createdAt: new DateTime(2026, 8, 12, 12, 0, 0, DateTimeKind.Utc));
+
+        var handler = new GetUtangSummaryQueryHandler(_utang);
+        var result = await handler.Handle(
+            new GetUtangSummaryQuery(from, null), default);
+
+        Assert.Equal("Daisy Jane", result.TopSukiName);
+        Assert.Equal(200m, result.TopSukiCharged);
+        Assert.Equal(300m, result.TotalCharged);
+    }
+
+    [Fact]
+    public async Task Summary_returns_zeros_and_no_top_suki_when_period_has_no_entries()
+    {
+        await SeedSukiAsync();
+
+        var handler = new GetUtangSummaryQueryHandler(_utang);
+        var result = await handler.Handle(
+            new GetUtangSummaryQuery(null, null), default);
+
+        Assert.Equal(0m, result.TotalCharged);
+        Assert.Equal(0m, result.TotalPaid);
+        Assert.Null(result.TopSukiName);
+        Assert.Equal(0m, result.TopSukiCharged);
     }
 
     public void Dispose()

@@ -23,5 +23,7 @@ public interface IUtangRepository
     Task<decimal> GetBalanceAsync(Guid sukiId, CancellationToken ct = default);
     Task<IList<UtangEntry>> GetPaymentsSinceAsync(
         DateTime fromUtc, CancellationToken ct = default);
+    Task<IList<UtangEntry>> GetEntriesInRangeAsync(
+        DateTime? fromUtc, DateTime? toUtc, CancellationToken ct = default);
     Task AddEntryAsync(UtangEntry entry, CancellationToken ct = default);
 }

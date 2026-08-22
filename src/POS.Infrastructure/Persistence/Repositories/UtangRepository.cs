@@ -110,6 +110,19 @@ public class UtangRepository : IUtangRepository
                 && e.CreatedAt >= fromUtc)
             .ToListAsync(ct);
 
+    public async Task<IList<UtangEntry>> GetEntriesInRangeAsync(
+        DateTime? fromUtc, DateTime? toUtc, CancellationToken ct = default)
+    {
+        var query = _context.UtangEntries
+            .Include(e => e.Suki)
+            .AsQueryable();
+
+        if (fromUtc.HasValue) query = query.Where(e => e.CreatedAt >= fromUtc.Value);
+        if (toUtc.HasValue) query = query.Where(e => e.CreatedAt <= toUtc.Value);
+
+        return await query.ToListAsync(ct);
+    }
+
     public async Task AddEntryAsync(UtangEntry entry, CancellationToken ct = default)
         => await _context.UtangEntries.AddAsync(entry, ct);
 }
