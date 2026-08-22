@@ -32,7 +32,8 @@ public class GetDayReadQueryHandler : IRequestHandler<GetDayReadQuery, DayReadDt
         {
             var transactions = await _transactions.GetByShiftAsync(shift.Id, ct);
             var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
-            reads.Add(ShiftRead.Build(shift, transactions, movements));
+            var eWalletTransactions = await _shifts.GetEWalletTransactionsAsync(shift.Id, ct);
+            reads.Add(ShiftRead.Build(shift, transactions, movements, eWalletTransactions));
         }
 
         return DayRead.Build(day, reads);

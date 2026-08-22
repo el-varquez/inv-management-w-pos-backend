@@ -5,8 +5,10 @@ using POS.Application.Shifts.Commands.CloseShift;
 using POS.Application.Shifts.Commands.CorrectShiftCount;
 using POS.Application.Shifts.Commands.OpenShift;
 using POS.Application.Shifts.Commands.RecordDrawerMovement;
+using POS.Application.Shifts.Commands.RecordEWalletTransaction;
 using POS.Application.Shifts.Commands.UpdateStartingCash;
 using POS.Application.Shifts.Commands.VoidDrawerMovement;
+using POS.Application.Shifts.Commands.VoidEWalletTransaction;
 using POS.Application.Shifts.Queries.GetCurrentShift;
 using POS.Application.Shifts.Queries.GetShiftRead;
 using POS.Application.Shifts.Queries.GetShifts;
@@ -47,6 +49,19 @@ public class ShiftsController : ControllerBase
     [HttpPost("movements")]
     public async Task<IActionResult> RecordMovement([FromBody] RecordDrawerMovementCommand command)
         => Ok(new ShiftIdResponse(await _mediator.Send(command)));
+
+    [HttpPost("ewallet")]
+    public async Task<IActionResult> RecordEWallet(
+        [FromBody] RecordEWalletTransactionCommand command)
+        => Ok(new ShiftIdResponse(await _mediator.Send(command)));
+
+    [HttpPost("ewallet/{id:guid}/void")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> VoidEWallet(Guid id)
+    {
+        await _mediator.Send(new VoidEWalletTransactionCommand(id));
+        return NoContent();
+    }
 
     [HttpPost("movements/{id:guid}/void")]
     [Authorize(Roles = "Admin")]

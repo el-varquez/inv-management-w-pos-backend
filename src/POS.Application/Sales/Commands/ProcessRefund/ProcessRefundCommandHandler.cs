@@ -81,6 +81,15 @@ public class ProcessRefundCommandHandler
             new SaleRefundedEvent(refund.Id, refundedItems, _currentUser.Id));
 
         await _transactionRepository.AddAsync(refund, ct);
+
+        var linked = await _shifts.GetEWalletTransactionByFeeAsync(original.Id, ct);
+        if (linked is not null && !linked.IsVoided)
+        {
+            linked.IsVoided = true;
+            linked.VoidedAt = DateTime.UtcNow;
+            linked.VoidedBy = _currentUser.Id;
+        }
+
         for (var attempt = 0; ; attempt++)
         {
             try

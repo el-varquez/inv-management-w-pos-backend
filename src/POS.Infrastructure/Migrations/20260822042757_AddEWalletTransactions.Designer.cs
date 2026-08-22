@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using POS.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using POS.Infrastructure.Persistence;
 namespace POS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260822042757_AddEWalletTransactions")]
+    partial class AddEWalletTransactions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -862,20 +865,6 @@ namespace POS.Infrastructure.Migrations
                             b1.Property<decimal>("DrawerMovementsNet")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
-
-                            b1.Property<decimal>("EWalletCashIn")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<int>("EWalletCashInCount")
-                                .HasColumnType("integer");
-
-                            b1.Property<decimal>("EWalletCashOut")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("numeric(18,2)");
-
-                            b1.Property<int>("EWalletCashOutCount")
-                                .HasColumnType("integer");
 
                             b1.Property<decimal?>("EWalletVariance")
                                 .HasPrecision(18, 2)
