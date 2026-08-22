@@ -47,11 +47,13 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
 
         var transactions = await _transactions.GetByShiftAsync(shift.Id, ct);
         var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
+        var eWalletTransactions = await _shifts.GetEWalletTransactionsAsync(shift.Id, ct);
+        var wallet = EWalletTotals.Of(eWalletTransactions);
 
         var movementsNet = movements.Where(m => !m.IsVoided).Sum(m => m.Amount);
         var cashSales = NetOf(transactions, PaymentType.Cash);
         var gcashSales = NetOf(transactions, PaymentType.Gcash);
-        var expectedCash = shift.StartingCash + cashSales + movementsNet;
+        var expectedCash = shift.StartingCash + cashSales + movementsNet + wallet.DrawerNet;
 
         var closedAt = DateTime.UtcNow;
 
@@ -62,6 +64,10 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
             CashSales = cashSales,
             GcashSales = gcashSales,
             MayaSales = NetOf(transactions, PaymentType.Maya),
+            EWalletCashInCount = wallet.CashInCount,
+            EWalletCashIn = wallet.CashIn,
+            EWalletCashOutCount = wallet.CashOutCount,
+            EWalletCashOut = wallet.CashOut,
             Refunds = PaidSales.Refunds(transactions),
             RefundCount = PaidSales.RefundCount(transactions),
             DrawerMovementsNet = movementsNet,
@@ -72,7 +78,8 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
 
         if (trackWallet)
         {
-            var expectedWallet = (shift.StartingEWalletBalance ?? 0m) + gcashSales;
+            var expectedWallet =
+                (shift.StartingEWalletBalance ?? 0m) + gcashSales + wallet.WalletNet;
             snapshot.ExpectedEWalletBalance = expectedWallet;
             snapshot.CountedEWalletBalance = request.CountedEWalletBalance;
             snapshot.EWalletVariance = request.CountedEWalletBalance - expectedWallet;

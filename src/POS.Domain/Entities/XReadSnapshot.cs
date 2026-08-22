@@ -9,6 +9,11 @@ public class XReadSnapshot
     public decimal GcashSales { get; set; }
     public decimal MayaSales { get; set; }
 
+    public int EWalletCashInCount { get; set; }
+    public decimal EWalletCashIn { get; set; }
+    public int EWalletCashOutCount { get; set; }
+    public decimal EWalletCashOut { get; set; }
+
     public decimal Refunds { get; set; }
     public int RefundCount { get; set; }
 
