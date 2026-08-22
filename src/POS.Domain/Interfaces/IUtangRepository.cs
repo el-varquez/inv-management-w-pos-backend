@@ -13,17 +13,28 @@ public interface IUtangRepository
     Task<IList<SukiWithBalance>> GetAllSukiBalancesAsync(CancellationToken ct = default);
     Task AddSukiAsync(Suki suki, CancellationToken ct = default);
 
-    Task<UtangEntry?> GetEntryByIdAsync(Guid id, CancellationToken ct = default);
-    Task<IList<UtangEntry>> GetEntriesBySukiAsync(
+    Task<IList<UtangCharge>> GetChargesBySukiAsync(
         Guid sukiId, CancellationToken ct = default);
-    Task<IList<UtangEntry>> GetEntriesByShiftAsync(
+    Task<IList<UtangCharge>> GetChargesByShiftAsync(
         Guid shiftId, CancellationToken ct = default);
-    Task<IList<UtangEntry>> GetEntriesByTransactionAsync(
+    Task<IList<UtangCharge>> GetChargesByTransactionAsync(
         Guid transactionId, CancellationToken ct = default);
-    Task<decimal> GetBalanceAsync(Guid sukiId, CancellationToken ct = default);
-    Task<IList<UtangEntry>> GetPaymentsSinceAsync(
-        DateTime fromUtc, CancellationToken ct = default);
-    Task<IList<UtangEntry>> GetEntriesInRangeAsync(
+    Task<IList<UtangCharge>> GetChargesInRangeAsync(
         DateTime? fromUtc, DateTime? toUtc, CancellationToken ct = default);
-    Task AddEntryAsync(UtangEntry entry, CancellationToken ct = default);
+    Task AddChargeAsync(UtangCharge charge, CancellationToken ct = default);
+
+    Task<UtangPayment?> GetPaymentByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IList<UtangPayment>> GetPaymentsBySukiAsync(
+        Guid sukiId, CancellationToken ct = default);
+    Task<IList<UtangPayment>> GetPaymentsByShiftAsync(
+        Guid shiftId, CancellationToken ct = default);
+    Task<IList<UtangPayment>> GetPaymentsByTransactionAsync(
+        Guid transactionId, CancellationToken ct = default);
+    Task<IList<UtangPayment>> GetPaymentsSinceAsync(
+        DateTime fromUtc, CancellationToken ct = default);
+    Task<IList<UtangPayment>> GetPaymentsInRangeAsync(
+        DateTime? fromUtc, DateTime? toUtc, CancellationToken ct = default);
+    Task AddPaymentAsync(UtangPayment payment, CancellationToken ct = default);
+
+    Task<decimal> GetBalanceAsync(Guid sukiId, CancellationToken ct = default);
 }
