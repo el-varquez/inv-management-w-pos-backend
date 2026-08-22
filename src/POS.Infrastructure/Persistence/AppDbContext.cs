@@ -33,7 +33,8 @@ public class AppDbContext : DbContext
     public DbSet<CashDrawerMovement> CashDrawerMovements => Set<CashDrawerMovement>();
     public DbSet<EWalletTransaction> EWalletTransactions => Set<EWalletTransaction>();
     public DbSet<Suki> Sukis => Set<Suki>();
-    public DbSet<UtangEntry> UtangEntries => Set<UtangEntry>();
+    public DbSet<UtangCharge> UtangCharges => Set<UtangCharge>();
+    public DbSet<UtangPayment> UtangPayments => Set<UtangPayment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -205,12 +206,26 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Phone).HasMaxLength(32);
         });
 
-        builder.Entity<UtangEntry>(entity =>
+        builder.Entity<UtangCharge>(entity =>
         {
             entity.Property(x => x.Amount).HasPrecision(18, 2);
             entity.Property(x => x.Markup).HasPrecision(18, 2);
+            entity.HasIndex(x => x.SukiId);
+            entity.HasIndex(x => x.TransactionId);
+            entity.HasOne(x => x.Suki)
+                .WithMany()
+                .HasForeignKey(x => x.SukiId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Transaction)
+                .WithMany()
+                .HasForeignKey(x => x.TransactionId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<UtangPayment>(entity =>
+        {
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
             entity.Property(x => x.EditedFrom).HasPrecision(18, 2);
-            entity.Property(x => x.Note).HasMaxLength(256);
             entity.HasIndex(x => x.SukiId);
             entity.HasIndex(x => x.TransactionId);
             entity.HasOne(x => x.Suki)
