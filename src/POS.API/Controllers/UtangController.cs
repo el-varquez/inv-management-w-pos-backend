@@ -7,6 +7,7 @@ using POS.Application.Utang.Commands.EditUtangPayment;
 using POS.Application.Utang.Commands.VoidUtangPayment;
 using POS.Application.Utang.Queries.GetSukiLedger;
 using POS.Application.Utang.Queries.GetSukis;
+using POS.Application.Utang.Queries.GetUtangSummary;
 
 namespace POS.API.Controllers;
 
@@ -30,6 +31,11 @@ public class UtangController : ControllerBase
     [HttpGet("sukis/{id:guid}/ledger")]
     public async Task<IActionResult> GetLedger(Guid id)
         => Ok(await _mediator.Send(new GetSukiLedgerQuery(id)));
+
+    [HttpGet("summary")]
+    public async Task<IActionResult> GetSummary(
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        => Ok(await _mediator.Send(new GetUtangSummaryQuery(from, to)));
 
     [HttpPost("collect")]
     public async Task<IActionResult> Collect(
