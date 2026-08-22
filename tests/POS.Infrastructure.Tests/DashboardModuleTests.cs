@@ -15,6 +15,7 @@ public class DashboardModuleTests : IDisposable
     private readonly AppDbContext _ctx;
     private readonly TransactionRepository _transactions;
     private readonly ItemRepository _items;
+    private readonly UtangRepository _utang;
     private int _codeSeq;
 
     // 2 AM local today / yesterday, as the UTC instants the DB stores.
@@ -35,6 +36,7 @@ public class DashboardModuleTests : IDisposable
 
         _transactions = new TransactionRepository(_ctx);
         _items = new ItemRepository(_ctx);
+        _utang = new UtangRepository(_ctx);
     }
 
     private async Task<Transaction> SeedSale(
@@ -82,7 +84,7 @@ public class DashboardModuleTests : IDisposable
     }
 
     private GetDashboardSummaryQueryHandler SummaryHandler()
-        => new(_transactions, _items);
+        => new(_transactions, _items, _utang);
 
     [Fact]
     public async Task Today_kpis_net_out_refunds_and_average()

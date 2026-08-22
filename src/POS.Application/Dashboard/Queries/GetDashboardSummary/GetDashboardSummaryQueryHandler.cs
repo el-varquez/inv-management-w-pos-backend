@@ -10,13 +10,16 @@ public class GetDashboardSummaryQueryHandler
 {
     private readonly ITransactionRepository _transactionRepository;
     private readonly IItemRepository _itemRepository;
+    private readonly IUtangRepository _utang;
 
     public GetDashboardSummaryQueryHandler(
         ITransactionRepository transactionRepository,
-        IItemRepository itemRepository)
+        IItemRepository itemRepository,
+        IUtangRepository utang)
     {
         _transactionRepository = transactionRepository;
         _itemRepository = itemRepository;
+        _utang = utang;
     }
 
     public async Task<DashboardSummaryDto> Handle(
@@ -46,6 +49,7 @@ public class GetDashboardSummaryQueryHandler
             delta);
 
         var paymentsToday = Enum.GetValues<PaymentType>()
+            .Where(pt => pt != PaymentType.Utang)
             .Select(pt =>
             {
                 var forMethod = today.Where(t => t.PaymentType == pt).ToList();
@@ -71,8 +75,26 @@ public class GetDashboardSummaryQueryHandler
             .Select(i => new RunningOutRowDto(i.Id, i.Name, i.Stock, i.LowStockThreshold))
             .ToList();
 
-        // Utang domain arrives with the desktop register (Phase 3) — zero stub until then.
-        var utang = new UtangSnapshotDto(0m, 0, 0m, new List<TopUtangRowDto>());
+        var balances = await _utang.GetAllSukiBalancesAsync(ct);
+        var owing = balances.Where(b => b.Balance > 0).ToList();
+        var collected = (await _utang.GetPaymentsSinceAsync(
+            DateTime.UtcNow.AddDays(-7), ct)).Sum(e => e.Amount);
+        var utang = new UtangSnapshotDto(
+            owing.Sum(b => b.Balance),
+            owing.Count,
+            collected,
+            owing
+                .OrderByDescending(b => b.Balance)
+                .Take(5)
+                .Select(b => new TopUtangRowDto(
+                    b.Suki.Id,
+                    b.Suki.Name,
+                    b.Balance,
+                    b.ChargeCount,
+                    b.OldestChargeAt is { } oldest
+                        ? (int)(DateTime.UtcNow - oldest).TotalDays
+                        : 0))
+                .ToList());
 
         return new DashboardSummaryDto(
             todayKpi, stockHealth, utang, paymentsToday, runningOut);

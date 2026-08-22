@@ -1,4 +1,5 @@
 using MediatR;
+using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Reports.Queries.GetSalesReport;
@@ -16,6 +17,10 @@ public class GetSalesReportQueryHandler
     {
         var transactions = await _transactionRepository.GetAllAsync(
             request.From, request.To, ct);
+
+        transactions = transactions
+            .Where(t => t.PaymentType != PaymentType.Utang)
+            .ToList();
 
         var sales = transactions.Where(t => t.RefundedFromId == null).ToList();
         var refundTxns = transactions.Where(t => t.RefundedFromId != null).ToList();
