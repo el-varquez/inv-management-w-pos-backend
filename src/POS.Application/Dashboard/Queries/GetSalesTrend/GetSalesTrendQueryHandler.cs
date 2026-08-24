@@ -8,9 +8,15 @@ public class GetSalesTrendQueryHandler
     : IRequestHandler<GetSalesTrendQuery, SalesTrendDto>
 {
     private readonly ITransactionRepository _transactionRepository;
+    private readonly IUtangRepository _utangRepository;
 
-    public GetSalesTrendQueryHandler(ITransactionRepository transactionRepository)
-        => _transactionRepository = transactionRepository;
+    public GetSalesTrendQueryHandler(
+        ITransactionRepository transactionRepository,
+        IUtangRepository utangRepository)
+    {
+        _transactionRepository = transactionRepository;
+        _utangRepository = utangRepository;
+    }
 
     public async Task<SalesTrendDto> Handle(GetSalesTrendQuery request, CancellationToken ct)
     {
@@ -27,6 +33,10 @@ public class GetSalesTrendQueryHandler
 
         var transactions = await _transactionRepository.GetAllAsync(
             fromLocal.ToUniversalTime(), null, ct);
+        var charges = (await _utangRepository.GetChargesInRangeAsync(
+            fromLocal.ToUniversalTime(), null, ct))
+            .Where(c => !c.IsVoided)
+            .ToList();
 
         var buckets = new List<SalesTrendBucketDto>(bucketCount);
         for (var i = 0; i < bucketCount; i++)
@@ -49,10 +59,19 @@ public class GetSalesTrendQueryHandler
                          && t.CreatedAt.ToLocalTime() < endLocal)
                 .ToList();
 
-            // UtangCharged stays 0 until the utang domain lands (spec stub).
-            buckets.Add(new SalesTrendBucketDto(startLocal, PaidSales.Net(inBucket), 0m));
+            var chargedInBucket = charges
+                .Where(c => c.CreatedAt.ToLocalTime() >= startLocal
+                         && c.CreatedAt.ToLocalTime() < endLocal)
+                .Sum(c => c.Amount);
+
+            buckets.Add(new SalesTrendBucketDto(
+                startLocal, PaidSales.Net(inBucket), chargedInBucket));
         }
 
-        return new SalesTrendDto(period, buckets, buckets.Sum(b => b.PaidSales), 0m);
+        return new SalesTrendDto(
+            period,
+            buckets,
+            buckets.Sum(b => b.PaidSales),
+            buckets.Sum(b => b.UtangCharged));
     }
 }

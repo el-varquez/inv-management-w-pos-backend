@@ -83,6 +83,30 @@ public class DashboardModuleTests : IDisposable
         await _ctx.SaveChangesAsync();
     }
 
+    private async Task SeedCharge(
+        decimal amount, DateTime createdAtUtc, bool voided = false)
+    {
+        var suki = await _ctx.Sukis.FirstOrDefaultAsync();
+        if (suki == null)
+        {
+            suki = new Suki { Name = "Aling Nena", CreatedBy = Guid.NewGuid() };
+            _ctx.Sukis.Add(suki);
+            await _ctx.SaveChangesAsync();
+        }
+        var sale = await SeedSale(amount, createdAtUtc, PaymentType.Utang);
+        _ctx.UtangCharges.Add(new UtangCharge
+        {
+            SukiId = suki.Id,
+            Amount = amount,
+            TransactionId = sale.Id,
+            ShiftId = Guid.NewGuid(),
+            IsVoided = voided,
+            CreatedBy = Guid.NewGuid(),
+            CreatedAt = createdAtUtc,
+        });
+        await _ctx.SaveChangesAsync();
+    }
+
     private GetDashboardSummaryQueryHandler SummaryHandler()
         => new(_transactions, _items, _utang);
 
@@ -185,7 +209,7 @@ public class DashboardModuleTests : IDisposable
     }
 
     private POS.Application.Dashboard.Queries.GetSalesTrend.GetSalesTrendQueryHandler
-        TrendHandler() => new(_transactions);
+        TrendHandler() => new(_transactions, _utang);
 
     [Fact]
     public async Task Week_trend_returns_7_zero_filled_buckets_with_sales_in_the_right_day()
@@ -204,6 +228,39 @@ public class DashboardModuleTests : IDisposable
         Assert.Equal(800m, result.TotalPaidSales);
         Assert.All(result.Buckets, b => Assert.Equal(0m, b.UtangCharged));
         Assert.Equal(0m, result.TotalUtangCharged);
+    }
+
+    [Fact]
+    public async Task Week_trend_buckets_utang_charges_by_day_and_keeps_them_out_of_paid_sales()
+    {
+        await SeedSale(300m, TodayUtc);
+        await SeedCharge(250m, TodayUtc.AddMinutes(5));
+        await SeedCharge(100m, YesterdayUtc);
+
+        var result = await TrendHandler().Handle(
+            new POS.Application.Dashboard.Queries.GetSalesTrend.GetSalesTrendQuery("week"),
+            CancellationToken.None);
+
+        Assert.Equal(300m, result.Buckets[6].PaidSales);
+        Assert.Equal(250m, result.Buckets[6].UtangCharged);
+        Assert.Equal(0m, result.Buckets[5].PaidSales);
+        Assert.Equal(100m, result.Buckets[5].UtangCharged);
+        Assert.Equal(300m, result.TotalPaidSales);
+        Assert.Equal(350m, result.TotalUtangCharged);
+    }
+
+    [Fact]
+    public async Task Voided_charges_never_reach_the_trend()
+    {
+        await SeedCharge(200m, TodayUtc);
+        await SeedCharge(500m, TodayUtc.AddMinutes(5), voided: true);
+
+        var result = await TrendHandler().Handle(
+            new POS.Application.Dashboard.Queries.GetSalesTrend.GetSalesTrendQuery("week"),
+            CancellationToken.None);
+
+        Assert.Equal(200m, result.Buckets[6].UtangCharged);
+        Assert.Equal(200m, result.TotalUtangCharged);
     }
 
     [Fact]
