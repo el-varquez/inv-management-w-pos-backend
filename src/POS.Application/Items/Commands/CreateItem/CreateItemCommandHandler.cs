@@ -64,7 +64,7 @@ public class CreateItemCommandHandler : IRequestHandler<CreateItemCommand, Guid>
             SellingPrice = request.SellingPrice,
             UtangMarkup = request.UtangMarkup,
             LowStockThreshold = request.LowStockThreshold,
-            TracksStock = request.TracksStock,
+            TracksStock = category.Name != CategoryNames.Service,
             CategoryId = request.CategoryId,
             Stock = 0
         };
