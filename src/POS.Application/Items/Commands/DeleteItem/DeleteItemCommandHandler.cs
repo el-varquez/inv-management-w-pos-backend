@@ -20,6 +20,14 @@ public class DeleteItemCommandHandler : IRequestHandler<DeleteItemCommand>
         var item = await _itemRepository.GetByIdAsync(request.Id, ct)
             ?? throw new NotFoundException("Item", request.Id);
 
+        var (hasSales, hasCountLines, isComponent) = await _itemRepository.GetDeleteBlockersAsync(item.Id, ct);
+        if (hasSales)
+            throw new DomainException($"\"{item.Name}\" has sales history — deactivate it instead of deleting.");
+        if (isComponent)
+            throw new DomainException($"\"{item.Name}\" is a component of a composite item — remove it from the recipe first.");
+        if (hasCountLines)
+            throw new DomainException($"\"{item.Name}\" appears in inventory count history — deactivate it instead of deleting.");
+
         await _itemRepository.DeleteAsync(item.Id, ct);
         await _unitOfWork.SaveChangesAsync(ct);
     }

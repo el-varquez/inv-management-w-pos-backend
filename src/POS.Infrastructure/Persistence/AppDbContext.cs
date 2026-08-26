@@ -44,6 +44,8 @@ public class AppDbContext : DbContext
         builder.Entity<User>().HasIndex(u => u.Username).IsUnique();
         builder.Entity<User>().Property(u => u.Email).HasMaxLength(256);
 
+        builder.Entity<Category>().HasIndex(c => c.Name).IsUnique();
+
         builder.Entity<Item>().Property(i => i.CostPrice).HasPrecision(18, 2);
         builder.Entity<Item>().Property(i => i.SellingPrice).HasPrecision(18, 2);
         builder.Entity<Item>().Property(i => i.UtangMarkup).HasPrecision(18, 2);

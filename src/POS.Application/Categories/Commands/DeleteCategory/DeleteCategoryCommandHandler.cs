@@ -21,6 +21,9 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
         var category = await _categoryRepository.GetByIdAsync(request.Id, ct)
             ?? throw new NotFoundException("Category", request.Id);
 
+        if (category.IsSystem)
+            throw new DomainException($"\"{category.Name}\" is a system category — it can't be deleted.");
+
         if (category.Items.Count > 0)
             throw new DomainException(
                 $"Cannot delete '{category.Name}' — it still has {category.Items.Count} " +

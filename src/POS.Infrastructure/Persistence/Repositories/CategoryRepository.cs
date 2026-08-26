@@ -21,6 +21,10 @@ public class CategoryRepository : ICategoryRepository
             .Include(c => c.Items)
             .FirstOrDefaultAsync(c => c.Id == id, ct);
 
+    public async Task<Category?> GetByNameAsync(string name, CancellationToken ct = default)
+        => await _context.Categories
+            .FirstOrDefaultAsync(c => c.Name.ToLower() == name.ToLower(), ct);
+
     public async Task AddAsync(Category category, CancellationToken ct = default)
         => await _context.Categories.AddAsync(category, ct);
 

@@ -8,5 +8,6 @@ public record CategoryDto(
     Guid Id,
     string Name,
     string? Description,
-    int ItemCount
+    int ItemCount,
+    bool IsSystem
 );

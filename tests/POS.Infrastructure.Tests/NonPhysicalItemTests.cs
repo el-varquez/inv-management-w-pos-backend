@@ -35,6 +35,7 @@ public class NonPhysicalItemTests : IDisposable
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
+    private readonly Guid _serviceCategoryId = Guid.NewGuid();
     private int _codeSeq;
 
     public NonPhysicalItemTests()
@@ -59,6 +60,7 @@ public class NonPhysicalItemTests : IDisposable
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
+        _ctx.Categories.Add(new Category { Id = _serviceCategoryId, Name = CategoryNames.Service, IsSystem = true });
         _ctx.SaveChanges();
     }
 
@@ -106,12 +108,12 @@ public class NonPhysicalItemTests : IDisposable
             _shifts, _settings, _utang);
 
     [Fact]
-    public async Task Items_track_stock_by_default()
+    public async Task Items_in_an_ordinary_category_track_stock()
     {
         var handler = new CreateItemCommandHandler(_items, _categories, _uow);
 
         var id = await handler.Handle(
-            new CreateItemCommand("Kopiko Blanca", null, null, null, 8m, 10m, 5, _categoryId, null, true),
+            new CreateItemCommand("Kopiko Blanca", null, null, null, 8m, 10m, 5, _categoryId, null),
             CancellationToken.None);
 
         var stored = await _ctx.Items.AsNoTracking().SingleAsync(i => i.Id == id);
@@ -119,12 +121,12 @@ public class NonPhysicalItemTests : IDisposable
     }
 
     [Fact]
-    public async Task Create_persists_a_non_physical_item()
+    public async Task Items_in_the_service_category_do_not_track_stock()
     {
         var handler = new CreateItemCommandHandler(_items, _categories, _uow);
 
         var id = await handler.Handle(
-            new CreateItemCommand("GCash fee", null, null, null, 0m, 1m, 0, _categoryId, null, false),
+            new CreateItemCommand("GCash fee", null, null, null, 0m, 1m, 0, _serviceCategoryId, null),
             CancellationToken.None);
 
         var stored = await _ctx.Items.AsNoTracking().SingleAsync(i => i.Id == id);
@@ -132,18 +134,34 @@ public class NonPhysicalItemTests : IDisposable
     }
 
     [Fact]
-    public async Task Update_can_switch_an_item_to_non_physical()
+    public async Task Moving_an_item_into_service_stops_stock_tracking()
     {
-        var item = await SeedAsync("Photocopy");
-        var update = new UpdateItemCommandHandler(_items, _uow);
+        var item = await SeedAsync("Photocopy", stock: 10);
+        var update = new UpdateItemCommandHandler(_items, _categories, _uow);
 
         await update.Handle(
             new UpdateItemCommand(
-                item.Id, "Photocopy", null, null, null, 0m, 2m, 5, _categoryId, true, null, false),
+                item.Id, "Photocopy", null, null, null, 0m, 2m, 5, _serviceCategoryId, true, null),
             CancellationToken.None);
 
         var stored = await _ctx.Items.AsNoTracking().SingleAsync(i => i.Id == item.Id);
         Assert.False(stored.TracksStock);
+        Assert.Equal(10, stored.Stock);
+    }
+
+    [Fact]
+    public async Task Moving_an_item_out_of_service_resumes_stock_tracking()
+    {
+        var fee = await SeedAsync("GCash fee", tracksStock: false);
+        var update = new UpdateItemCommandHandler(_items, _categories, _uow);
+
+        await update.Handle(
+            new UpdateItemCommand(
+                fee.Id, "GCash fee", null, null, null, 0m, 1m, 0, _categoryId, true, null),
+            CancellationToken.None);
+
+        var stored = await _ctx.Items.AsNoTracking().SingleAsync(i => i.Id == fee.Id);
+        Assert.True(stored.TracksStock);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using MediatR;
 using POS.Application.Common;
+using POS.Domain.Entities;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
@@ -8,11 +9,17 @@ namespace POS.Application.Items.Commands.UpdateItem;
 public class UpdateItemCommandHandler : IRequestHandler<UpdateItemCommand>
 {
     private readonly IItemRepository _itemRepository;
+    private readonly ICategoryRepository _categoryRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateItemCommandHandler(IItemRepository itemRepository, IUnitOfWork unitOfWork)
+    public UpdateItemCommandHandler(
+        IItemRepository itemRepository,
+        ICategoryRepository categoryRepository,
+        IUnitOfWork unitOfWork
+    )
     {
         _itemRepository = itemRepository;
+        _categoryRepository = categoryRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -20,6 +27,9 @@ public class UpdateItemCommandHandler : IRequestHandler<UpdateItemCommand>
     {
         var item = await _itemRepository.GetByIdAsync(request.Id, ct)
             ?? throw new NotFoundException("Item", request.Id);
+
+        var category = await _categoryRepository.GetByIdAsync(request.CategoryId, ct)
+            ?? throw new NotFoundException(nameof(Category), request.CategoryId);
 
         var barcode = string.IsNullOrWhiteSpace(request.Barcode)
             ? null
@@ -55,7 +65,7 @@ public class UpdateItemCommandHandler : IRequestHandler<UpdateItemCommand>
         item.SellingPrice = request.SellingPrice;
         item.UtangMarkup = request.UtangMarkup;
         item.LowStockThreshold = request.LowStockThreshold;
-        item.TracksStock = request.TracksStock;
+        item.TracksStock = category.Name != CategoryNames.Service;
         item.CategoryId = request.CategoryId;
         item.IsActive = request.IsActive;
         item.UpdatedAt = DateTime.UtcNow;

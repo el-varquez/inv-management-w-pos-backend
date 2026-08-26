@@ -21,7 +21,15 @@ public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryComman
         var category = await _categoryRepository.GetByIdAsync(request.Id, ct)
             ?? throw new NotFoundException("Category", request.Id);
 
-        category.Name = request.Name;
+        if (category.IsSystem)
+            throw new DomainException($"\"{category.Name}\" is a system category — it can't be renamed.");
+
+        var name = request.Name.Trim();
+        var existing = await _categoryRepository.GetByNameAsync(name, ct);
+        if (existing is not null && existing.Id != request.Id)
+            throw new DomainException($"A category named \"{name}\" already exists.");
+
+        category.Name = name;
         category.Description = request.Description;
         category.UpdatedAt = DateTime.UtcNow;
 
