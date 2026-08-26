@@ -271,7 +271,7 @@ public class NonPhysicalItemTests : IDisposable
     public async Task Receive_stock_rejects_a_non_physical_line()
     {
         var fee = await SeedAsync("GCash fee", tracksStock: false);
-        var handler = new ReceiveStockCommandHandler(_items, _movements, _uow, _user);
+        var handler = new ReceiveStockCommandHandler(_items, _movements, _categories, _uow, _user);
 
         var command = new ReceiveStockCommand(
             null, null,

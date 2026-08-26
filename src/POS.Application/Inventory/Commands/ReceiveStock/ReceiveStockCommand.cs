@@ -2,11 +2,17 @@ using MediatR;
 
 namespace POS.Application.Inventory.Commands.ReceiveStock;
 
+public record NewReceiveItem(
+    string Name,
+    string? Barcode
+);
+
 public record ReceiveStockLine(
-    Guid ItemId,
+    Guid? ItemId,
     int Quantity,
     decimal CostPerUnit,
-    decimal SellingPrice
+    decimal SellingPrice,
+    NewReceiveItem? NewItem = null
 );
 
 public record ReceiveStockCommand(
