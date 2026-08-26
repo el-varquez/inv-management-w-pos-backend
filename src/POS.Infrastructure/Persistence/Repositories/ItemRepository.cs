@@ -109,4 +109,10 @@ public class ItemRepository : IItemRepository
         var item = await _context.Items.FindAsync(new object[] { id }, ct);
         if (item is not null) _context.Items.Remove(item);
     }
+
+    public async Task<(bool HasSales, bool HasCountLines, bool IsComponent)> GetDeleteBlockersAsync(
+        Guid id, CancellationToken ct = default)
+        => (await _context.TransactionItems.AnyAsync(t => t.ItemId == id, ct),
+            await _context.InventoryCountLines.AnyAsync(l => l.ItemId == id, ct),
+            await _context.CompositeItems.AnyAsync(c => c.ComponentItemId == id, ct));
 }

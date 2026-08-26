@@ -16,4 +16,5 @@ public interface IItemRepository
     Task AddAsync(Item item, CancellationToken ct = default);
     Task UpdateAsync(Item item, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
+    Task<(bool HasSales, bool HasCountLines, bool IsComponent)> GetDeleteBlockersAsync(Guid id, CancellationToken ct = default);
 }
