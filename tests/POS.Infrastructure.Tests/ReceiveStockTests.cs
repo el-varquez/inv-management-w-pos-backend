@@ -17,6 +17,7 @@ public class ReceiveStockTests : IDisposable
     private readonly AppDbContext _ctx;
     private readonly ItemRepository _items;
     private readonly StockMovementRepository _movements;
+    private readonly CategoryRepository _categories;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -35,6 +36,7 @@ public class ReceiveStockTests : IDisposable
 
         _items = new ItemRepository(_ctx);
         _movements = new StockMovementRepository(_ctx);
+        _categories = new CategoryRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -42,7 +44,7 @@ public class ReceiveStockTests : IDisposable
     }
 
     private ReceiveStockCommandHandler Handler()
-        => new(_items, _movements, _uow, _user);
+        => new(_items, _movements, _categories, _uow, _user);
 
     private async Task<Item> SeedAsync(
         string name, int stock = 0, decimal cost = 10m, decimal price = 15m,

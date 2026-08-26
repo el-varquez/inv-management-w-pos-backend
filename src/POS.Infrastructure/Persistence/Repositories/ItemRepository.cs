@@ -21,6 +21,10 @@ public class ItemRepository : IItemRepository
     public async Task<Item?> GetByItemCodeAsync(string itemCode, CancellationToken ct = default)
         => await _context.Items.FirstOrDefaultAsync(i => i.ItemCode == itemCode, ct);
 
+    public async Task<Item?> GetByNameAsync(string name, CancellationToken ct = default)
+        => await _context.Items
+            .FirstOrDefaultAsync(i => i.Name.ToLower() == name.ToLower(), ct);
+
     public async Task<IList<string>> GetItemCodesAsync(CancellationToken ct = default)
         => await _context.Items.Select(i => i.ItemCode).ToListAsync(ct);
 
