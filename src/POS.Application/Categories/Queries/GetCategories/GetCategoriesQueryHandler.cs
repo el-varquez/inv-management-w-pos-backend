@@ -18,7 +18,8 @@ public class GetCategoriesQueryHandler : IRequestHandler<GetCategoriesQuery, ILi
             c.Id,
             c.Name,
             c.Description,
-            c.Items.Count
+            c.Items.Count,
+            c.IsSystem
         )).ToList();
     }
 }
