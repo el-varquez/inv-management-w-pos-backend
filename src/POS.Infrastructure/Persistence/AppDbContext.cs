@@ -35,6 +35,7 @@ public class AppDbContext : DbContext
     public DbSet<Suki> Sukis => Set<Suki>();
     public DbSet<UtangCharge> UtangCharges => Set<UtangCharge>();
     public DbSet<UtangPayment> UtangPayments => Set<UtangPayment>();
+    public DbSet<UtangAdjustment> UtangAdjustments => Set<UtangAdjustment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -228,6 +229,7 @@ public class AppDbContext : DbContext
         {
             entity.Property(x => x.Amount).HasPrecision(18, 2);
             entity.Property(x => x.EditedFrom).HasPrecision(18, 2);
+            entity.Property(x => x.Note).HasMaxLength(200);
             entity.HasIndex(x => x.SukiId);
             entity.HasIndex(x => x.TransactionId);
             entity.HasOne(x => x.Suki)
@@ -237,6 +239,17 @@ public class AppDbContext : DbContext
             entity.HasOne(x => x.Transaction)
                 .WithMany()
                 .HasForeignKey(x => x.TransactionId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<UtangAdjustment>(entity =>
+        {
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.Note).IsRequired().HasMaxLength(200);
+            entity.HasIndex(x => x.SukiId);
+            entity.HasOne(x => x.Suki)
+                .WithMany()
+                .HasForeignKey(x => x.SukiId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
