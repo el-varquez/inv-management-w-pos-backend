@@ -60,21 +60,54 @@ public class UtangRepository : IUtangRepository
             .Select(g => new { SukiId = g.Key, Paid = g.Sum(p => p.Amount) })
             .ToListAsync(ct);
 
+        var adjustmentRows = await _context.UtangAdjustments
+            .Where(a => !a.IsVoided && ids.Contains(a.SukiId))
+            .Select(a => new { a.SukiId, a.Amount, a.CreatedAt })
+            .ToListAsync(ct);
+        var adjustments = adjustmentRows
+            .GroupBy(a => a.SukiId)
+            .ToDictionary(
+                g => g.Key,
+                g => new
+                {
+                    Adjusted = g.Sum(a => a.Amount),
+                    Count = g.Count(a => a.Amount > 0m),
+                    Oldest = g.Where(a => a.Amount > 0m)
+                        .Min(a => (DateTime?)a.CreatedAt)
+                });
+
         var charges = chargeTotals.ToDictionary(t => t.SukiId);
         var payments = paymentTotals.ToDictionary(t => t.SukiId);
         return sukis
             .Select(s =>
             {
                 var c = charges.GetValueOrDefault(s.Id);
+                var a = adjustments.GetValueOrDefault(s.Id);
                 var paid = payments.GetValueOrDefault(s.Id)?.Paid ?? 0m;
                 return new SukiWithBalance(
-                    s, (c?.Charged ?? 0m) - paid, c?.Count ?? 0, c?.Oldest);
+                    s,
+                    (c?.Charged ?? 0m) + (a?.Adjusted ?? 0m) - paid,
+                    (c?.Count ?? 0) + (a?.Count ?? 0),
+                    new[] { c?.Oldest, a?.Oldest }.Min());
             })
             .ToList();
     }
 
     public async Task AddSukiAsync(Suki suki, CancellationToken ct = default)
         => await _context.Sukis.AddAsync(suki, ct);
+
+    public async Task<bool> HasLedgerHistoryAsync(
+        Guid sukiId, CancellationToken ct = default)
+        => await _context.UtangCharges.AnyAsync(c => c.SukiId == sukiId, ct)
+            || await _context.UtangPayments.AnyAsync(p => p.SukiId == sukiId, ct)
+            || await _context.UtangAdjustments.AnyAsync(a => a.SukiId == sukiId, ct)
+            || await _context.Transactions.AnyAsync(t => t.SukiId == sukiId, ct);
+
+    public async Task DeleteSukiAsync(Guid id, CancellationToken ct = default)
+    {
+        var suki = await _context.Sukis.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (suki is not null) _context.Sukis.Remove(suki);
+    }
 
     public async Task<IList<UtangCharge>> GetChargesBySukiAsync(
         Guid sukiId, CancellationToken ct = default)
@@ -154,15 +187,33 @@ public class UtangRepository : IUtangRepository
     public async Task AddPaymentAsync(UtangPayment payment, CancellationToken ct = default)
         => await _context.UtangPayments.AddAsync(payment, ct);
 
+    public async Task<UtangAdjustment?> GetAdjustmentByIdAsync(
+        Guid id, CancellationToken ct = default)
+        => await _context.UtangAdjustments.FirstOrDefaultAsync(a => a.Id == id, ct);
+
+    public async Task<IList<UtangAdjustment>> GetAdjustmentsBySukiAsync(
+        Guid sukiId, CancellationToken ct = default)
+        => await _context.UtangAdjustments
+            .Where(a => a.SukiId == sukiId)
+            .OrderBy(a => a.CreatedAt)
+            .ToListAsync(ct);
+
+    public async Task AddAdjustmentAsync(
+        UtangAdjustment adjustment, CancellationToken ct = default)
+        => await _context.UtangAdjustments.AddAsync(adjustment, ct);
+
     public async Task<decimal> GetBalanceAsync(
         Guid sukiId, CancellationToken ct = default)
     {
         var charged = await _context.UtangCharges
             .Where(c => c.SukiId == sukiId && !c.IsVoided)
             .SumAsync(c => (decimal?)c.Amount, ct) ?? 0m;
+        var adjusted = await _context.UtangAdjustments
+            .Where(a => a.SukiId == sukiId && !a.IsVoided)
+            .SumAsync(a => (decimal?)a.Amount, ct) ?? 0m;
         var paid = await _context.UtangPayments
             .Where(p => p.SukiId == sukiId && !p.IsVoided)
             .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
-        return charged - paid;
+        return charged + adjusted - paid;
     }
 }
