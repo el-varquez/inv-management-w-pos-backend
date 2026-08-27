@@ -12,6 +12,10 @@ using POS.Application.Utang.Commands.CollectUtangPayment;
 using POS.Application.Utang.Commands.EditUtangPayment;
 using POS.Application.Utang.Commands.VoidUtangPayment;
 using POS.Application.Utang.Commands.CreateSuki;
+using POS.Application.Utang.Commands.DeleteSuki;
+using POS.Application.Utang.Commands.UpdateSuki;
+using POS.Application.Utang.Commands.CreateUtangAdjustment;
+using POS.Application.Utang.Commands.VoidUtangAdjustment;
 using POS.Application.Utang.Queries.GetSukiLedger;
 using POS.Application.Utang.Queries.GetSukis;
 using POS.Application.Utang.Queries.GetUtangSummary;
@@ -168,6 +172,45 @@ public class UtangModuleTests : IDisposable
         await _utang.AddPaymentAsync(payment);
         await _uow.SaveChangesAsync();
         return payment;
+    }
+
+    private async Task<UtangAdjustment> SeedAdjustmentAsync(
+        Guid sukiId, decimal amount, string note = "Forwarded balance",
+        bool voided = false, DateTime? createdAt = null)
+    {
+        var adjustment = new UtangAdjustment
+        {
+            SukiId = sukiId,
+            Amount = amount,
+            Note = note,
+            IsVoided = voided,
+            CreatedBy = _user.Id
+        };
+        if (createdAt is not null) adjustment.CreatedAt = createdAt.Value;
+        await _utang.AddAdjustmentAsync(adjustment);
+        await _uow.SaveChangesAsync();
+        return adjustment;
+    }
+
+    [Fact]
+    public async Task An_adjustment_persists_with_its_note()
+    {
+        var suki = await SeedSukiAsync();
+
+        _ctx.UtangAdjustments.Add(new UtangAdjustment
+        {
+            SukiId = suki.Id,
+            Amount = 5000m,
+            Note = "Forwarded balance",
+            CreatedBy = _user.Id
+        });
+        await _ctx.SaveChangesAsync();
+
+        var saved = await _ctx.UtangAdjustments.SingleAsync();
+        Assert.Equal(5000m, saved.Amount);
+        Assert.Equal("Forwarded balance", saved.Note);
+        Assert.False(saved.IsVoided);
+        Assert.NotEqual(default, saved.CreatedAt);
     }
 
     [Fact]
@@ -684,6 +727,381 @@ public class UtangModuleTests : IDisposable
         Assert.Equal(0m, result.TotalPaid);
         Assert.Null(result.TopSukiName);
         Assert.Equal(0m, result.TopSukiCharged);
+    }
+
+    [Fact]
+    public async Task A_positive_adjustment_raises_the_balance()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 200m);
+        await SeedAdjustmentAsync(suki.Id, 5000m);
+
+        Assert.Equal(5200m, await _utang.GetBalanceAsync(suki.Id));
+    }
+
+    [Fact]
+    public async Task A_negative_adjustment_lowers_the_balance()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 500m);
+        await SeedAdjustmentAsync(suki.Id, -200m, "Written off");
+
+        Assert.Equal(300m, await _utang.GetBalanceAsync(suki.Id));
+    }
+
+    [Fact]
+    public async Task A_voided_adjustment_leaves_the_balance_alone()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 200m);
+        await SeedAdjustmentAsync(suki.Id, 5000m, voided: true);
+
+        Assert.Equal(200m, await _utang.GetBalanceAsync(suki.Id));
+    }
+
+    [Fact]
+    public async Task Only_positive_adjustments_age_the_suki()
+    {
+        var older = DateTime.UtcNow.AddDays(-30);
+        var credited = await SeedSukiAsync("Mang Tonyo");
+        await SeedAdjustmentAsync(credited.Id, 5000m, createdAt: older);
+        await SeedAdjustmentAsync(credited.Id, -100m, "Written off");
+
+        var rows = await _utang.GetAllSukiBalancesAsync();
+        var row = rows.Single(r => r.Suki.Id == credited.Id);
+
+        Assert.Equal(4900m, row.Balance);
+        Assert.Equal(1, row.ChargeCount);
+        Assert.Equal(older, row.OldestChargeAt);
+    }
+
+    private CreateUtangAdjustmentCommandHandler AdjustHandler()
+        => new(_utang, _uow, _user);
+
+    private VoidUtangAdjustmentCommandHandler VoidAdjustHandler()
+        => new(_utang, _uow, _user);
+
+    [Fact]
+    public async Task Creating_an_adjustment_moves_the_balance_and_trims_the_note()
+    {
+        var suki = await SeedSukiAsync();
+
+        var id = await AdjustHandler().Handle(
+            new CreateUtangAdjustmentCommand(suki.Id, 5000m, "  Forwarded balance  "),
+            CancellationToken.None);
+
+        Assert.Equal(5000m, await _utang.GetBalanceAsync(suki.Id));
+        var saved = await _ctx.UtangAdjustments.SingleAsync(a => a.Id == id);
+        Assert.Equal("Forwarded balance", saved.Note);
+        Assert.Equal(_user.Id, saved.CreatedBy);
+    }
+
+    [Fact]
+    public async Task Adjusting_an_unknown_suki_is_refused()
+    {
+        await Assert.ThrowsAsync<NotFoundException>(() => AdjustHandler().Handle(
+            new CreateUtangAdjustmentCommand(Guid.NewGuid(), 100m, "Forwarded balance"),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Voiding_an_adjustment_removes_it_from_the_balance()
+    {
+        var suki = await SeedSukiAsync();
+        var adjustment = await SeedAdjustmentAsync(suki.Id, 5000m);
+
+        await VoidAdjustHandler().Handle(
+            new VoidUtangAdjustmentCommand(adjustment.Id), CancellationToken.None);
+
+        Assert.Equal(0m, await _utang.GetBalanceAsync(suki.Id));
+        var saved = await _ctx.UtangAdjustments.SingleAsync();
+        Assert.True(saved.IsVoided);
+        Assert.Equal(_user.Id, saved.VoidedBy);
+        Assert.NotNull(saved.VoidedAt);
+    }
+
+    [Fact]
+    public async Task Voiding_an_adjustment_twice_is_refused()
+    {
+        var suki = await SeedSukiAsync();
+        var adjustment = await SeedAdjustmentAsync(suki.Id, 5000m, voided: true);
+
+        var error = await Assert.ThrowsAsync<DomainException>(
+            () => VoidAdjustHandler().Handle(
+                new VoidUtangAdjustmentCommand(adjustment.Id), CancellationToken.None));
+        Assert.Equal("This adjustment is already voided.", error.Message);
+    }
+
+    [Fact]
+    public void An_adjustment_of_zero_is_refused()
+    {
+        var result = new CreateUtangAdjustmentCommandValidator().Validate(
+            new CreateUtangAdjustmentCommand(Guid.NewGuid(), 0m, "Forwarded balance"));
+
+        Assert.False(result.IsValid);
+        Assert.Equal(
+            "Enter an amount — use a minus sign to reduce the balance.",
+            result.Errors.Single().ErrorMessage);
+    }
+
+    [Fact]
+    public void An_adjustment_without_a_note_is_refused()
+    {
+        var result = new CreateUtangAdjustmentCommandValidator().Validate(
+            new CreateUtangAdjustmentCommand(Guid.NewGuid(), 5000m, "   "));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors, e => e.ErrorMessage == "Say what this adjustment is for.");
+    }
+
+    [Fact]
+    public async Task The_ledger_renders_an_adjustment_between_the_entries()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 200m, createdAt: DateTime.UtcNow.AddDays(-3));
+        await SeedAdjustmentAsync(
+            suki.Id, 5000m, createdAt: DateTime.UtcNow.AddDays(-2));
+        await SeedPaymentAsync(suki.Id, 100m, createdAt: DateTime.UtcNow.AddDays(-1));
+
+        var ledger = await new GetSukiLedgerQueryHandler(_utang).Handle(
+            new GetSukiLedgerQuery(suki.Id), CancellationToken.None);
+
+        Assert.Equal(5100m, ledger.Balance);
+        Assert.Equal(
+            new[] { "Charge", "Adjustment", "Payment" },
+            ledger.Entries.Select(e => e.Type));
+
+        var adjustment = ledger.Entries.Single(e => e.Type == "Adjustment");
+        Assert.Equal(5000m, adjustment.Amount);
+        Assert.Equal("Forwarded balance", adjustment.Note);
+        Assert.Null(adjustment.TransactionId);
+        Assert.Null(adjustment.ReceiptNumber);
+        Assert.Equal(0m, adjustment.Markup);
+        Assert.Null(adjustment.EditedFrom);
+    }
+
+    [Fact]
+    public async Task A_negative_adjustment_keeps_its_sign_in_the_ledger()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 500m);
+        await SeedAdjustmentAsync(suki.Id, -200m, "Written off");
+
+        var ledger = await new GetSukiLedgerQueryHandler(_utang).Handle(
+            new GetSukiLedgerQuery(suki.Id), CancellationToken.None);
+
+        Assert.Equal(-200m, ledger.Entries.Single(e => e.Type == "Adjustment").Amount);
+        Assert.Equal(300m, ledger.Balance);
+    }
+
+    [Fact]
+    public async Task A_collection_note_reaches_the_ledger()
+    {
+        await SeedSettingsAsync();
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 200m);
+
+        await CollectHandler().Handle(
+            new CollectUtangPaymentCommand(suki.Id, 120m, "  Paid at the house  "),
+            CancellationToken.None);
+
+        var ledger = await new GetSukiLedgerQueryHandler(_utang).Handle(
+            new GetSukiLedgerQuery(suki.Id), CancellationToken.None);
+        Assert.Equal(
+            "Paid at the house",
+            ledger.Entries.Single(e => e.Type == "Payment").Note);
+    }
+
+    [Fact]
+    public async Task A_blank_collection_note_falls_back_to_the_derived_label()
+    {
+        await SeedSettingsAsync();
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 200m);
+
+        await CollectHandler().Handle(
+            new CollectUtangPaymentCommand(suki.Id, 120m, "   "),
+            CancellationToken.None);
+
+        Assert.Null((await _ctx.UtangPayments.SingleAsync()).Note);
+        var ledger = await new GetSukiLedgerQueryHandler(_utang).Handle(
+            new GetSukiLedgerQuery(suki.Id), CancellationToken.None);
+        Assert.Equal(
+            "Payment received",
+            ledger.Entries.Single(e => e.Type == "Payment").Note);
+    }
+
+    [Fact]
+    public async Task Collecting_counts_an_adjustment_in_the_over_balance_guard()
+    {
+        await SeedSettingsAsync();
+        var suki = await SeedSukiAsync();
+        await SeedAdjustmentAsync(suki.Id, 5000m);
+
+        await CollectHandler().Handle(
+            new CollectUtangPaymentCommand(suki.Id, 5000m), CancellationToken.None);
+
+        Assert.Equal(0m, await _utang.GetBalanceAsync(suki.Id));
+    }
+
+    [Fact]
+    public async Task An_adjustment_never_reaches_the_shift_read()
+    {
+        await SeedSettingsAsync();
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 200m);
+        await SeedAdjustmentAsync(suki.Id, 5000m);
+
+        var read = await ReadHandler().Handle(
+            new GetShiftReadQuery(_shift.Id), CancellationToken.None);
+
+        Assert.Equal(200m, read.UtangCharged);
+        Assert.Equal(1, read.UtangChargedCount);
+    }
+
+    [Fact]
+    public async Task An_adjustment_never_reaches_the_frozen_x_read()
+    {
+        await SeedSettingsAsync();
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 200m);
+        await SeedAdjustmentAsync(suki.Id, 5000m);
+
+        await CloseHandler().Handle(
+            new CloseShiftCommand(_shift.Id, 1000m, null), CancellationToken.None);
+
+        var closed = await _ctx.Shifts.SingleAsync(s => s.Id == _shift.Id);
+        Assert.Equal(200m, closed.Snapshot!.UtangCharged);
+    }
+
+    [Fact]
+    public async Task An_adjustment_never_reaches_the_utang_summary()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 200m);
+        await SeedAdjustmentAsync(suki.Id, 5000m);
+
+        var summary = await new GetUtangSummaryQueryHandler(_utang).Handle(
+            new GetUtangSummaryQuery(null, null), CancellationToken.None);
+
+        Assert.Equal(200m, summary.TotalCharged);
+        Assert.Equal(200m, summary.TopSukiCharged);
+    }
+
+    [Fact]
+    public async Task The_range_query_that_feeds_the_sales_trend_never_returns_adjustments()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 200m);
+        await SeedAdjustmentAsync(suki.Id, 5000m);
+
+        var charges = await _utang.GetChargesInRangeAsync(null, null);
+
+        Assert.Equal(200m, charges.Sum(c => c.Amount));
+    }
+
+    [Fact]
+    public async Task Editing_a_suki_trims_and_persists()
+    {
+        var suki = await SeedSukiAsync();
+
+        await new UpdateSukiCommandHandler(_utang, _uow).Handle(
+            new UpdateSukiCommand(suki.Id, "  Aling Rosa Cruz  ", "  0917 555 2101  "),
+            CancellationToken.None);
+
+        var saved = await _ctx.Sukis.SingleAsync(x => x.Id == suki.Id);
+        Assert.Equal("Aling Rosa Cruz", saved.Name);
+        Assert.Equal("0917 555 2101", saved.Phone);
+    }
+
+    [Fact]
+    public async Task Editing_a_suki_clears_a_blank_phone()
+    {
+        var suki = await SeedSukiAsync();
+        suki.Phone = "09171234567";
+        await _ctx.SaveChangesAsync();
+
+        await new UpdateSukiCommandHandler(_utang, _uow).Handle(
+            new UpdateSukiCommand(suki.Id, "Aling Rosa", "   "), CancellationToken.None);
+
+        Assert.Null((await _ctx.Sukis.SingleAsync(x => x.Id == suki.Id)).Phone);
+    }
+
+    [Fact]
+    public async Task Editing_an_unknown_suki_is_refused()
+    {
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => new UpdateSukiCommandHandler(_utang, _uow).Handle(
+                new UpdateSukiCommand(Guid.NewGuid(), "Ghost", null),
+                CancellationToken.None));
+    }
+
+    [Fact]
+    public void A_suki_without_a_name_is_refused()
+    {
+        var result = new UpdateSukiCommandValidator().Validate(
+            new UpdateSukiCommand(Guid.NewGuid(), "   ", null));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.ErrorMessage == "The suki needs a name.");
+    }
+
+    [Fact]
+    public async Task A_suki_with_no_history_is_deleted()
+    {
+        var suki = await SeedSukiAsync();
+
+        await new DeleteSukiCommandHandler(_utang, _uow).Handle(
+            new DeleteSukiCommand(suki.Id), CancellationToken.None);
+
+        Assert.Empty(_ctx.Sukis.Where(x => x.Id == suki.Id));
+    }
+
+    [Fact]
+    public async Task A_suki_with_a_charge_is_not_deleted()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedChargeAsync(suki.Id, 200m);
+
+        var error = await Assert.ThrowsAsync<DomainException>(
+            () => new DeleteSukiCommandHandler(_utang, _uow).Handle(
+                new DeleteSukiCommand(suki.Id), CancellationToken.None));
+
+        Assert.Equal(
+            "Aling Rosa has ledger history and can't be deleted — write the balance off with an adjustment instead.",
+            error.Message);
+        Assert.Single(_ctx.Sukis.Where(x => x.Id == suki.Id));
+    }
+
+    [Fact]
+    public async Task A_suki_with_only_a_voided_adjustment_is_not_deleted()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedAdjustmentAsync(suki.Id, 5000m, voided: true);
+
+        await Assert.ThrowsAsync<DomainException>(
+            () => new DeleteSukiCommandHandler(_utang, _uow).Handle(
+                new DeleteSukiCommand(suki.Id), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task A_suki_with_only_a_payment_is_not_deleted()
+    {
+        var suki = await SeedSukiAsync();
+        await SeedPaymentAsync(suki.Id, 50m);
+
+        await Assert.ThrowsAsync<DomainException>(
+            () => new DeleteSukiCommandHandler(_utang, _uow).Handle(
+                new DeleteSukiCommand(suki.Id), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Deleting_an_unknown_suki_is_refused()
+    {
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => new DeleteSukiCommandHandler(_utang, _uow).Handle(
+                new DeleteSukiCommand(Guid.NewGuid()), CancellationToken.None));
     }
 
     public void Dispose()

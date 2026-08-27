@@ -12,6 +12,8 @@ public interface IUtangRepository
         string? term, int page, int pageSize, CancellationToken ct = default);
     Task<IList<SukiWithBalance>> GetAllSukiBalancesAsync(CancellationToken ct = default);
     Task AddSukiAsync(Suki suki, CancellationToken ct = default);
+    Task<bool> HasLedgerHistoryAsync(Guid sukiId, CancellationToken ct = default);
+    Task DeleteSukiAsync(Guid id, CancellationToken ct = default);
 
     Task<IList<UtangCharge>> GetChargesBySukiAsync(
         Guid sukiId, CancellationToken ct = default);
@@ -35,6 +37,11 @@ public interface IUtangRepository
     Task<IList<UtangPayment>> GetPaymentsInRangeAsync(
         DateTime? fromUtc, DateTime? toUtc, CancellationToken ct = default);
     Task AddPaymentAsync(UtangPayment payment, CancellationToken ct = default);
+
+    Task<UtangAdjustment?> GetAdjustmentByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IList<UtangAdjustment>> GetAdjustmentsBySukiAsync(
+        Guid sukiId, CancellationToken ct = default);
+    Task AddAdjustmentAsync(UtangAdjustment adjustment, CancellationToken ct = default);
 
     Task<decimal> GetBalanceAsync(Guid sukiId, CancellationToken ct = default);
 }

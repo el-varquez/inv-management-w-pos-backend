@@ -19,8 +19,10 @@ public class GetSukiLedgerQueryHandler
 
         var charges = await _utang.GetChargesBySukiAsync(suki.Id, ct);
         var payments = await _utang.GetPaymentsBySukiAsync(suki.Id, ct);
+        var adjustments = await _utang.GetAdjustmentsBySukiAsync(suki.Id, ct);
         var liveCharged = charges.Where(c => !c.IsVoided).Sum(c => c.Amount);
         var livePaid = payments.Where(p => !p.IsVoided).Sum(p => p.Amount);
+        var liveAdjusted = adjustments.Where(a => !a.IsVoided).Sum(a => a.Amount);
 
         var entries = charges
             .Select(c => new UtangLedgerEntryDto(
@@ -41,10 +43,21 @@ public class GetSukiLedgerQueryHandler
                 0m,
                 p.TransactionId,
                 p.Transaction?.ReceiptNumber,
-                p.TransactionId is null ? "Payment received" : "Down payment",
+                p.Note ?? (p.TransactionId is null ? "Payment received" : "Down payment"),
                 p.IsVoided,
                 p.EditedFrom,
                 p.CreatedAt)))
+            .Concat(adjustments.Select(a => new UtangLedgerEntryDto(
+                a.Id,
+                "Adjustment",
+                a.Amount,
+                0m,
+                null,
+                null,
+                a.Note,
+                a.IsVoided,
+                null,
+                a.CreatedAt)))
             .OrderBy(e => e.CreatedAt)
             .ThenBy(e => e.Id)
             .ToList();
@@ -53,7 +66,7 @@ public class GetSukiLedgerQueryHandler
             suki.Id,
             suki.Name,
             suki.Phone,
-            liveCharged - livePaid,
+            liveCharged + liveAdjusted - livePaid,
             charges.Where(c => !c.IsVoided).Sum(c => c.Markup),
             entries);
     }

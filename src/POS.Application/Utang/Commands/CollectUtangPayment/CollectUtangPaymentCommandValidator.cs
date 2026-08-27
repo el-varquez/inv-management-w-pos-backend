@@ -9,5 +9,8 @@ public class CollectUtangPaymentCommandValidator
     {
         RuleFor(x => x.Amount)
             .GreaterThan(0m).WithMessage("Enter the amount collected.");
+
+        RuleFor(x => x.Note)
+            .MaximumLength(200);
     }
 }

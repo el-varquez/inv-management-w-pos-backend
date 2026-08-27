@@ -45,6 +45,7 @@ public class CollectUtangPaymentCommandHandler
         {
             SukiId = suki.Id,
             Amount = request.Amount,
+            Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
             ShiftId = shift.Id,
             CreatedBy = _currentUser.Id
         };
