@@ -5,10 +5,6 @@ public class XReadSnapshot
     public decimal NetSales { get; set; }
     public int TransactionCount { get; set; }
 
-    public decimal CashSales { get; set; }
-    public decimal GcashSales { get; set; }
-    public decimal MayaSales { get; set; }
-
     public int EWalletCashInCount { get; set; }
     public decimal EWalletCashIn { get; set; }
     public int EWalletCashOutCount { get; set; }

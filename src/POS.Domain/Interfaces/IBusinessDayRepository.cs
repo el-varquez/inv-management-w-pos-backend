@@ -12,4 +12,7 @@ public interface IBusinessDayRepository
     Task<IList<Shift>> GetShiftsAsync(Guid dayId, CancellationToken ct = default);
     Task AddAsync(BusinessDay day, CancellationToken ct = default);
     Task UpdateAsync(BusinessDay day, CancellationToken ct = default);
+
+    Task AddMethodSalesAsync(
+        IList<DayMethodSales> rows, CancellationToken ct = default);
 }

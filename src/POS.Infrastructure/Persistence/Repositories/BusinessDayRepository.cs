@@ -11,10 +11,14 @@ public class BusinessDayRepository : IBusinessDayRepository
     public BusinessDayRepository(AppDbContext ctx) => _ctx = ctx;
 
     public Task<BusinessDay?> GetOpenAsync(CancellationToken ct = default)
-        => _ctx.BusinessDays.SingleOrDefaultAsync(d => d.Status == DayStatus.Open, ct);
+        => _ctx.BusinessDays
+            .Include(d => d.MethodSales)
+            .SingleOrDefaultAsync(d => d.Status == DayStatus.Open, ct);
 
     public Task<BusinessDay?> GetByIdAsync(Guid id, CancellationToken ct = default)
-        => _ctx.BusinessDays.SingleOrDefaultAsync(d => d.Id == id, ct);
+        => _ctx.BusinessDays
+            .Include(d => d.MethodSales)
+            .SingleOrDefaultAsync(d => d.Id == id, ct);
 
     public async Task<int> GetLastNumberAsync(CancellationToken ct = default)
         => await _ctx.BusinessDays.AnyAsync(ct)
@@ -37,6 +41,7 @@ public class BusinessDayRepository : IBusinessDayRepository
 
     public async Task<IList<Shift>> GetShiftsAsync(Guid dayId, CancellationToken ct = default)
         => await _ctx.Shifts
+            .Include(s => s.MethodSales)
             .Where(s => s.BusinessDayId == dayId)
             .OrderBy(s => s.Number)
             .ToListAsync(ct);
@@ -49,4 +54,8 @@ public class BusinessDayRepository : IBusinessDayRepository
         _ctx.BusinessDays.Update(day);
         return Task.CompletedTask;
     }
+
+    public async Task AddMethodSalesAsync(
+        IList<DayMethodSales> rows, CancellationToken ct = default)
+        => await _ctx.DayMethodSales.AddRangeAsync(rows, ct);
 }

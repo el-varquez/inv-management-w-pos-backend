@@ -5,10 +5,6 @@ public class ZReadSnapshot
     public decimal NetSales { get; set; }
     public int TransactionCount { get; set; }
 
-    public decimal CashSales { get; set; }
-    public decimal GcashSales { get; set; }
-    public decimal MayaSales { get; set; }
-
     public decimal DrawerMovementsNet { get; set; }
 
     public decimal CountedCash { get; set; }

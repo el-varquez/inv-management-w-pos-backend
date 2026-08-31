@@ -13,9 +13,7 @@ public record DayReadDto(
     DateTime? ClosedAt,
     decimal NetSales,
     int TransactionCount,
-    decimal CashSales,
-    decimal GcashSales,
-    decimal MayaSales,
+    IList<MethodSalesDto> MethodSales,
     decimal DrawerMovementsNet,
     decimal? CountedCash,
     decimal? CashVariance,
@@ -38,11 +36,14 @@ public static class DayRead
         if (day.Status == DayStatus.Closed && day.Snapshot is not null)
         {
             var s = day.Snapshot;
+            var frozenMethodSales = day.MethodSales
+                .Select(m => new MethodSalesDto(m.PaymentMethodId, m.MethodName, m.Amount))
+                .ToList();
             return new DayReadDto(
                 day.Id, day.Number, true, day.ClosedLate,
                 day.OpenedAt, day.ClosedAt,
                 s.NetSales, s.TransactionCount,
-                s.CashSales, s.GcashSales, s.MayaSales,
+                frozenMethodSales,
                 s.DrawerMovementsNet,
                 s.CountedCash, s.CashVariance,
                 s.CountedEWalletBalance, s.EWalletVariance,
@@ -55,14 +56,18 @@ public static class DayRead
             .OrderBy(r => r.Number)
             .ToList();
 
+        var methodSales = shiftReads
+            .SelectMany(r => r.MethodSales)
+            .GroupBy(m => m.PaymentMethodId)
+            .Select(g => new MethodSalesDto(g.Key, g.First().Name, g.Sum(m => m.Amount)))
+            .ToList();
+
         return new DayReadDto(
             day.Id, day.Number, day.Status == DayStatus.Closed, day.ClosedLate,
             day.OpenedAt, day.ClosedAt,
             shiftReads.Sum(r => r.NetSales),
             shiftReads.Sum(r => r.TransactionCount),
-            shiftReads.Sum(r => r.CashSales),
-            shiftReads.Sum(r => r.GcashSales),
-            shiftReads.Sum(r => r.MayaSales),
+            methodSales,
             shiftReads.Sum(r => r.DrawerMovementsNet),
             closed.LastOrDefault()?.CountedCash,
             closed.Count > 0 ? closed.Sum(r => r.CashVariance ?? 0m) : null,
