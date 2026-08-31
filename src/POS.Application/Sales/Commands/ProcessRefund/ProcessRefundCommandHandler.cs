@@ -85,14 +85,6 @@ public class ProcessRefundCommandHandler
 
         await _transactionRepository.AddAsync(refund, ct);
 
-        var linked = await _shifts.GetEWalletTransactionByFeeAsync(original.Id, ct);
-        if (linked is not null && !linked.IsVoided)
-        {
-            linked.IsVoided = true;
-            linked.VoidedAt = DateTime.UtcNow;
-            linked.VoidedBy = _currentUser.Id;
-        }
-
         var charges = await _utang.GetChargesByTransactionAsync(original.Id, ct);
         foreach (var charge in charges.Where(c => !c.IsVoided))
         {

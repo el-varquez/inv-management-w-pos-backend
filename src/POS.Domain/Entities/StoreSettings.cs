@@ -8,6 +8,4 @@ public class StoreSettings : BaseEntity
     public string Address { get; set; } = string.Empty;
     public string ReceiptFooter { get; set; } = string.Empty;
     public decimal DefaultUtangMarkup { get; set; }
-    public bool TrackEWalletFloat { get; set; } = false;
-    public Guid? EWalletFeeItemId { get; set; }
 }

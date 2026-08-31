@@ -5,11 +5,6 @@ public class XReadSnapshot
     public decimal NetSales { get; set; }
     public int TransactionCount { get; set; }
 
-    public int EWalletCashInCount { get; set; }
-    public decimal EWalletCashIn { get; set; }
-    public int EWalletCashOutCount { get; set; }
-    public decimal EWalletCashOut { get; set; }
-
     public int UtangChargedCount { get; set; }
     public decimal UtangCharged { get; set; }
     public decimal UtangMarkup { get; set; }
@@ -28,8 +23,4 @@ public class XReadSnapshot
     public DateTime? CorrectedAt { get; set; }
     public Guid? CorrectedBy { get; set; }
     public string? CorrectionReason { get; set; }
-
-    public decimal? ExpectedEWalletBalance { get; set; }
-    public decimal? CountedEWalletBalance { get; set; }
-    public decimal? EWalletVariance { get; set; }
 }

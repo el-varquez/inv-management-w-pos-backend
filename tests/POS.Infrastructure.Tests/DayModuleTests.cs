@@ -66,10 +66,10 @@ public class DayModuleTests : IDisposable
     }
 
     private OpenShiftCommandHandler OpenHandler()
-        => new(_shifts, _days, _settings, _uow, _user);
+        => new(_shifts, _days, _uow, _user);
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user, _utang, _paymentMethods);
+        => new(_shifts, _transactions, _uow, _user, _utang, _paymentMethods);
 
     private CloseDayCommandHandler CloseDayHandler()
         => new(_days, _shifts, _uow, _user);
@@ -107,9 +107,9 @@ public class DayModuleTests : IDisposable
     private async Task<BusinessDay> CloseOneDayAsync(decimal startingCash = 2000m)
     {
         var shiftId = await OpenHandler().Handle(
-            new OpenShiftCommand(startingCash, null), CancellationToken.None);
+            new OpenShiftCommand(startingCash), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(shiftId, startingCash, null), CancellationToken.None);
+            new CloseShiftCommand(shiftId, startingCash), CancellationToken.None);
         await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
         return await _ctx.BusinessDays.OrderByDescending(d => d.Number).FirstAsync();
     }
@@ -134,7 +134,7 @@ public class DayModuleTests : IDisposable
     public async Task Opening_the_first_shift_opens_a_day()
     {
         var shiftId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
 
         var day = await _ctx.BusinessDays.AsNoTracking().SingleAsync();
         Assert.Equal(1, day.Number);
@@ -149,12 +149,12 @@ public class DayModuleTests : IDisposable
     public async Task A_second_shift_joins_the_open_day()
     {
         var firstId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(firstId, 2000m, null), CancellationToken.None);
+            new CloseShiftCommand(firstId, 2000m), CancellationToken.None);
 
         var secondId = await OpenHandler().Handle(
-            new OpenShiftCommand(1000m, null), CancellationToken.None);
+            new OpenShiftCommand(1000m), CancellationToken.None);
 
         var day = await _ctx.BusinessDays.AsNoTracking().SingleAsync();
         var second = await _ctx.Shifts.AsNoTracking().SingleAsync(s => s.Id == secondId);
@@ -165,9 +165,9 @@ public class DayModuleTests : IDisposable
     public async Task Closing_a_shift_leaves_the_day_open()
     {
         var shiftId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(shiftId, 2000m, null), CancellationToken.None);
+            new CloseShiftCommand(shiftId, 2000m), CancellationToken.None);
 
         var day = await _ctx.BusinessDays.AsNoTracking().SingleAsync();
         Assert.Equal(DayStatus.Open, day.Status);
@@ -177,7 +177,7 @@ public class DayModuleTests : IDisposable
     [Fact]
     public async Task Close_day_is_blocked_while_a_shift_is_open()
     {
-        await OpenHandler().Handle(new OpenShiftCommand(2000m, null), CancellationToken.None);
+        await OpenHandler().Handle(new OpenShiftCommand(2000m), CancellationToken.None);
 
         var ex = await Assert.ThrowsAsync<DomainException>(
             () => CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None));
@@ -203,22 +203,22 @@ public class DayModuleTests : IDisposable
         var record = new RecordDrawerMovementCommandHandler(_shifts, _uow, _user);
 
         var firstId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
         await SaleHandler().Handle(SaleOf(item, 5, PaymentMethodIds.Cash), CancellationToken.None);
         await SaleHandler().Handle(SaleOf(item, 3, PaymentMethodIds.EWallet), CancellationToken.None);
         await record.Handle(
             new RecordDrawerMovementCommand(500m, "Change fund"), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(firstId, 2550m, null), CancellationToken.None);
+            new CloseShiftCommand(firstId, 2550m), CancellationToken.None);
 
         var secondId = await OpenHandler().Handle(
-            new OpenShiftCommand(1000m, null), CancellationToken.None);
+            new OpenShiftCommand(1000m), CancellationToken.None);
         await SaleHandler().Handle(SaleOf(item, 1, PaymentMethodIds.Cash), CancellationToken.None);
         await SaleHandler().Handle(SaleOf(item, 2, PaymentMethodIds.EWallet), CancellationToken.None);
         await record.Handle(
             new RecordDrawerMovementCommand(-200m, "Rema Drinks"), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(secondId, 790m, null), CancellationToken.None);
+            new CloseShiftCommand(secondId, 790m), CancellationToken.None);
 
         await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
 
@@ -236,47 +236,19 @@ public class DayModuleTests : IDisposable
             50m, day.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.EWallet).Amount);
         Assert.Equal(300m, day.Snapshot.DrawerMovementsNet);
         Assert.Equal(790m, day.Snapshot.CountedCash);
-        Assert.Equal(-20m, day.Snapshot.CashVariance);
-        Assert.Null(day.Snapshot.CountedEWalletBalance);
-        Assert.Null(day.Snapshot.EWalletVariance);
+        Assert.Equal(-70m, day.Snapshot.CashVariance);
         Assert.Equal(2, day.Snapshot.ShiftCount);
         Assert.Equal(_user.Id, day.ClosedBy);
         Assert.NotNull(day.ClosedAt);
     }
 
     [Fact]
-    public async Task Close_day_aggregates_the_e_wallet_like_cash()
-    {
-        _ctx.StoreSettings.Add(new StoreSettings { TrackEWalletFloat = true });
-        await _ctx.SaveChangesAsync();
-        var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
-
-        var firstId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, 5000m), CancellationToken.None);
-        await SaleHandler().Handle(SaleOf(item, 3, PaymentMethodIds.EWallet), CancellationToken.None);
-        await CloseHandler().Handle(
-            new CloseShiftCommand(firstId, 2000m, 5000m), CancellationToken.None);
-
-        var secondId = await OpenHandler().Handle(
-            new OpenShiftCommand(1000m, 6000m), CancellationToken.None);
-        await CloseHandler().Handle(
-            new CloseShiftCommand(secondId, 1000m, 6010m), CancellationToken.None);
-
-        await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
-
-        var day = await _ctx.BusinessDays.AsNoTracking().SingleAsync();
-        Assert.NotNull(day.Snapshot);
-        Assert.Equal(6010m, day.Snapshot!.CountedEWalletBalance);
-        Assert.Equal(-20m, day.Snapshot.EWalletVariance);
-    }
-
-    [Fact]
     public async Task Day_closed_after_midnight_is_late()
     {
         var shiftId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(shiftId, 2000m, null), CancellationToken.None);
+            new CloseShiftCommand(shiftId, 2000m), CancellationToken.None);
 
         var day = await _ctx.BusinessDays.SingleAsync();
         day.OpenedAt = DateTime.UtcNow.AddDays(-1);
@@ -292,16 +264,16 @@ public class DayModuleTests : IDisposable
     public async Task A_new_shift_after_day_close_opens_a_new_day()
     {
         var firstId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(firstId, 2000m, null), CancellationToken.None);
+            new CloseShiftCommand(firstId, 2000m), CancellationToken.None);
         await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
         var closedDay = await _ctx.BusinessDays.SingleAsync();
         closedDay.OpenedAt = DateTime.UtcNow.AddDays(-1);
         await _ctx.SaveChangesAsync();
 
         var secondId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
 
         var second = await _ctx.Shifts.AsNoTracking().SingleAsync(s => s.Id == secondId);
         var newDay = await _ctx.BusinessDays.AsNoTracking()
@@ -314,13 +286,13 @@ public class DayModuleTests : IDisposable
     public async Task A_new_day_cannot_open_on_the_same_date_the_last_day_opened()
     {
         var firstId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(firstId, 2000m, null), CancellationToken.None);
+            new CloseShiftCommand(firstId, 2000m), CancellationToken.None);
         await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
 
         var ex = await Assert.ThrowsAsync<DomainException>(() => OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None));
+            new OpenShiftCommand(2000m), CancellationToken.None));
 
         Assert.Contains("after midnight", ex.Message);
     }
@@ -329,13 +301,13 @@ public class DayModuleTests : IDisposable
     public async Task Current_day_read_includes_the_open_shifts_live_figures()
     {
         var firstId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
         var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
         await SaleHandler().Handle(SaleOf(item, 5, PaymentMethodIds.Cash), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(firstId, 2050m, null), CancellationToken.None);
+            new CloseShiftCommand(firstId, 2050m), CancellationToken.None);
 
-        await OpenHandler().Handle(new OpenShiftCommand(1000m, null), CancellationToken.None);
+        await OpenHandler().Handle(new OpenShiftCommand(1000m), CancellationToken.None);
         await SaleHandler().Handle(SaleOf(item, 2, PaymentMethodIds.Cash), CancellationToken.None);
 
         var query = new GetCurrentDayQueryHandler(_days, _shifts, _transactions, _utang, _paymentMethods);
@@ -357,14 +329,14 @@ public class DayModuleTests : IDisposable
     public async Task Correct_count_after_day_close_leaves_the_frozen_day_untouched()
     {
         var firstId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(firstId, 2000m, null), CancellationToken.None);
+            new CloseShiftCommand(firstId, 2000m), CancellationToken.None);
 
         var secondId = await OpenHandler().Handle(
-            new OpenShiftCommand(1000m, null), CancellationToken.None);
+            new OpenShiftCommand(1000m), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(secondId, 9000m, null), CancellationToken.None);
+            new CloseShiftCommand(secondId, 9000m), CancellationToken.None);
 
         await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
 
@@ -404,7 +376,7 @@ public class DayModuleTests : IDisposable
         Assert.Equal("Clicked Z at 6 PM", day.ReopenReason);
 
         var newShiftId = await OpenHandler().Handle(
-            new OpenShiftCommand(1500m, null), CancellationToken.None);
+            new OpenShiftCommand(1500m), CancellationToken.None);
         var newShift = await _ctx.Shifts.AsNoTracking().SingleAsync(s => s.Id == newShiftId);
         Assert.Equal(day.Id, newShift.BusinessDayId);
     }
@@ -416,10 +388,10 @@ public class DayModuleTests : IDisposable
         var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
 
         var shiftId = await OpenHandler().Handle(
-            new OpenShiftCommand(2000m, null), CancellationToken.None);
+            new OpenShiftCommand(2000m), CancellationToken.None);
         await SaleHandler().Handle(SaleOf(item, 5, PaymentMethodIds.Cash), CancellationToken.None);
         await CloseHandler().Handle(
-            new CloseShiftCommand(shiftId, 2050m, null), CancellationToken.None);
+            new CloseShiftCommand(shiftId, 2050m), CancellationToken.None);
         await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
 
         var closedDay = await _ctx.BusinessDays.AsNoTracking().SingleAsync();
@@ -462,7 +434,7 @@ public class DayModuleTests : IDisposable
     public async Task Reopen_is_blocked_for_an_open_day()
     {
         await SeedAdminAsync();
-        await OpenHandler().Handle(new OpenShiftCommand(2000m, null), CancellationToken.None);
+        await OpenHandler().Handle(new OpenShiftCommand(2000m), CancellationToken.None);
         var day = await _ctx.BusinessDays.SingleAsync();
 
         var ex = await Assert.ThrowsAsync<DomainException>(() => ReopenHandler().Handle(

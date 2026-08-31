@@ -8,10 +8,5 @@ public class CloseShiftCommandValidator : AbstractValidator<CloseShiftCommand>
     {
         RuleFor(x => x.CountedCash)
             .GreaterThanOrEqualTo(0m).WithMessage("Counted cash cannot be negative.");
-
-        RuleFor(x => x.CountedEWalletBalance)
-            .GreaterThanOrEqualTo(0m)
-            .When(x => x.CountedEWalletBalance.HasValue)
-            .WithMessage("Counted e-wallet balance cannot be negative.");
     }
 }

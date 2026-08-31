@@ -14,8 +14,6 @@ public class Shift : BaseEntity
     public Guid? StartingCashCorrectedBy { get; set; }
     public string? StartingCashCorrectionReason { get; set; }
 
-    public decimal? StartingEWalletBalance { get; set; }
-
     public DateTime OpenedAt { get; set; }
     public Guid OpenedBy { get; set; }
     public DateTime? ClosedAt { get; set; }
