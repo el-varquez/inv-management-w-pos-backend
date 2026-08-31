@@ -30,7 +30,7 @@ public class CorrectShiftCountCommandHandler
 
         if (shift.Status != ShiftStatus.Closed || shift.Snapshot is null)
             throw new DomainException(
-                $"Shift #{shift.Number} is still open — close it with a Z read first.");
+                $"Shift #{shift.Number} is still open — close it with an X read first.");
 
         var snapshot = shift.Snapshot;
         snapshot.CountedCashOriginal ??= snapshot.CountedCash;

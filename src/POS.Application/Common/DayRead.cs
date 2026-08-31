@@ -17,8 +17,6 @@ public record DayReadDto(
     decimal DrawerMovementsNet,
     decimal? CountedCash,
     decimal? CashVariance,
-    decimal? CountedEWalletBalance,
-    decimal? EWalletVariance,
     int ShiftCount,
     IList<ShiftSummaryDto> Shifts);
 
@@ -46,7 +44,6 @@ public static class DayRead
                 frozenMethodSales,
                 s.DrawerMovementsNet,
                 s.CountedCash, s.CashVariance,
-                s.CountedEWalletBalance, s.EWalletVariance,
                 s.ShiftCount,
                 summaries);
         }
@@ -71,10 +68,6 @@ public static class DayRead
             shiftReads.Sum(r => r.DrawerMovementsNet),
             closed.LastOrDefault()?.CountedCash,
             closed.Count > 0 ? closed.Sum(r => r.CashVariance ?? 0m) : null,
-            closed.LastOrDefault()?.CountedEWalletBalance,
-            closed.Any(r => r.EWalletVariance is not null)
-                ? closed.Sum(r => r.EWalletVariance ?? 0m)
-                : null,
             shiftReads.Count,
             summaries);
     }

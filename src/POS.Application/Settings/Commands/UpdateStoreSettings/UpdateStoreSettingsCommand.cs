@@ -6,7 +6,5 @@ public record UpdateStoreSettingsCommand(
     string StoreName,
     string Address,
     string ReceiptFooter,
-    decimal DefaultUtangMarkup,
-    bool TrackEWalletFloat,
-    Guid? EWalletFeeItemId
+    decimal DefaultUtangMarkup
 ) : IRequest;

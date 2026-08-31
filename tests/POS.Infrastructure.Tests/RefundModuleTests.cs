@@ -171,7 +171,7 @@ public class RefundModuleTests : IDisposable
     }
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user, _utang, _paymentMethods);
+        => new(_shifts, _transactions, _uow, _user, _utang, _paymentMethods);
 
     private GetShiftReadQueryHandler ReadHandler()
         => new(_shifts, _transactions, _utang, _paymentMethods);
@@ -202,7 +202,7 @@ public class RefundModuleTests : IDisposable
         await RefundHandler().Handle(new ProcessRefundCommand(saleId), CancellationToken.None);
 
         await CloseHandler().Handle(
-            new CloseShiftCommand(_shift.Id, 1000m, null), CancellationToken.None);
+            new CloseShiftCommand(_shift.Id, 1000m), CancellationToken.None);
 
         var read = await ReadHandler().Handle(
             new GetShiftReadQuery(_shift.Id), CancellationToken.None);
@@ -217,7 +217,7 @@ public class RefundModuleTests : IDisposable
         var item = await SeedItemAsync();
         var saleId = await SellAsync(item);
         await CloseHandler().Handle(
-            new CloseShiftCommand(_shift.Id, 1025m, null), CancellationToken.None);
+            new CloseShiftCommand(_shift.Id, 1025m), CancellationToken.None);
         var second = new Shift
         {
             Number = 2,

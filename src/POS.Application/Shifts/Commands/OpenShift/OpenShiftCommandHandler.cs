@@ -11,20 +11,17 @@ public class OpenShiftCommandHandler : IRequestHandler<OpenShiftCommand, Guid>
 {
     private readonly IShiftRepository _shifts;
     private readonly IBusinessDayRepository _days;
-    private readonly IStoreSettingsRepository _settings;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
 
     public OpenShiftCommandHandler(
         IShiftRepository shifts,
         IBusinessDayRepository days,
-        IStoreSettingsRepository settings,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser)
     {
         _shifts = shifts;
         _days = days;
-        _settings = settings;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
     }
@@ -35,11 +32,6 @@ public class OpenShiftCommandHandler : IRequestHandler<OpenShiftCommand, Guid>
         if (open is not null)
             throw new DomainException(
                 $"Shift #{open.Number} is still open — close it with an X read before opening a new one.");
-
-        var settings = await _settings.GetAsync(ct);
-        if (settings?.TrackEWalletFloat == true && request.StartingEWalletBalance is null)
-            throw new DomainException(
-                "Declare the starting e-wallet balance to open the shift.");
 
         var day = await _days.GetOpenAsync(ct);
         if (day is null)
@@ -66,7 +58,6 @@ public class OpenShiftCommandHandler : IRequestHandler<OpenShiftCommand, Guid>
             Number = await _shifts.GetLastNumberAsync(ct) + 1,
             Status = ShiftStatus.Open,
             StartingCash = request.StartingCash,
-            StartingEWalletBalance = request.StartingEWalletBalance,
             OpenedAt = DateTime.UtcNow,
             OpenedBy = _currentUser.Id,
             BusinessDayId = day.Id

@@ -534,7 +534,7 @@ public class UtangModuleTests : IDisposable
         => new(_shifts, _transactions, _utang, _paymentMethods);
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user, _utang, _paymentMethods);
+        => new(_shifts, _transactions, _uow, _user, _utang, _paymentMethods);
 
     [Fact]
     public async Task The_live_x_read_reports_utang_and_collections_feed_the_drawer()
@@ -567,7 +567,7 @@ public class UtangModuleTests : IDisposable
         await UtangSaleAsync(suki, item, qty: 5, down: 50m);
 
         await CloseHandler().Handle(
-            new CloseShiftCommand(_shift.Id, 1050m, null), CancellationToken.None);
+            new CloseShiftCommand(_shift.Id, 1050m), CancellationToken.None);
 
         var read = await ReadHandler().Handle(
             new GetShiftReadQuery(_shift.Id), CancellationToken.None);
@@ -960,7 +960,7 @@ public class UtangModuleTests : IDisposable
         await SeedAdjustmentAsync(suki.Id, 5000m);
 
         await CloseHandler().Handle(
-            new CloseShiftCommand(_shift.Id, 1000m, null), CancellationToken.None);
+            new CloseShiftCommand(_shift.Id, 1000m), CancellationToken.None);
 
         var closed = await _ctx.Shifts.SingleAsync(s => s.Id == _shift.Id);
         Assert.Equal(200m, closed.Snapshot!.UtangCharged);
