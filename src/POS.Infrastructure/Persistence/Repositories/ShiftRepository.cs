@@ -61,26 +61,6 @@ public class ShiftRepository : IShiftRepository
         CashDrawerMovement movement, CancellationToken ct = default)
         => await _ctx.CashDrawerMovements.AddAsync(movement, ct);
 
-    public async Task<IList<EWalletTransaction>> GetEWalletTransactionsAsync(
-        Guid shiftId, CancellationToken ct = default)
-        => await _ctx.EWalletTransactions
-            .Where(t => t.ShiftId == shiftId)
-            .OrderBy(t => t.CreatedAt)
-            .ToListAsync(ct);
-
-    public Task<EWalletTransaction?> GetEWalletTransactionByIdAsync(
-        Guid id, CancellationToken ct = default)
-        => _ctx.EWalletTransactions.FirstOrDefaultAsync(t => t.Id == id, ct);
-
-    public Task<EWalletTransaction?> GetEWalletTransactionByFeeAsync(
-        Guid feeTransactionId, CancellationToken ct = default)
-        => _ctx.EWalletTransactions
-            .FirstOrDefaultAsync(t => t.FeeTransactionId == feeTransactionId, ct);
-
-    public async Task AddEWalletTransactionAsync(
-        EWalletTransaction transaction, CancellationToken ct = default)
-        => await _ctx.EWalletTransactions.AddAsync(transaction, ct);
-
     public async Task AddMethodSalesAsync(
         IList<ShiftMethodSales> rows, CancellationToken ct = default)
         => await _ctx.ShiftMethodSales.AddRangeAsync(rows, ct);

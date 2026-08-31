@@ -12,7 +12,6 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
 {
     private readonly IShiftRepository _shifts;
     private readonly ITransactionRepository _transactions;
-    private readonly IStoreSettingsRepository _settings;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly IUtangRepository _utang;
@@ -21,7 +20,6 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
     public CloseShiftCommandHandler(
         IShiftRepository shifts,
         ITransactionRepository transactions,
-        IStoreSettingsRepository settings,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
         IUtangRepository utang,
@@ -29,7 +27,6 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
     {
         _shifts = shifts;
         _transactions = transactions;
-        _settings = settings;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _utang = utang;
@@ -44,17 +41,8 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         if (shift.Status == ShiftStatus.Closed)
             throw new DomainException($"Shift #{shift.Number} is already closed.");
 
-        var settings = await _settings.GetAsync(ct);
-        var trackWallet = settings?.TrackEWalletFloat == true;
-
-        if (trackWallet && request.CountedEWalletBalance is null)
-            throw new DomainException(
-                "Enter the counted e-wallet balance to close the shift.");
-
         var transactions = await _transactions.GetByShiftAsync(shift.Id, ct);
         var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
-        var eWalletTransactions = await _shifts.GetEWalletTransactionsAsync(shift.Id, ct);
-        var wallet = EWalletTotals.Of(eWalletTransactions);
         var utangCharges = await _utang.GetChargesByShiftAsync(shift.Id, ct);
         var utangPayments = await _utang.GetPaymentsByShiftAsync(shift.Id, ct);
         var utang = UtangTotals.Of(utangCharges, utangPayments);
@@ -71,8 +59,8 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
             .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.Cash)?.Amount ?? 0m;
         var eWalletSales = methodSales
             .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.EWallet)?.Amount ?? 0m;
-        var expectedCash = shift.StartingCash + cashSales + movementsNet
-            + wallet.DrawerNet + utang.Collections;
+        var expectedCash = shift.StartingCash + cashSales + eWalletSales
+            + movementsNet + utang.Collections;
 
         var closedAt = DateTime.UtcNow;
 
@@ -80,10 +68,6 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         {
             NetSales = PaidSales.Net(transactions),
             TransactionCount = PaidSales.Count(transactions),
-            EWalletCashInCount = wallet.CashInCount,
-            EWalletCashIn = wallet.CashIn,
-            EWalletCashOutCount = wallet.CashOutCount,
-            EWalletCashOut = wallet.CashOut,
             UtangChargedCount = utang.ChargeCount,
             UtangCharged = utang.Charged,
             UtangMarkup = utang.Markup,
@@ -95,15 +79,6 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
             CountedCash = request.CountedCash,
             CashVariance = request.CountedCash - expectedCash
         };
-
-        if (trackWallet)
-        {
-            var expectedWallet =
-                (shift.StartingEWalletBalance ?? 0m) + eWalletSales + wallet.WalletNet;
-            snapshot.ExpectedEWalletBalance = expectedWallet;
-            snapshot.CountedEWalletBalance = request.CountedEWalletBalance;
-            snapshot.EWalletVariance = request.CountedEWalletBalance - expectedWallet;
-        }
 
         shift.Snapshot = snapshot;
         shift.Status = ShiftStatus.Closed;

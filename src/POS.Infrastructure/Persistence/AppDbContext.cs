@@ -31,7 +31,6 @@ public class AppDbContext : DbContext
     public DbSet<Shift> Shifts => Set<Shift>();
     public DbSet<BusinessDay> BusinessDays => Set<BusinessDay>();
     public DbSet<CashDrawerMovement> CashDrawerMovements => Set<CashDrawerMovement>();
-    public DbSet<EWalletTransaction> EWalletTransactions => Set<EWalletTransaction>();
     public DbSet<Suki> Sukis => Set<Suki>();
     public DbSet<UtangCharge> UtangCharges => Set<UtangCharge>();
     public DbSet<UtangPayment> UtangPayments => Set<UtangPayment>();
@@ -143,14 +142,11 @@ public class AppDbContext : DbContext
         builder.Entity<Shift>().HasIndex(s => s.Number).IsUnique();
         builder.Entity<Shift>().Property(s => s.StartingCash).HasPrecision(18, 2);
         builder.Entity<Shift>().Property(s => s.StartingCashOriginal).HasPrecision(18, 2);
-        builder.Entity<Shift>().Property(s => s.StartingEWalletBalance).HasPrecision(18, 2);
         builder.Entity<Shift>().Property(s => s.StartingCashCorrectionReason).HasMaxLength(256);
 
         builder.Entity<Shift>().OwnsOne(s => s.Snapshot, snapshot =>
         {
             snapshot.Property(x => x.NetSales).HasPrecision(18, 2);
-            snapshot.Property(x => x.EWalletCashIn).HasPrecision(18, 2);
-            snapshot.Property(x => x.EWalletCashOut).HasPrecision(18, 2);
             snapshot.Property(x => x.UtangCharged).HasPrecision(18, 2);
             snapshot.Property(x => x.UtangMarkup).HasPrecision(18, 2);
             snapshot.Property(x => x.UtangCollections).HasPrecision(18, 2);
@@ -160,9 +156,6 @@ public class AppDbContext : DbContext
             snapshot.Property(x => x.CountedCash).HasPrecision(18, 2);
             snapshot.Property(x => x.CashVariance).HasPrecision(18, 2);
             snapshot.Property(x => x.CountedCashOriginal).HasPrecision(18, 2);
-            snapshot.Property(x => x.ExpectedEWalletBalance).HasPrecision(18, 2);
-            snapshot.Property(x => x.CountedEWalletBalance).HasPrecision(18, 2);
-            snapshot.Property(x => x.EWalletVariance).HasPrecision(18, 2);
             snapshot.Property(x => x.CorrectionReason).HasMaxLength(256);
         });
 
@@ -175,8 +168,6 @@ public class AppDbContext : DbContext
             snapshot.Property(x => x.DrawerMovementsNet).HasPrecision(18, 2);
             snapshot.Property(x => x.CountedCash).HasPrecision(18, 2);
             snapshot.Property(x => x.CashVariance).HasPrecision(18, 2);
-            snapshot.Property(x => x.CountedEWalletBalance).HasPrecision(18, 2);
-            snapshot.Property(x => x.EWalletVariance).HasPrecision(18, 2);
         });
 
         builder.Entity<Shift>()
@@ -215,24 +206,6 @@ public class AppDbContext : DbContext
 
         builder.Entity<CashDrawerMovement>().Property(m => m.Amount).HasPrecision(18, 2);
         builder.Entity<CashDrawerMovement>().Property(m => m.Note).HasMaxLength(256);
-
-        builder.Entity<EWalletTransaction>(entity =>
-        {
-            entity.Property(x => x.Principal).HasPrecision(18, 2);
-            entity.Property(x => x.WalletDelta).HasPrecision(18, 2);
-            entity.Property(x => x.DrawerDelta).HasPrecision(18, 2);
-            entity.Property(x => x.Reason).HasMaxLength(256);
-            entity.HasIndex(x => x.ShiftId);
-            entity.HasIndex(x => x.FeeTransactionId);
-            entity.HasOne(x => x.Shift)
-                .WithMany()
-                .HasForeignKey(x => x.ShiftId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.FeeTransaction)
-                .WithMany()
-                .HasForeignKey(x => x.FeeTransactionId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
 
         builder.Entity<Suki>(entity =>
         {

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using POS.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using POS.Infrastructure.Persistence;
 namespace POS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260831140652_DropEWalletTransactions")]
+    partial class DropEWalletTransactions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -433,6 +436,10 @@ namespace POS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<decimal?>("StartingEWalletBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -544,6 +551,9 @@ namespace POS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<Guid?>("EWalletFeeItemId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ReceiptFooter")
                         .IsRequired()
                         .HasColumnType("text");
@@ -551,6 +561,9 @@ namespace POS.Infrastructure.Migrations
                     b.Property<string>("StoreName")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("TrackEWalletFloat")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -916,7 +929,15 @@ namespace POS.Infrastructure.Migrations
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
 
+                            b1.Property<decimal?>("CountedEWalletBalance")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
                             b1.Property<decimal>("DrawerMovementsNet")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
+                            b1.Property<decimal?>("EWalletVariance")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
 
@@ -1047,11 +1068,23 @@ namespace POS.Infrastructure.Migrations
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
 
+                            b1.Property<decimal?>("CountedEWalletBalance")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
                             b1.Property<decimal>("DrawerMovementsNet")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
 
+                            b1.Property<decimal?>("EWalletVariance")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
                             b1.Property<decimal>("ExpectedCash")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
+                            b1.Property<decimal?>("ExpectedEWalletBalance")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
 

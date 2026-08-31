@@ -30,12 +30,11 @@ public class GetCurrentShiftQueryHandler : IRequestHandler<GetCurrentShiftQuery,
 
         var transactions = await _transactions.GetByShiftAsync(shift.Id, ct);
         var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
-        var eWalletTransactions = await _shifts.GetEWalletTransactionsAsync(shift.Id, ct);
         var utangCharges = await _utang.GetChargesByShiftAsync(shift.Id, ct);
         var utangPayments = await _utang.GetPaymentsByShiftAsync(shift.Id, ct);
         var methods = await _methods.GetAllAsync(ct);
 
         return ShiftRead.Build(
-            shift, transactions, movements, eWalletTransactions, utangCharges, utangPayments, methods);
+            shift, transactions, movements, utangCharges, utangPayments, methods);
     }
 }

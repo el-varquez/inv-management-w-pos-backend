@@ -26,10 +26,6 @@ public record ShiftReadDto(
     decimal Refunds,
     int RefundCount,
     IList<MethodSalesDto> MethodSales,
-    int EWalletCashInCount,
-    decimal EWalletCashIn,
-    int EWalletCashOutCount,
-    decimal EWalletCashOut,
     int UtangChargedCount,
     decimal UtangCharged,
     decimal UtangMarkup,
@@ -40,10 +36,6 @@ public record ShiftReadDto(
     decimal? CountedCashOriginal,
     string? CorrectionReason,
     decimal? CashVariance,
-    decimal? StartingEWalletBalance,
-    decimal? ExpectedEWalletBalance,
-    decimal? CountedEWalletBalance,
-    decimal? EWalletVariance,
     IList<DrawerMovementDto> Movements);
 
 public static class ShiftRead
@@ -52,7 +44,6 @@ public static class ShiftRead
         Shift shift,
         IList<Transaction> transactions,
         IList<CashDrawerMovement> movements,
-        IList<EWalletTransaction> eWalletTransactions,
         IList<UtangCharge> utangCharges,
         IList<UtangPayment> utangPayments,
         IList<PaymentMethod> methods)
@@ -75,17 +66,12 @@ public static class ShiftRead
                 s.NetSales, s.TransactionCount,
                 s.Refunds, s.RefundCount,
                 frozenMethodSales,
-                s.EWalletCashInCount, s.EWalletCashIn,
-                s.EWalletCashOutCount, s.EWalletCashOut,
                 s.UtangChargedCount, s.UtangCharged, s.UtangMarkup, s.UtangCollections,
                 s.DrawerMovementsNet, s.ExpectedCash,
                 s.CountedCash, s.CountedCashOriginal, s.CorrectionReason, s.CashVariance,
-                shift.StartingEWalletBalance, s.ExpectedEWalletBalance,
-                s.CountedEWalletBalance, s.EWalletVariance,
                 movementDtos);
         }
 
-        var wallet = EWalletTotals.Of(eWalletTransactions);
         var utang = UtangTotals.Of(utangCharges, utangPayments);
         var movementsNet = movements.Where(m => !m.IsVoided).Sum(m => m.Amount);
 
@@ -100,11 +86,8 @@ public static class ShiftRead
         var eWalletSales = methodSales
             .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.EWallet)?.Amount ?? 0m;
 
-        var expectedCash = shift.StartingCash + cashSales + movementsNet
-            + wallet.DrawerNet + utang.Collections;
-        var expectedWallet = shift.StartingEWalletBalance.HasValue
-            ? shift.StartingEWalletBalance.Value + eWalletSales + wallet.WalletNet
-            : (decimal?)null;
+        var expectedCash = shift.StartingCash + cashSales + eWalletSales
+            + movementsNet + utang.Collections;
 
         return new ShiftReadDto(
             shift.Id, shift.Number, false,
@@ -114,12 +97,9 @@ public static class ShiftRead
             PaidSales.Net(transactions), PaidSales.Count(transactions),
             PaidSales.Refunds(transactions), PaidSales.RefundCount(transactions),
             methodSales,
-            wallet.CashInCount, wallet.CashIn, wallet.CashOutCount, wallet.CashOut,
             utang.ChargeCount, utang.Charged, utang.Markup, utang.Collections,
             movementsNet, expectedCash,
             null, null, null, null,
-            shift.StartingEWalletBalance, expectedWallet,
-            null, null,
             movementDtos);
     }
 }
