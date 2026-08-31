@@ -19,14 +19,14 @@ public class GetBestSellersQueryHandler
             request.From, request.To, ct);
 
         var lines = transactions
-            .SelectMany(t => t.Items.Select(i => (t.PaymentType, Line: i)));
+            .SelectMany(t => t.Items.Select(i => (Type: t.PaymentMethod!.Type, Line: i)));
 
         return lines
             .GroupBy(x => x.Line.ItemId)
             .Select(g =>
             {
                 var paidLines = g
-                    .Where(x => x.PaymentType != PaymentType.Utang)
+                    .Where(x => x.Type == PaymentMethodType.Sales)
                     .Select(x => x.Line)
                     .ToList();
                 var revenue = paidLines.Sum(i => i.Total);

@@ -22,6 +22,7 @@ public class SellSaleTests : IDisposable
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
+    private readonly PaymentMethodRepository _paymentMethods;
     private readonly UnitOfWork _uow;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -36,6 +37,7 @@ public class SellSaleTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
@@ -43,6 +45,7 @@ public class SellSaleTests : IDisposable
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _paymentMethods = new PaymentMethodRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -83,7 +86,7 @@ public class SellSaleTests : IDisposable
     private CreateTransactionCommandHandler Handler(POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null) =>
         new(_items, _transactions, generator ?? new ReceiptNumberGenerator(_transactions), _uow,
             new FakeCurrentUser { Id = _userId, Role = "Cashier" },
-            _composites, _shifts, _settings, _utang);
+            _composites, _shifts, _settings, _utang, _paymentMethods);
 
     [Fact]
     public async Task A_gcash_sale_persists_its_reference_number()
@@ -92,7 +95,7 @@ public class SellSaleTests : IDisposable
 
         var result = await Handler().Handle(
             new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentType.Gcash, 25m, "  REF-90210  "),
+                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.EWallet, 25m, "  REF-90210  "),
             CancellationToken.None);
 
         var saved = await _ctx.Transactions.SingleAsync(t => t.Id == result.TransactionId);
@@ -106,7 +109,7 @@ public class SellSaleTests : IDisposable
 
         var result = await Handler().Handle(
             new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentType.Cash, 100m),
+                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Cash, 100m),
             CancellationToken.None);
 
         var saved = await _ctx.Transactions.SingleAsync(t => t.Id == result.TransactionId);
@@ -120,14 +123,14 @@ public class SellSaleTests : IDisposable
         _ctx.Transactions.Add(new Transaction
         {
             ReceiptNumber = $"R-{DateTime.Now:yyyyMMdd}-0007",
-            PaymentType = PaymentType.Cash,
+            PaymentMethodId = PaymentMethodIds.Cash,
             CreatedBy = _userId
         });
         await _ctx.SaveChangesAsync();
 
         var result = await Handler().Handle(
             new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentType.Cash, 100m),
+                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Cash, 100m),
             CancellationToken.None);
 
         Assert.Equal($"R-{DateTime.Now:yyyyMMdd}-0008", result.ReceiptNumber);
@@ -140,14 +143,14 @@ public class SellSaleTests : IDisposable
         _ctx.Transactions.Add(new Transaction
         {
             ReceiptNumber = "R-19990101-0099",
-            PaymentType = PaymentType.Cash,
+            PaymentMethodId = PaymentMethodIds.Cash,
             CreatedBy = _userId
         });
         await _ctx.SaveChangesAsync();
 
         var result = await Handler().Handle(
             new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentType.Cash, 100m),
+                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Cash, 100m),
             CancellationToken.None);
 
         Assert.Equal($"R-{DateTime.Now:yyyyMMdd}-0001", result.ReceiptNumber);
@@ -158,12 +161,12 @@ public class SellSaleTests : IDisposable
     {
         _ctx.Transactions.Add(new Transaction
         {
-            ReceiptNumber = "R-DUP-0001", PaymentType = PaymentType.Cash, CreatedBy = _userId
+            ReceiptNumber = "R-DUP-0001", PaymentMethodId = PaymentMethodIds.Cash, CreatedBy = _userId
         });
         await _ctx.SaveChangesAsync();
         _ctx.Transactions.Add(new Transaction
         {
-            ReceiptNumber = "R-DUP-0001", PaymentType = PaymentType.Cash, CreatedBy = _userId
+            ReceiptNumber = "R-DUP-0001", PaymentMethodId = PaymentMethodIds.Cash, CreatedBy = _userId
         });
 
         await Assert.ThrowsAsync<ReceiptNumberCollisionException>(() => _uow.SaveChangesAsync());
@@ -175,14 +178,14 @@ public class SellSaleTests : IDisposable
         var item = await SeedItemAsync();
         _ctx.Transactions.Add(new Transaction
         {
-            ReceiptNumber = "R-DUP-0001", PaymentType = PaymentType.Cash, CreatedBy = _userId
+            ReceiptNumber = "R-DUP-0001", PaymentMethodId = PaymentMethodIds.Cash, CreatedBy = _userId
         });
         await _ctx.SaveChangesAsync();
 
         var result = await Handler(new FakeCollidingReceiptNumberGenerator("R-DUP-0001", "R-DUP-0002"))
             .Handle(
                 new CreateTransactionCommand(
-                    [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentType.Cash, 100m),
+                    [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Cash, 100m),
                 CancellationToken.None);
 
         Assert.Equal("R-DUP-0002", result.ReceiptNumber);

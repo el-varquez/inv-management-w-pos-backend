@@ -26,6 +26,7 @@ public class DeleteItemGuardTests : IDisposable
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
+    private readonly PaymentMethodRepository _paymentMethods;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -41,6 +42,7 @@ public class DeleteItemGuardTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _items = new ItemRepository(_ctx);
         _categories = new CategoryRepository(_ctx);
@@ -50,6 +52,7 @@ public class DeleteItemGuardTests : IDisposable
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _paymentMethods = new PaymentMethodRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -97,7 +100,7 @@ public class DeleteItemGuardTests : IDisposable
 
     private CreateTransactionCommandHandler SaleHandler() =>
         new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow, _user, _composites,
-            _shifts, _settings, _utang);
+            _shifts, _settings, _utang, _paymentMethods);
 
     [Fact]
     public async Task Delete_refuses_an_item_with_sales_history()
@@ -106,7 +109,7 @@ public class DeleteItemGuardTests : IDisposable
         var item = await SeedAsync("Coke 1L", stock: 10);
         await SaleHandler().Handle(
             new CreateTransactionCommand(
-                new List<CartItemInput> { new(item.Id, 1, 0m) }, 0m, PaymentType.Cash, 100m),
+                new List<CartItemInput> { new(item.Id, 1, 0m) }, 0m, PaymentMethodIds.Cash, 100m),
             CancellationToken.None);
         var handler = new DeleteItemCommandHandler(_items, _uow);
 

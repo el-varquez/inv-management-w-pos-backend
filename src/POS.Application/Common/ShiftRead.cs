@@ -10,6 +10,8 @@ public record DrawerMovementDto(
     bool IsVoided,
     DateTime CreatedAt);
 
+public record MethodSalesDto(Guid PaymentMethodId, string Name, decimal Amount);
+
 public record ShiftReadDto(
     Guid Id,
     int Number,
@@ -23,9 +25,7 @@ public record ShiftReadDto(
     int TransactionCount,
     decimal Refunds,
     int RefundCount,
-    decimal CashSales,
-    decimal GcashSales,
-    decimal MayaSales,
+    IList<MethodSalesDto> MethodSales,
     int EWalletCashInCount,
     decimal EWalletCashIn,
     int EWalletCashOutCount,
@@ -54,7 +54,8 @@ public static class ShiftRead
         IList<CashDrawerMovement> movements,
         IList<EWalletTransaction> eWalletTransactions,
         IList<UtangCharge> utangCharges,
-        IList<UtangPayment> utangPayments)
+        IList<UtangPayment> utangPayments,
+        IList<PaymentMethod> methods)
     {
         var movementDtos = movements
             .Select(m => new DrawerMovementDto(m.Id, m.Amount, m.Note, m.IsVoided, m.CreatedAt))
@@ -63,6 +64,9 @@ public static class ShiftRead
         if (shift.Status == ShiftStatus.Closed && shift.Snapshot is not null)
         {
             var s = shift.Snapshot;
+            var frozenMethodSales = shift.MethodSales
+                .Select(m => new MethodSalesDto(m.PaymentMethodId, m.MethodName, m.Amount))
+                .ToList();
             return new ShiftReadDto(
                 shift.Id, shift.Number, true,
                 shift.OpenedAt, shift.ClosedAt,
@@ -70,7 +74,7 @@ public static class ShiftRead
                 shift.StartingCashCorrectionReason,
                 s.NetSales, s.TransactionCount,
                 s.Refunds, s.RefundCount,
-                s.CashSales, s.GcashSales, s.MayaSales,
+                frozenMethodSales,
                 s.EWalletCashInCount, s.EWalletCashIn,
                 s.EWalletCashOutCount, s.EWalletCashOut,
                 s.UtangChargedCount, s.UtangCharged, s.UtangMarkup, s.UtangCollections,
@@ -84,12 +88,22 @@ public static class ShiftRead
         var wallet = EWalletTotals.Of(eWalletTransactions);
         var utang = UtangTotals.Of(utangCharges, utangPayments);
         var movementsNet = movements.Where(m => !m.IsVoided).Sum(m => m.Amount);
-        var cashSales = NetOf(transactions, PaymentType.Cash);
-        var gcashSales = NetOf(transactions, PaymentType.Gcash);
+
+        var methodSales = methods
+            .Where(m => m.Type == PaymentMethodType.Sales)
+            .Where(m => m.IsActive || transactions.Any(t => t.PaymentMethodId == m.Id))
+            .Select(m => new MethodSalesDto(m.Id, m.Name,
+                PaidSales.Net(transactions.Where(t => t.PaymentMethodId == m.Id))))
+            .ToList();
+        var cashSales = methodSales
+            .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.Cash)?.Amount ?? 0m;
+        var eWalletSales = methodSales
+            .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.EWallet)?.Amount ?? 0m;
+
         var expectedCash = shift.StartingCash + cashSales + movementsNet
             + wallet.DrawerNet + utang.Collections;
         var expectedWallet = shift.StartingEWalletBalance.HasValue
-            ? shift.StartingEWalletBalance.Value + gcashSales + wallet.WalletNet
+            ? shift.StartingEWalletBalance.Value + eWalletSales + wallet.WalletNet
             : (decimal?)null;
 
         return new ShiftReadDto(
@@ -99,7 +113,7 @@ public static class ShiftRead
             shift.StartingCashCorrectionReason,
             PaidSales.Net(transactions), PaidSales.Count(transactions),
             PaidSales.Refunds(transactions), PaidSales.RefundCount(transactions),
-            cashSales, gcashSales, NetOf(transactions, PaymentType.Maya),
+            methodSales,
             wallet.CashInCount, wallet.CashIn, wallet.CashOutCount, wallet.CashOut,
             utang.ChargeCount, utang.Charged, utang.Markup, utang.Collections,
             movementsNet, expectedCash,
@@ -108,7 +122,4 @@ public static class ShiftRead
             null, null,
             movementDtos);
     }
-
-    private static decimal NetOf(IList<Transaction> transactions, PaymentType method)
-        => PaidSales.Net(transactions.Where(t => t.PaymentType == method));
 }

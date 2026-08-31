@@ -60,7 +60,7 @@ public class VoidEWalletTransactionCommandHandler
                     Subtotal = -fee.Subtotal,
                     DiscountAmount = -fee.DiscountAmount,
                     Total = -fee.Total,
-                    PaymentType = fee.PaymentType,
+                    PaymentMethodId = fee.PaymentMethodId,
                     AmountTendered = 0m,
                     Change = 0m,
                     RefundedFromId = fee.Id,

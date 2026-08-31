@@ -58,7 +58,7 @@ public class ProcessRefundCommandHandler
             Subtotal = -original.Subtotal,
             DiscountAmount = -original.DiscountAmount,
             Total = -original.Total,
-            PaymentType = original.PaymentType,
+            PaymentMethodId = original.PaymentMethodId,
             AmountTendered = 0,
             Change = 0,
             IsRefunded = false,

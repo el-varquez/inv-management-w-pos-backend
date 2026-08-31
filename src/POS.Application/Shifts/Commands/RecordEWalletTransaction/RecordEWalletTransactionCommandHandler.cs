@@ -83,7 +83,7 @@ public class RecordEWalletTransactionCommandHandler
                 Subtotal = request.Fee,
                 DiscountAmount = 0m,
                 Total = request.Fee,
-                PaymentType = PaymentType.Cash,
+                PaymentMethodId = PaymentMethodIds.Cash,
                 AmountTendered = request.Fee,
                 Change = 0m,
                 CreatedBy = _currentUser.Id,

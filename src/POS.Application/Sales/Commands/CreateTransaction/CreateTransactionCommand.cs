@@ -1,18 +1,17 @@
 using MediatR;
-using POS.Domain.Enums;
 
 namespace POS.Application.Sales.Commands.CreateTransaction;
 
 public record CartItemInput(
     Guid ItemId,
     int Quantity,
-    decimal Discount       
+    decimal Discount
 );
 
 public record CreateTransactionCommand(
     IList<CartItemInput> Items,
     decimal TransactionDiscount,
-    PaymentType PaymentType,
+    Guid PaymentMethodId,
     decimal AmountTendered,
     string? ReferenceNumber = null,
     Guid? SukiId = null,

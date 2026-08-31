@@ -30,6 +30,7 @@ public class DayModuleTests : IDisposable
     private readonly CompositeItemRepository _composites;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
+    private readonly PaymentMethodRepository _paymentMethods;
     private readonly UserRepository _users;
     private readonly UnitOfWork _uow;
     private readonly PasswordHasher _hasher = new();
@@ -47,6 +48,7 @@ public class DayModuleTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _shifts = new ShiftRepository(_ctx);
         _days = new BusinessDayRepository(_ctx);
@@ -55,6 +57,7 @@ public class DayModuleTests : IDisposable
         _composites = new CompositeItemRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _paymentMethods = new PaymentMethodRepository(_ctx);
         _users = new UserRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
@@ -66,7 +69,7 @@ public class DayModuleTests : IDisposable
         => new(_shifts, _days, _settings, _uow, _user);
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user, _utang);
+        => new(_shifts, _transactions, _settings, _uow, _user, _utang, _paymentMethods);
 
     private CloseDayCommandHandler CloseDayHandler()
         => new(_days, _shifts, _uow, _user);
@@ -76,13 +79,13 @@ public class DayModuleTests : IDisposable
 
     private CreateTransactionCommandHandler SaleHandler()
         => new(_items, _transactions, _receipts, _uow, _user,
-            _composites, _shifts, _settings, _utang);
+            _composites, _shifts, _settings, _utang, _paymentMethods);
 
-    private static CreateTransactionCommand SaleOf(Item item, int qty, PaymentType payment)
+    private static CreateTransactionCommand SaleOf(Item item, int qty, Guid paymentMethodId)
         => new(
             new List<CartItemInput> { new(item.Id, qty, 0m) },
             0m,
-            payment,
+            paymentMethodId,
             item.SellingPrice * qty);
 
     private const string AdminPassword = "admin-pass-1";
@@ -201,8 +204,8 @@ public class DayModuleTests : IDisposable
 
         var firstId = await OpenHandler().Handle(
             new OpenShiftCommand(2000m, null), CancellationToken.None);
-        await SaleHandler().Handle(SaleOf(item, 5, PaymentType.Cash), CancellationToken.None);
-        await SaleHandler().Handle(SaleOf(item, 3, PaymentType.Gcash), CancellationToken.None);
+        await SaleHandler().Handle(SaleOf(item, 5, PaymentMethodIds.Cash), CancellationToken.None);
+        await SaleHandler().Handle(SaleOf(item, 3, PaymentMethodIds.EWallet), CancellationToken.None);
         await record.Handle(
             new RecordDrawerMovementCommand(500m, "Change fund"), CancellationToken.None);
         await CloseHandler().Handle(
@@ -210,8 +213,8 @@ public class DayModuleTests : IDisposable
 
         var secondId = await OpenHandler().Handle(
             new OpenShiftCommand(1000m, null), CancellationToken.None);
-        await SaleHandler().Handle(SaleOf(item, 1, PaymentType.Cash), CancellationToken.None);
-        await SaleHandler().Handle(SaleOf(item, 2, PaymentType.Maya), CancellationToken.None);
+        await SaleHandler().Handle(SaleOf(item, 1, PaymentMethodIds.Cash), CancellationToken.None);
+        await SaleHandler().Handle(SaleOf(item, 2, PaymentMethodIds.EWallet), CancellationToken.None);
         await record.Handle(
             new RecordDrawerMovementCommand(-200m, "Rema Drinks"), CancellationToken.None);
         await CloseHandler().Handle(
@@ -219,14 +222,18 @@ public class DayModuleTests : IDisposable
 
         await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
 
-        var day = await _ctx.BusinessDays.AsNoTracking().SingleAsync();
+        var day = await _ctx.BusinessDays
+            .Include(d => d.MethodSales)
+            .AsNoTracking().SingleAsync();
         Assert.Equal(DayStatus.Closed, day.Status);
         Assert.NotNull(day.Snapshot);
         Assert.Equal(110m, day.Snapshot!.NetSales);
         Assert.Equal(4, day.Snapshot.TransactionCount);
-        Assert.Equal(60m, day.Snapshot.CashSales);
-        Assert.Equal(30m, day.Snapshot.GcashSales);
-        Assert.Equal(20m, day.Snapshot.MayaSales);
+        Assert.Equal(2, day.MethodSales.Count);
+        Assert.Equal(
+            60m, day.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.Cash).Amount);
+        Assert.Equal(
+            50m, day.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.EWallet).Amount);
         Assert.Equal(300m, day.Snapshot.DrawerMovementsNet);
         Assert.Equal(790m, day.Snapshot.CountedCash);
         Assert.Equal(-20m, day.Snapshot.CashVariance);
@@ -246,7 +253,7 @@ public class DayModuleTests : IDisposable
 
         var firstId = await OpenHandler().Handle(
             new OpenShiftCommand(2000m, 5000m), CancellationToken.None);
-        await SaleHandler().Handle(SaleOf(item, 3, PaymentType.Gcash), CancellationToken.None);
+        await SaleHandler().Handle(SaleOf(item, 3, PaymentMethodIds.EWallet), CancellationToken.None);
         await CloseHandler().Handle(
             new CloseShiftCommand(firstId, 2000m, 5000m), CancellationToken.None);
 
@@ -324,14 +331,14 @@ public class DayModuleTests : IDisposable
         var firstId = await OpenHandler().Handle(
             new OpenShiftCommand(2000m, null), CancellationToken.None);
         var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
-        await SaleHandler().Handle(SaleOf(item, 5, PaymentType.Cash), CancellationToken.None);
+        await SaleHandler().Handle(SaleOf(item, 5, PaymentMethodIds.Cash), CancellationToken.None);
         await CloseHandler().Handle(
             new CloseShiftCommand(firstId, 2050m, null), CancellationToken.None);
 
         await OpenHandler().Handle(new OpenShiftCommand(1000m, null), CancellationToken.None);
-        await SaleHandler().Handle(SaleOf(item, 2, PaymentType.Cash), CancellationToken.None);
+        await SaleHandler().Handle(SaleOf(item, 2, PaymentMethodIds.Cash), CancellationToken.None);
 
-        var query = new GetCurrentDayQueryHandler(_days, _shifts, _transactions, _utang);
+        var query = new GetCurrentDayQueryHandler(_days, _shifts, _transactions, _utang, _paymentMethods);
         var read = await query.Handle(new GetCurrentDayQuery(), CancellationToken.None);
 
         Assert.NotNull(read);
@@ -400,6 +407,38 @@ public class DayModuleTests : IDisposable
             new OpenShiftCommand(1500m, null), CancellationToken.None);
         var newShift = await _ctx.Shifts.AsNoTracking().SingleAsync(s => s.Id == newShiftId);
         Assert.Equal(day.Id, newShift.BusinessDayId);
+    }
+
+    [Fact]
+    public async Task Reclosing_a_reopened_day_does_not_duplicate_method_sales_rows()
+    {
+        await SeedAdminAsync();
+        var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
+
+        var shiftId = await OpenHandler().Handle(
+            new OpenShiftCommand(2000m, null), CancellationToken.None);
+        await SaleHandler().Handle(SaleOf(item, 5, PaymentMethodIds.Cash), CancellationToken.None);
+        await CloseHandler().Handle(
+            new CloseShiftCommand(shiftId, 2050m, null), CancellationToken.None);
+        await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
+
+        var closedDay = await _ctx.BusinessDays.AsNoTracking().SingleAsync();
+
+        await ReopenHandler().Handle(
+            new ReopenDayCommand(closedDay.Id, "boss", AdminPassword, "Clicked Z too early"),
+            CancellationToken.None);
+
+        await CloseDayHandler().Handle(new CloseDayCommand(), CancellationToken.None);
+
+        var day = await _ctx.BusinessDays
+            .Include(d => d.MethodSales)
+            .AsNoTracking().SingleAsync();
+
+        Assert.Equal(2, day.MethodSales.Count);
+        Assert.Equal(
+            50m, day.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.Cash).Amount);
+        Assert.Equal(
+            0m, day.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.EWallet).Amount);
     }
 
     [Fact]

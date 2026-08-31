@@ -40,6 +40,7 @@ public class UtangModuleTests : IDisposable
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
+    private readonly PaymentMethodRepository _paymentMethods;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -55,6 +56,7 @@ public class UtangModuleTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
@@ -62,6 +64,7 @@ public class UtangModuleTests : IDisposable
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _paymentMethods = new PaymentMethodRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -84,13 +87,11 @@ public class UtangModuleTests : IDisposable
         _ctx.SaveChanges();
     }
 
-    private async Task SeedSettingsAsync(
-        bool acceptUtang = true, decimal defaultMarkup = 1m)
+    private async Task SeedSettingsAsync(decimal defaultMarkup = 1m)
     {
         _ctx.StoreSettings.Add(new StoreSettings
         {
             StoreName = "Test Store",
-            AcceptUtang = acceptUtang,
             DefaultUtangMarkup = defaultMarkup
         });
         await _ctx.SaveChangesAsync();
@@ -127,7 +128,7 @@ public class UtangModuleTests : IDisposable
         var transaction = new Transaction
         {
             ReceiptNumber = $"R-TEST-{Guid.NewGuid():N}",
-            PaymentType = PaymentType.Utang,
+            PaymentMethodId = PaymentMethodIds.Utang,
             CreatedBy = _user.Id,
             ShiftId = _shift.Id
         };
@@ -281,14 +282,14 @@ public class UtangModuleTests : IDisposable
 
     private CreateTransactionCommandHandler SaleHandler() =>
         new(_items, _transactions, new ReceiptNumberGenerator(_transactions), _uow,
-            _user, _composites, _shifts, _settings, _utang);
+            _user, _composites, _shifts, _settings, _utang, _paymentMethods);
 
     private async Task<CreateTransactionResult> UtangSaleAsync(
         Suki suki, Item item, int qty = 1, decimal down = 0m)
         => await SaleHandler().Handle(
             new CreateTransactionCommand(
                 [new CartItemInput(item.Id, qty, 0m)], 0m,
-                PaymentType.Utang, 0m, null, suki.Id, down),
+                PaymentMethodIds.Utang, 0m, null, suki.Id, down),
             CancellationToken.None);
 
     [Fact]
@@ -320,7 +321,7 @@ public class UtangModuleTests : IDisposable
         var result = await SaleHandler().Handle(
             new CreateTransactionCommand(
                 [new CartItemInput(overridden.Id, 1, 0m), new CartItemInput(optedOut.Id, 2, 0m)],
-                0m, PaymentType.Utang, 0m, null, suki.Id),
+                0m, PaymentMethodIds.Utang, 0m, null, suki.Id),
             CancellationToken.None);
 
         Assert.Equal(72m, result.Total);
@@ -354,18 +355,6 @@ public class UtangModuleTests : IDisposable
     }
 
     [Fact]
-    public async Task Utang_is_refused_when_the_setting_is_off()
-    {
-        await SeedSettingsAsync(acceptUtang: false);
-        var suki = await SeedSukiAsync();
-        var item = await SeedItemAsync();
-
-        var ex = await Assert.ThrowsAsync<DomainException>(
-            () => UtangSaleAsync(suki, item));
-        Assert.Equal("Utang is off — turn it on in web admin Settings.", ex.Message);
-    }
-
-    [Fact]
     public async Task A_down_payment_covering_the_total_is_refused()
     {
         await SeedSettingsAsync();
@@ -379,12 +368,14 @@ public class UtangModuleTests : IDisposable
     [Fact]
     public async Task Paid_sales_exclude_utang_and_its_mirrors()
     {
-        var cash = new Transaction { Total = 100m, PaymentType = PaymentType.Cash };
-        var utang = new Transaction { Total = 205m, PaymentType = PaymentType.Utang };
+        var cashMethod = new PaymentMethod { Type = PaymentMethodType.Sales };
+        var utangMethod = new PaymentMethod { Type = PaymentMethodType.Invoice };
+        var cash = new Transaction { Total = 100m, PaymentMethod = cashMethod };
+        var utang = new Transaction { Total = 205m, PaymentMethod = utangMethod };
         var utangMirror = new Transaction
         {
             Total = -205m,
-            PaymentType = PaymentType.Utang,
+            PaymentMethod = utangMethod,
             RefundedFromId = utang.Id
         };
         var list = new List<Transaction> { cash, utang, utangMirror };
@@ -540,10 +531,10 @@ public class UtangModuleTests : IDisposable
     }
 
     private GetShiftReadQueryHandler ReadHandler()
-        => new(_shifts, _transactions, _utang);
+        => new(_shifts, _transactions, _utang, _paymentMethods);
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user, _utang);
+        => new(_shifts, _transactions, _settings, _uow, _user, _utang, _paymentMethods);
 
     [Fact]
     public async Task The_live_x_read_reports_utang_and_collections_feed_the_drawer()
@@ -597,7 +588,7 @@ public class UtangModuleTests : IDisposable
         await UtangSaleAsync(suki, item, qty: 5);
         await SaleHandler().Handle(
             new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentType.Cash, 40m),
+                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Cash, 40m),
             CancellationToken.None);
 
         var summary = await new GetSalesSummaryQueryHandler(_transactions).Handle(
@@ -616,7 +607,7 @@ public class UtangModuleTests : IDisposable
         await UtangSaleAsync(suki, item, qty: 5);
         await SaleHandler().Handle(
             new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 2, 0m)], 0m, PaymentType.Cash, 80m),
+                [new CartItemInput(item.Id, 2, 0m)], 0m, PaymentMethodIds.Cash, 80m),
             CancellationToken.None);
 
         var best = await new GetBestSellersQueryHandler(_transactions).Handle(
@@ -639,7 +630,7 @@ public class UtangModuleTests : IDisposable
         await SeedPaymentAsync(tonyo.Id, 80m);
 
         var summary = await new GetDashboardSummaryQueryHandler(
-                _transactions, _items, _utang)
+                _transactions, _items, _utang, _paymentMethods)
             .Handle(new GetDashboardSummaryQuery(), CancellationToken.None);
 
         Assert.Equal(150m, summary.Utang.TotalOutstanding);

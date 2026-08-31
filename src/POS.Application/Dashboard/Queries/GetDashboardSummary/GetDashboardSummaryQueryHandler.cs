@@ -1,5 +1,6 @@
 using MediatR;
 using POS.Application.Common;
+using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
@@ -11,15 +12,18 @@ public class GetDashboardSummaryQueryHandler
     private readonly ITransactionRepository _transactionRepository;
     private readonly IItemRepository _itemRepository;
     private readonly IUtangRepository _utang;
+    private readonly IPaymentMethodRepository _paymentMethods;
 
     public GetDashboardSummaryQueryHandler(
         ITransactionRepository transactionRepository,
         IItemRepository itemRepository,
-        IUtangRepository utang)
+        IUtangRepository utang,
+        IPaymentMethodRepository paymentMethods)
     {
         _transactionRepository = transactionRepository;
         _itemRepository = itemRepository;
         _utang = utang;
+        _paymentMethods = paymentMethods;
     }
 
     public async Task<DashboardSummaryDto> Handle(
@@ -48,13 +52,14 @@ public class GetDashboardSummaryQueryHandler
             yesterdayNet,
             delta);
 
-        var paymentsToday = Enum.GetValues<PaymentType>()
-            .Where(pt => pt != PaymentType.Utang)
-            .Select(pt =>
+        var methods = await _paymentMethods.GetAllAsync(ct);
+        var paymentsToday = methods
+            .Where(m => m.Type == PaymentMethodType.Sales)
+            .Where(m => m.IsActive || today.Any(t => t.PaymentMethodId == m.Id))
+            .Select(m =>
             {
-                var forMethod = today.Where(t => t.PaymentType == pt).ToList();
-                return new PaymentSplitRowDto(
-                    DisplayName(pt), PaidSales.Net(forMethod), PaidSales.Count(forMethod));
+                var forMethod = today.Where(t => t.PaymentMethodId == m.Id).ToList();
+                return new PaymentSplitRowDto(m.Name, PaidSales.Net(forMethod), PaidSales.Count(forMethod));
             })
             .ToList();
 
@@ -99,13 +104,4 @@ public class GetDashboardSummaryQueryHandler
         return new DashboardSummaryDto(
             todayKpi, stockHealth, utang, paymentsToday, runningOut);
     }
-
-    // Brand spelling for the payment-method DTO — the frontend renders this verbatim.
-    private static string DisplayName(PaymentType pt) => pt switch
-    {
-        PaymentType.Gcash => "GCash",
-        PaymentType.Cash => "Cash",
-        PaymentType.Maya => "Maya",
-        _ => pt.ToString(),
-    };
 }

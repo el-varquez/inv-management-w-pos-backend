@@ -26,7 +26,7 @@ public class GetProfitReportQueryHandler
             request.From, request.To, ct);
 
         transactions = transactions
-            .Where(t => t.PaymentType != PaymentType.Utang)
+            .Where(t => t.PaymentMethod!.Type == PaymentMethodType.Sales)
             .ToList();
 
         var isFiltered = request.ItemId.HasValue || request.CategoryId.HasValue;
