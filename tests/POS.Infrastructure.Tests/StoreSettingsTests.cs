@@ -60,7 +60,7 @@ public class StoreSettingsTests : IDisposable
     }
 
     private static UpdateStoreSettingsCommand Command(bool trackEWalletFloat) =>
-        new("My Store", "", "", true, 0m, trackEWalletFloat, null);
+        new("My Store", "", "", 0m, trackEWalletFloat, null);
 
     [Fact]
     public async Task Turning_e_wallet_tracking_on_is_blocked_while_a_shift_is_open()
@@ -93,7 +93,7 @@ public class StoreSettingsTests : IDisposable
         await SeedOpenShiftAsync();
 
         await update.Handle(
-            new UpdateStoreSettingsCommand("Renamed Store", "", "", true, 0m, true, null),
+            new UpdateStoreSettingsCommand("Renamed Store", "", "", 0m, true, null),
             CancellationToken.None);
 
         var read = new GetStoreSettingsQueryHandler(_settings);
@@ -112,7 +112,6 @@ public class StoreSettingsTests : IDisposable
         Assert.Equal("My Store", result.StoreName);
         Assert.Equal(string.Empty, result.Address);
         Assert.Equal(string.Empty, result.ReceiptFooter);
-        Assert.True(result.AcceptUtang);
     }
 
     [Fact]
@@ -121,7 +120,7 @@ public class StoreSettingsTests : IDisposable
         var update = new UpdateStoreSettingsCommandHandler(_settings, _shifts, _uow);
 
         await update.Handle(
-            new UpdateStoreSettingsCommand("Aling Nena's", "123 Rizal St", "Salamat po!", true, 0m, false, null),
+            new UpdateStoreSettingsCommand("Aling Nena's", "123 Rizal St", "Salamat po!", 0m, false, null),
             CancellationToken.None);
 
         Assert.Equal(1, await _ctx.StoreSettings.CountAsync());
@@ -136,24 +135,23 @@ public class StoreSettingsTests : IDisposable
         var update = new UpdateStoreSettingsCommandHandler(_settings, _shifts, _uow);
 
         await update.Handle(
-            new UpdateStoreSettingsCommand("First", "A", "x", true, 0m, false, null),
+            new UpdateStoreSettingsCommand("First", "A", "x", 0m, false, null),
             CancellationToken.None);
         await update.Handle(
-            new UpdateStoreSettingsCommand("Second", "B", "y", false, 0m, false, null),
+            new UpdateStoreSettingsCommand("Second", "B", "y", 0m, false, null),
             CancellationToken.None);
 
         Assert.Equal(1, await _ctx.StoreSettings.CountAsync());
         var row = await _ctx.StoreSettings.SingleAsync();
         Assert.Equal("Second", row.StoreName);
         Assert.Equal("B", row.Address);
-        Assert.False(row.AcceptUtang);
     }
 
     [Fact]
     public void Update_validator_rejects_blank_store_name()
     {
         var result = new UpdateStoreSettingsCommandValidator()
-            .Validate(new UpdateStoreSettingsCommand("  ", "", "", true, 0m, false, null));
+            .Validate(new UpdateStoreSettingsCommand("  ", "", "", 0m, false, null));
         Assert.False(result.IsValid);
     }
 
@@ -174,7 +172,7 @@ public class StoreSettingsTests : IDisposable
 
         await update.Handle(
             new UpdateStoreSettingsCommand(
-                "Aling Nena's", "123 Rizal St", "Salamat po!", true, 1m, false, null),
+                "Aling Nena's", "123 Rizal St", "Salamat po!", 1m, false, null),
             CancellationToken.None);
 
         var read = new GetStoreSettingsQueryHandler(_settings);
@@ -186,7 +184,7 @@ public class StoreSettingsTests : IDisposable
     public void Update_validator_rejects_a_negative_default_markup()
     {
         var result = new UpdateStoreSettingsCommandValidator()
-            .Validate(new UpdateStoreSettingsCommand("Store", "", "", true, -1m, false, null));
+            .Validate(new UpdateStoreSettingsCommand("Store", "", "", -1m, false, null));
 
         Assert.False(result.IsValid);
     }
@@ -195,7 +193,7 @@ public class StoreSettingsTests : IDisposable
     public void Update_validator_rejects_more_than_two_decimal_places()
     {
         var result = new UpdateStoreSettingsCommandValidator()
-            .Validate(new UpdateStoreSettingsCommand("Store", "", "", true, 1.005m, false, null));
+            .Validate(new UpdateStoreSettingsCommand("Store", "", "", 1.005m, false, null));
 
         Assert.False(result.IsValid);
     }
@@ -219,7 +217,7 @@ public class StoreSettingsTests : IDisposable
 
         await update.Handle(
             new UpdateStoreSettingsCommand(
-                "Aling Nena's", "123 Rizal St", "Salamat po!", true, 0m, true, feeItemId),
+                "Aling Nena's", "123 Rizal St", "Salamat po!", 0m, true, feeItemId),
             CancellationToken.None);
 
         var read = new GetStoreSettingsQueryHandler(_settings);
@@ -244,7 +242,7 @@ public class StoreSettingsTests : IDisposable
     {
         var update = new UpdateStoreSettingsCommandHandler(_settings, _shifts, _uow);
         await update.Handle(
-            new UpdateStoreSettingsCommand("Aling Nena's", "", "", true, 0m, false, null),
+            new UpdateStoreSettingsCommand("Aling Nena's", "", "", 0m, false, null),
             CancellationToken.None);
 
         var handler = new GetStoreNameQueryHandler(_settings);
