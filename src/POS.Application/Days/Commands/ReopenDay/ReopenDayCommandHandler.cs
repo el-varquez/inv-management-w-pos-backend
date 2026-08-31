@@ -51,6 +51,7 @@ public class ReopenDayCommandHandler : IRequestHandler<ReopenDayCommand>
 
         var now = DateTime.UtcNow;
         day.Snapshot = null;
+        day.MethodSales.Clear();
         day.Status = DayStatus.Open;
         day.ClosedAt = null;
         day.ClosedBy = null;

@@ -11,10 +11,14 @@ public class ShiftRepository : IShiftRepository
     public ShiftRepository(AppDbContext ctx) => _ctx = ctx;
 
     public Task<Shift?> GetOpenAsync(CancellationToken ct = default)
-        => _ctx.Shifts.SingleOrDefaultAsync(s => s.Status == ShiftStatus.Open, ct);
+        => _ctx.Shifts
+            .Include(s => s.MethodSales)
+            .SingleOrDefaultAsync(s => s.Status == ShiftStatus.Open, ct);
 
     public Task<Shift?> GetByIdAsync(Guid id, CancellationToken ct = default)
-        => _ctx.Shifts.SingleOrDefaultAsync(s => s.Id == id, ct);
+        => _ctx.Shifts
+            .Include(s => s.MethodSales)
+            .SingleOrDefaultAsync(s => s.Id == id, ct);
 
     public async Task<int> GetLastNumberAsync(CancellationToken ct = default)
         => await _ctx.Shifts.AnyAsync(ct)
@@ -76,4 +80,8 @@ public class ShiftRepository : IShiftRepository
     public async Task AddEWalletTransactionAsync(
         EWalletTransaction transaction, CancellationToken ct = default)
         => await _ctx.EWalletTransactions.AddAsync(transaction, ct);
+
+    public async Task AddMethodSalesAsync(
+        IList<ShiftMethodSales> rows, CancellationToken ct = default)
+        => await _ctx.ShiftMethodSales.AddRangeAsync(rows, ct);
 }

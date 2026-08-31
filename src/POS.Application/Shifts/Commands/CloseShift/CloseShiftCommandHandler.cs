@@ -16,6 +16,7 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly IUtangRepository _utang;
+    private readonly IPaymentMethodRepository _methods;
 
     public CloseShiftCommandHandler(
         IShiftRepository shifts,
@@ -23,7 +24,8 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         IStoreSettingsRepository settings,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
-        IUtangRepository utang)
+        IUtangRepository utang,
+        IPaymentMethodRepository methods)
     {
         _shifts = shifts;
         _transactions = transactions;
@@ -31,6 +33,7 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _utang = utang;
+        _methods = methods;
     }
 
     public async Task Handle(CloseShiftCommand request, CancellationToken ct)
@@ -55,10 +58,19 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         var utangCharges = await _utang.GetChargesByShiftAsync(shift.Id, ct);
         var utangPayments = await _utang.GetPaymentsByShiftAsync(shift.Id, ct);
         var utang = UtangTotals.Of(utangCharges, utangPayments);
+        var methods = await _methods.GetAllAsync(ct);
 
         var movementsNet = movements.Where(m => !m.IsVoided).Sum(m => m.Amount);
-        var cashSales = NetOf(transactions, PaymentType.Cash);
-        var gcashSales = NetOf(transactions, PaymentType.Gcash);
+        var methodSales = methods
+            .Where(m => m.Type == PaymentMethodType.Sales)
+            .Where(m => m.IsActive || transactions.Any(t => t.PaymentMethodId == m.Id))
+            .Select(m => new MethodSalesDto(m.Id, m.Name,
+                PaidSales.Net(transactions.Where(t => t.PaymentMethodId == m.Id))))
+            .ToList();
+        var cashSales = methodSales
+            .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.Cash)?.Amount ?? 0m;
+        var eWalletSales = methodSales
+            .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.EWallet)?.Amount ?? 0m;
         var expectedCash = shift.StartingCash + cashSales + movementsNet
             + wallet.DrawerNet + utang.Collections;
 
@@ -68,9 +80,6 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         {
             NetSales = PaidSales.Net(transactions),
             TransactionCount = PaidSales.Count(transactions),
-            CashSales = cashSales,
-            GcashSales = gcashSales,
-            MayaSales = NetOf(transactions, PaymentType.Maya),
             EWalletCashInCount = wallet.CashInCount,
             EWalletCashIn = wallet.CashIn,
             EWalletCashOutCount = wallet.CashOutCount,
@@ -90,7 +99,7 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         if (trackWallet)
         {
             var expectedWallet =
-                (shift.StartingEWalletBalance ?? 0m) + gcashSales + wallet.WalletNet;
+                (shift.StartingEWalletBalance ?? 0m) + eWalletSales + wallet.WalletNet;
             snapshot.ExpectedEWalletBalance = expectedWallet;
             snapshot.CountedEWalletBalance = request.CountedEWalletBalance;
             snapshot.EWalletVariance = request.CountedEWalletBalance - expectedWallet;
@@ -101,11 +110,18 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         shift.ClosedAt = closedAt;
         shift.ClosedBy = _currentUser.Id;
         shift.UpdatedAt = closedAt;
+        var methodSalesRows = methodSales
+            .Select(m => new ShiftMethodSales
+            {
+                ShiftId = shift.Id,
+                PaymentMethodId = m.PaymentMethodId,
+                MethodName = m.Name,
+                Amount = m.Amount
+            })
+            .ToList();
 
         await _shifts.UpdateAsync(shift, ct);
+        await _shifts.AddMethodSalesAsync(methodSalesRows, ct);
         await _unitOfWork.SaveChangesAsync(ct);
     }
-
-    private static decimal NetOf(IList<Transaction> transactions, PaymentType method)
-        => PaidSales.Net(transactions.Where(t => t.PaymentType == method));
 }

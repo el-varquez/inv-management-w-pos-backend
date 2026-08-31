@@ -1,6 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Common;
+using POS.Application.PaymentMethods.Commands.CreatePaymentMethod;
+using POS.Application.PaymentMethods.Commands.UpdatePaymentMethod;
 using POS.Application.Sales.Commands.CreateTransaction;
 using POS.Application.Shifts.Commands.CloseShift;
 using POS.Application.Shifts.Commands.CorrectShiftCount;
@@ -31,6 +33,7 @@ public class ShiftModuleTests : IDisposable
     private readonly CompositeItemRepository _composites;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
+    private readonly PaymentMethodRepository _paymentMethods;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -45,6 +48,7 @@ public class ShiftModuleTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _shifts = new ShiftRepository(_ctx);
         _days = new BusinessDayRepository(_ctx);
@@ -53,6 +57,7 @@ public class ShiftModuleTests : IDisposable
         _composites = new CompositeItemRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _paymentMethods = new PaymentMethodRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -77,17 +82,17 @@ public class ShiftModuleTests : IDisposable
     }
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user, _utang);
+        => new(_shifts, _transactions, _settings, _uow, _user, _utang, _paymentMethods);
 
     private CreateTransactionCommandHandler SaleHandler()
         => new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow, _user,
-            _composites, _shifts, _settings, _utang);
+            _composites, _shifts, _settings, _utang, _paymentMethods);
 
     private static CreateTransactionCommand SaleOf(Item item, int qty)
         => new(
             new List<CartItemInput> { new(item.Id, qty, 0m) },
             0m,
-            PaymentType.Cash,
+            PaymentMethodIds.Cash,
             item.SellingPrice * qty);
 
     private async Task<Item> SeedItemAsync(string name, int stock = 100, decimal price = 10m)
@@ -124,25 +129,31 @@ public class ShiftModuleTests : IDisposable
             {
                 NetSales = 4320m,
                 TransactionCount = 37,
-                CashSales = 3480m,
-                GcashSales = 840m,
-                MayaSales = 0m,
                 DrawerMovementsNet = -1350m,
                 ExpectedCash = 4130m,
                 CountedCash = 4130m,
                 CashVariance = 0m
+            },
+            MethodSales = new List<ShiftMethodSales>
+            {
+                new() { PaymentMethodId = PaymentMethodIds.Cash, MethodName = "Cash", Amount = 3480m },
+                new() { PaymentMethodId = PaymentMethodIds.EWallet, MethodName = "E-Wallet", Amount = 840m }
             }
         };
 
         await _shifts.AddAsync(shift);
         await _uow.SaveChangesAsync();
 
-        var stored = await _ctx.Shifts.AsNoTracking().SingleAsync();
+        var stored = await _ctx.Shifts
+            .Include(s => s.MethodSales)
+            .AsNoTracking().SingleAsync();
         Assert.Equal(1, stored.Number);
         Assert.Equal(ShiftStatus.Closed, stored.Status);
         Assert.NotNull(stored.Snapshot);
         Assert.Equal(4320m, stored.Snapshot!.NetSales);
         Assert.Equal(-1350m, stored.Snapshot.DrawerMovementsNet);
+        Assert.Equal(2, stored.MethodSales.Count);
+        Assert.Equal(3480m, stored.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.Cash).Amount);
     }
 
     [Fact]
@@ -339,7 +350,7 @@ public class ShiftModuleTests : IDisposable
             ReceiptNumber = "R-VOID-0001",
             Subtotal = -50m,
             Total = -50m,
-            PaymentType = PaymentType.Cash,
+            PaymentMethodId = PaymentMethodIds.Cash,
             RefundedFromId = sale.TransactionId,
             ShiftId = tuesdayId,
             CreatedBy = _user.Id
@@ -460,7 +471,7 @@ public class ShiftModuleTests : IDisposable
         var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
         await SaleHandler().Handle(SaleOf(item, 5), CancellationToken.None);
 
-        var query = new GetShiftReadQueryHandler(_shifts, _transactions, _utang);
+        var query = new GetShiftReadQueryHandler(_shifts, _transactions, _utang, _paymentMethods);
 
         var live = await query.Handle(new GetShiftReadQuery(shiftId), CancellationToken.None);
         Assert.False(live.IsClosed);
@@ -481,11 +492,98 @@ public class ShiftModuleTests : IDisposable
     [Fact]
     public async Task Current_shift_returns_null_when_none_is_open()
     {
-        var handler = new GetCurrentShiftQueryHandler(_shifts, _transactions, _utang);
+        var handler = new GetCurrentShiftQueryHandler(_shifts, _transactions, _utang, _paymentMethods);
 
         var result = await handler.Handle(new GetCurrentShiftQuery(), CancellationToken.None);
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task X_read_lists_active_sales_methods_with_zero_rows()
+    {
+        var shiftId = await OpenHandler().Handle(
+            new OpenShiftCommand(2000m, null), CancellationToken.None);
+        var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
+        await SaleHandler().Handle(SaleOf(item, 5), CancellationToken.None);
+
+        await CloseHandler().Handle(
+            new CloseShiftCommand(shiftId, 2050m, null), CancellationToken.None);
+
+        var stored = await _ctx.Shifts
+            .Include(s => s.MethodSales)
+            .AsNoTracking().SingleAsync(s => s.Id == shiftId);
+
+        Assert.Equal(2, stored.MethodSales.Count);
+        Assert.Equal(
+            50m, stored.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.Cash).Amount);
+        Assert.Equal(
+            0m, stored.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.EWallet).Amount);
+    }
+
+    [Fact]
+    public async Task Inactive_method_with_sales_still_gets_a_row()
+    {
+        var method = await new CreatePaymentMethodCommandHandler(_paymentMethods, _uow).Handle(
+            new CreatePaymentMethodCommand("Bank transfer", PaymentMethodType.Sales, false),
+            CancellationToken.None);
+
+        var shiftId = await OpenHandler().Handle(
+            new OpenShiftCommand(2000m, null), CancellationToken.None);
+        var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
+        await SaleHandler().Handle(
+            new CreateTransactionCommand(
+                new List<CartItemInput> { new(item.Id, 2, 0m) },
+                0m, method.Id, item.SellingPrice * 2),
+            CancellationToken.None);
+
+        await new UpdatePaymentMethodCommandHandler(_paymentMethods, _uow).Handle(
+            new UpdatePaymentMethodCommand(method.Id, "Bank transfer", false, false),
+            CancellationToken.None);
+
+        await CloseHandler().Handle(
+            new CloseShiftCommand(shiftId, 2000m, null), CancellationToken.None);
+
+        var stored = await _ctx.Shifts
+            .Include(s => s.MethodSales)
+            .AsNoTracking().SingleAsync(s => s.Id == shiftId);
+
+        var row = stored.MethodSales.Single(m => m.PaymentMethodId == method.Id);
+        Assert.Equal(20m, row.Amount);
+        Assert.Equal("Bank transfer", row.MethodName);
+    }
+
+    [Fact]
+    public async Task Renaming_a_method_never_rewrites_a_frozen_x_read()
+    {
+        var firstId = await OpenHandler().Handle(
+            new OpenShiftCommand(2000m, null), CancellationToken.None);
+        var item = await SeedItemAsync("Kopiko Blanca", price: 10m);
+        await SaleHandler().Handle(
+            new CreateTransactionCommand(
+                new List<CartItemInput> { new(item.Id, 2, 0m) },
+                0m, PaymentMethodIds.EWallet, item.SellingPrice * 2, "REF-001"),
+            CancellationToken.None);
+        await CloseHandler().Handle(
+            new CloseShiftCommand(firstId, 2000m, null), CancellationToken.None);
+
+        await new UpdatePaymentMethodCommandHandler(_paymentMethods, _uow).Handle(
+            new UpdatePaymentMethodCommand(PaymentMethodIds.EWallet, "Wallet", true, true),
+            CancellationToken.None);
+
+        var secondId = await OpenHandler().Handle(
+            new OpenShiftCommand(1000m, null), CancellationToken.None);
+
+        var query = new GetShiftReadQueryHandler(_shifts, _transactions, _utang, _paymentMethods);
+        var frozen = await query.Handle(new GetShiftReadQuery(firstId), CancellationToken.None);
+        var live = await query.Handle(new GetShiftReadQuery(secondId), CancellationToken.None);
+
+        Assert.Equal(
+            "E-Wallet",
+            frozen.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.EWallet).Name);
+        Assert.Equal(
+            "Wallet",
+            live.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.EWallet).Name);
     }
 
     public void Dispose()

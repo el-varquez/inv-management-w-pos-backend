@@ -26,6 +26,7 @@ public class RefundModuleTests : IDisposable
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
+    private readonly PaymentMethodRepository _paymentMethods;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -41,6 +42,7 @@ public class RefundModuleTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
@@ -48,6 +50,7 @@ public class RefundModuleTests : IDisposable
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _paymentMethods = new PaymentMethodRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -89,7 +92,7 @@ public class RefundModuleTests : IDisposable
     private CreateTransactionCommandHandler SaleHandler(
         POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null) =>
         new(_items, _transactions, generator ?? new ReceiptNumberGenerator(_transactions), _uow,
-            _user, _composites, _shifts, _settings, _utang);
+            _user, _composites, _shifts, _settings, _utang, _paymentMethods);
 
     private ProcessRefundCommandHandler RefundHandler(
         POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null) =>
@@ -103,7 +106,7 @@ public class RefundModuleTests : IDisposable
         var result = await SaleHandler(generator).Handle(
             new CreateTransactionCommand(
                 [new CartItemInput(item.Id, qty, 0m)], 0m,
-                PaymentType.Cash, item.SellingPrice * qty),
+                PaymentMethodIds.Cash, item.SellingPrice * qty),
             CancellationToken.None);
         return result.TransactionId;
     }
@@ -168,10 +171,10 @@ public class RefundModuleTests : IDisposable
     }
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user, _utang);
+        => new(_shifts, _transactions, _settings, _uow, _user, _utang, _paymentMethods);
 
     private GetShiftReadQueryHandler ReadHandler()
-        => new(_shifts, _transactions, _utang);
+        => new(_shifts, _transactions, _utang, _paymentMethods);
 
     [Fact]
     public async Task The_live_x_read_reports_the_refund()
@@ -186,7 +189,8 @@ public class RefundModuleTests : IDisposable
         Assert.Equal(25m, read.Refunds);
         Assert.Equal(1, read.RefundCount);
         Assert.Equal(0m, read.NetSales);
-        Assert.Equal(0m, read.CashSales);
+        Assert.Equal(
+            0m, read.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.Cash).Amount);
         Assert.Equal(1, read.TransactionCount);
     }
 
@@ -238,7 +242,8 @@ public class RefundModuleTests : IDisposable
         Assert.Equal(25m, current.Refunds);
         Assert.Equal(1, current.RefundCount);
         Assert.Equal(-25m, current.NetSales);
-        Assert.Equal(-25m, current.CashSales);
+        Assert.Equal(
+            -25m, current.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.Cash).Amount);
         Assert.Equal(0, current.TransactionCount);
     }
 
@@ -249,7 +254,7 @@ public class RefundModuleTests : IDisposable
         var result = await SaleHandler().Handle(
             new CreateTransactionCommand(
                 [new CartItemInput(item.Id, 1, 0m)], 0m,
-                PaymentType.Gcash, 25m, "REF-777"),
+                PaymentMethodIds.EWallet, 25m, "REF-777"),
             CancellationToken.None);
 
         var detail = await new GetTransactionByIdQueryHandler(_transactions).Handle(

@@ -9,15 +9,18 @@ public class GetCurrentShiftQueryHandler : IRequestHandler<GetCurrentShiftQuery,
     private readonly IShiftRepository _shifts;
     private readonly ITransactionRepository _transactions;
     private readonly IUtangRepository _utang;
+    private readonly IPaymentMethodRepository _methods;
 
     public GetCurrentShiftQueryHandler(
         IShiftRepository shifts,
         ITransactionRepository transactions,
-        IUtangRepository utang)
+        IUtangRepository utang,
+        IPaymentMethodRepository methods)
     {
         _shifts = shifts;
         _transactions = transactions;
         _utang = utang;
+        _methods = methods;
     }
 
     public async Task<ShiftReadDto?> Handle(GetCurrentShiftQuery request, CancellationToken ct)
@@ -30,8 +33,9 @@ public class GetCurrentShiftQueryHandler : IRequestHandler<GetCurrentShiftQuery,
         var eWalletTransactions = await _shifts.GetEWalletTransactionsAsync(shift.Id, ct);
         var utangCharges = await _utang.GetChargesByShiftAsync(shift.Id, ct);
         var utangPayments = await _utang.GetPaymentsByShiftAsync(shift.Id, ct);
+        var methods = await _methods.GetAllAsync(ct);
 
         return ShiftRead.Build(
-            shift, transactions, movements, eWalletTransactions, utangCharges, utangPayments);
+            shift, transactions, movements, eWalletTransactions, utangCharges, utangPayments, methods);
     }
 }

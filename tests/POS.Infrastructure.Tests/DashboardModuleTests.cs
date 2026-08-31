@@ -16,6 +16,7 @@ public class DashboardModuleTests : IDisposable
     private readonly TransactionRepository _transactions;
     private readonly ItemRepository _items;
     private readonly UtangRepository _utang;
+    private readonly PaymentMethodRepository _paymentMethods;
     private int _codeSeq;
 
     // 2 AM local today / yesterday, as the UTC instants the DB stores.
@@ -33,22 +34,24 @@ public class DashboardModuleTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _transactions = new TransactionRepository(_ctx);
         _items = new ItemRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _paymentMethods = new PaymentMethodRepository(_ctx);
     }
 
     private async Task<Transaction> SeedSale(
         decimal total, DateTime createdAtUtc,
-        PaymentType payment = PaymentType.Cash, Guid? refundOf = null)
+        Guid? paymentMethodId = null, Guid? refundOf = null)
     {
         var t = new Transaction
         {
             ReceiptNumber = Guid.NewGuid().ToString("N")[..10],
             Subtotal = Math.Abs(total),
             Total = total,
-            PaymentType = payment,
+            PaymentMethodId = paymentMethodId ?? PaymentMethodIds.Cash,
             RefundedFromId = refundOf,
             CreatedBy = Guid.NewGuid(),
             CreatedAt = createdAtUtc,
@@ -93,7 +96,7 @@ public class DashboardModuleTests : IDisposable
             _ctx.Sukis.Add(suki);
             await _ctx.SaveChangesAsync();
         }
-        var sale = await SeedSale(amount, createdAtUtc, PaymentType.Utang);
+        var sale = await SeedSale(amount, createdAtUtc, PaymentMethodIds.Utang);
         _ctx.UtangCharges.Add(new UtangCharge
         {
             SukiId = suki.Id,
@@ -108,7 +111,7 @@ public class DashboardModuleTests : IDisposable
     }
 
     private GetDashboardSummaryQueryHandler SummaryHandler()
-        => new(_transactions, _items, _utang);
+        => new(_transactions, _items, _utang, _paymentMethods);
 
     [Fact]
     public async Task Today_kpis_net_out_refunds_and_average()
@@ -180,20 +183,35 @@ public class DashboardModuleTests : IDisposable
     }
 
     [Fact]
-    public async Task Payments_split_by_method_always_has_all_three_rows()
+    public async Task Payments_split_lists_active_sales_methods_with_zero_rows()
     {
-        await SeedSale(100m, TodayUtc, PaymentType.Cash);
-        await SeedSale(50m, TodayUtc, PaymentType.Gcash);
-        await SeedSale(999m, YesterdayUtc, PaymentType.Maya); // not today → excluded
+        await SeedSale(100m, TodayUtc, PaymentMethodIds.Cash);
+        await SeedSale(999m, YesterdayUtc, PaymentMethodIds.EWallet); // not today → excluded
 
         var result = await SummaryHandler()
             .Handle(new GetDashboardSummaryQuery(), CancellationToken.None);
 
-        Assert.Equal(3, result.PaymentsToday.Count);
+        Assert.Equal(2, result.PaymentsToday.Count);
         Assert.Equal(100m, result.PaymentsToday.Single(p => p.Method == "Cash").Amount);
-        Assert.Equal(50m, result.PaymentsToday.Single(p => p.Method == "GCash").Amount);
-        Assert.Equal(0m, result.PaymentsToday.Single(p => p.Method == "Maya").Amount);
         Assert.Equal(1, result.PaymentsToday.Single(p => p.Method == "Cash").TransactionCount);
+        Assert.Equal(0m, result.PaymentsToday.Single(p => p.Method == "E-Wallet").Amount);
+        Assert.Equal(0, result.PaymentsToday.Single(p => p.Method == "E-Wallet").TransactionCount);
+        Assert.DoesNotContain(result.PaymentsToday, p => p.Method == "Utang");
+
+        _ctx.PaymentMethods.Add(new PaymentMethod
+        {
+            Name = "Bank Transfer",
+            Type = PaymentMethodType.Sales,
+            IsActive = true,
+        });
+        await _ctx.SaveChangesAsync();
+
+        var afterAdd = await SummaryHandler()
+            .Handle(new GetDashboardSummaryQuery(), CancellationToken.None);
+
+        Assert.Equal(3, afterAdd.PaymentsToday.Count);
+        Assert.Equal(0m, afterAdd.PaymentsToday.Single(p => p.Method == "Bank Transfer").Amount);
+        Assert.Equal(0, afterAdd.PaymentsToday.Single(p => p.Method == "Bank Transfer").TransactionCount);
     }
 
     [Fact]

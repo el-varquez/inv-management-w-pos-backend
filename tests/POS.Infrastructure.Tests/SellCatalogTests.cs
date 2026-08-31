@@ -31,6 +31,7 @@ public class SellCatalogTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
@@ -70,7 +71,7 @@ public class SellCatalogTests : IDisposable
             ReceiptNumber = $"R-SEED-{item.ItemCode}-{daysAgo}-{qty}",
             Subtotal = item.SellingPrice * qty,
             Total = item.SellingPrice * qty,
-            PaymentType = PaymentType.Cash,
+            PaymentMethodId = PaymentMethodIds.Cash,
             AmountTendered = item.SellingPrice * qty,
             CreatedBy = Guid.NewGuid(),
             Items =

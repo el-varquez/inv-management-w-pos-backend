@@ -21,6 +21,7 @@ public class CreateTransactionCommandHandler
     private readonly IShiftRepository _shifts;
     private readonly IStoreSettingsRepository _settings;
     private readonly IUtangRepository _utang;
+    private readonly IPaymentMethodRepository _paymentMethods;
 
     public CreateTransactionCommandHandler(
         IItemRepository itemRepository,
@@ -31,7 +32,8 @@ public class CreateTransactionCommandHandler
         ICompositeItemRepository compositeItemRepository,
         IShiftRepository shifts,
         IStoreSettingsRepository settings,
-        IUtangRepository utang)
+        IUtangRepository utang,
+        IPaymentMethodRepository paymentMethods)
     {
         _itemRepository = itemRepository;
         _transactionRepository = transactionRepository;
@@ -42,6 +44,7 @@ public class CreateTransactionCommandHandler
         _shifts = shifts;
         _settings = settings;
         _utang = utang;
+        _paymentMethods = paymentMethods;
     }
 
     public async Task<CreateTransactionResult> Handle(
@@ -51,17 +54,23 @@ public class CreateTransactionCommandHandler
             ?? throw new DomainException(
                 "No open shift — declare starting cash to start selling.");
 
-        var isUtang = request.PaymentType == PaymentType.Utang;
+        var method = await _paymentMethods.GetByIdAsync(request.PaymentMethodId, ct)
+            ?? throw new NotFoundException("PaymentMethod", request.PaymentMethodId);
+        if (!method.IsActive)
+            throw new DomainException(
+                $"{method.Name} is turned off — turn it on in web admin Settings.");
+
+        var isInvoice = method.Type == PaymentMethodType.Invoice;
         Suki? suki = null;
         var defaultMarkup = 0m;
-        if (isUtang)
+        if (isInvoice)
         {
-            var settings = await _settings.GetAsync(ct);
-            if (settings?.AcceptUtang != true)
-                throw new DomainException("Utang is off — turn it on in web admin Settings.");
-            suki = await _utang.GetSukiByIdAsync(request.SukiId!.Value, ct)
+            if (request.SukiId is null)
+                throw new DomainException("Pick a suki to charge.");
+            suki = await _utang.GetSukiByIdAsync(request.SukiId.Value, ct)
                 ?? throw new NotFoundException("Suki", request.SukiId.Value);
-            defaultMarkup = settings.DefaultUtangMarkup;
+            var settings = await _settings.GetAsync(ct);
+            defaultMarkup = settings?.DefaultUtangMarkup ?? 0m;
         }
         decimal markupTotal = 0;
 
@@ -95,7 +104,7 @@ public class CreateTransactionCommandHandler
             }
 
             var unitPrice = item.SellingPrice;
-            if (isUtang)
+            if (isInvoice)
             {
                 var utangPrice = UtangPricing.Resolve(item, defaultMarkup, cartItem.Quantity);
                 unitPrice = utangPrice.UnitPrice;
@@ -134,16 +143,16 @@ public class CreateTransactionCommandHandler
         if (total < 0)
             throw new DomainException("Total cannot be negative after discounts.");
 
-        if (isUtang && request.DownPayment >= total)
+        if (isInvoice && request.DownPayment >= total)
             throw new DomainException(
                 "The down payment covers the whole charge — ring it as a paid sale instead.");
 
-        if (!isUtang && request.AmountTendered < total)
+        if (!isInvoice && request.AmountTendered < total)
             throw new DomainException(
                 $"Amount tendered ({request.AmountTendered:N2}) is less than total ({total:N2}).");
 
         var receiptNumber = await _receiptGenerator.GenerateAsync(ct);
-        var change = isUtang ? 0m : request.AmountTendered - total;
+        var change = isInvoice ? 0m : request.AmountTendered - total;
 
         var transaction = new Transaction
         {
@@ -151,8 +160,8 @@ public class CreateTransactionCommandHandler
             Subtotal = subtotal,
             DiscountAmount = totalDiscount,
             Total = total,
-            PaymentType = request.PaymentType,
-            AmountTendered = isUtang ? 0m : request.AmountTendered,
+            PaymentMethodId = method.Id,
+            AmountTendered = isInvoice ? 0m : request.AmountTendered,
             ReferenceNumber = string.IsNullOrWhiteSpace(request.ReferenceNumber)
                 ? null
                 : request.ReferenceNumber.Trim(),
@@ -167,7 +176,7 @@ public class CreateTransactionCommandHandler
             new SaleCompletedEvent(transaction.Id, soldItems, _currentUser.Id));
 
         await _transactionRepository.AddAsync(transaction, ct);
-        if (isUtang)
+        if (isInvoice)
         {
             await _utang.AddChargeAsync(new UtangCharge
             {

@@ -32,6 +32,7 @@ public class NonPhysicalItemTests : IDisposable
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
+    private readonly PaymentMethodRepository _paymentMethods;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -48,6 +49,7 @@ public class NonPhysicalItemTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _items = new ItemRepository(_ctx);
         _categories = new CategoryRepository(_ctx);
@@ -57,6 +59,7 @@ public class NonPhysicalItemTests : IDisposable
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _paymentMethods = new PaymentMethodRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -105,7 +108,7 @@ public class NonPhysicalItemTests : IDisposable
 
     private CreateTransactionCommandHandler SaleHandler() =>
         new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow, _user, _composites,
-            _shifts, _settings, _utang);
+            _shifts, _settings, _utang, _paymentMethods);
 
     [Fact]
     public async Task Items_in_an_ordinary_category_track_stock()
@@ -174,7 +177,7 @@ public class NonPhysicalItemTests : IDisposable
             new CreateTransactionCommand(
                 new List<CartItemInput> { new(fee.Id, 20, 0m) },
                 0m,
-                PaymentType.Cash,
+                PaymentMethodIds.Cash,
                 20m),
             CancellationToken.None);
 
@@ -257,7 +260,7 @@ public class NonPhysicalItemTests : IDisposable
         await SeedAsync("GCash fee", tracksStock: false, stock: 0, threshold: 5);
         var rice = await SeedAsync("Rice 1kg", stock: 2, threshold: 5);
 
-        var handler = new GetDashboardSummaryQueryHandler(_transactions, _items, _utang);
+        var handler = new GetDashboardSummaryQueryHandler(_transactions, _items, _utang, _paymentMethods);
 
         var result = await handler.Handle(new GetDashboardSummaryQuery(), CancellationToken.None);
 

@@ -13,6 +13,7 @@ public class TransactionRepository : ITransactionRepository
     public async Task<Transaction?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => await _context.Transactions
             .Include(t => t.Items)
+            .Include(t => t.PaymentMethod)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
 
     public async Task<IList<Transaction>> GetAllAsync(
@@ -20,6 +21,7 @@ public class TransactionRepository : ITransactionRepository
     {
         var query = _context.Transactions
             .Include(t => t.Items)
+            .Include(t => t.PaymentMethod)
             .AsQueryable();
 
         if (from.HasValue) query = query.Where(t => t.CreatedAt >= from.Value);
@@ -35,6 +37,7 @@ public class TransactionRepository : ITransactionRepository
             .Include(t => t.Items)
                 .ThenInclude(i => i.Item)
                     .ThenInclude(it => it.Category)
+            .Include(t => t.PaymentMethod)
             .AsQueryable();
 
         if (from.HasValue) query = query.Where(t => t.CreatedAt >= from.Value);
@@ -48,6 +51,7 @@ public class TransactionRepository : ITransactionRepository
     {
         var query = _context.Transactions
             .Include(t => t.Items)
+            .Include(t => t.PaymentMethod)
             .AsQueryable();
 
         if (from.HasValue) query = query.Where(t => t.CreatedAt >= from.Value);
@@ -69,6 +73,7 @@ public class TransactionRepository : ITransactionRepository
     public async Task<IList<Transaction>> GetByShiftAsync(
         Guid shiftId, CancellationToken ct = default)
         => await _context.Transactions
+            .Include(t => t.PaymentMethod)
             .Where(t => t.ShiftId == shiftId)
             .ToListAsync(ct);
 

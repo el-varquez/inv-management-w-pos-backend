@@ -19,7 +19,7 @@ public class GetSalesSummaryQueryHandler
             request.From, request.To, ct);
 
         transactions = transactions
-            .Where(t => t.PaymentType != PaymentType.Utang)
+            .Where(t => t.PaymentMethod!.Type == PaymentMethodType.Sales)
             .ToList();
 
         var sales = transactions.Where(t => t.RefundedFromId == null).ToList();

@@ -22,6 +22,7 @@ public class CompositeSaleTests : IDisposable
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
+    private readonly PaymentMethodRepository _paymentMethods;
     private readonly UnitOfWork _uow;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -37,6 +38,7 @@ public class CompositeSaleTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
@@ -44,6 +46,7 @@ public class CompositeSaleTests : IDisposable
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _paymentMethods = new PaymentMethodRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -102,13 +105,13 @@ public class CompositeSaleTests : IDisposable
     private CreateTransactionCommandHandler Handler() =>
         new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow,
             new FakeCurrentUser { Id = _userId, Role = "Cashier" },
-            _composites, _shifts, _settings, _utang);
+            _composites, _shifts, _settings, _utang, _paymentMethods);
 
     private static CreateTransactionCommand Sale(params (Guid id, int qty)[] lines) =>
         new(
             lines.Select(l => new CartItemInput(l.id, l.qty, 0m)).ToList(),
             0m,
-            PaymentType.Cash,
+            PaymentMethodIds.Cash,
             100000m);
 
     [Fact]

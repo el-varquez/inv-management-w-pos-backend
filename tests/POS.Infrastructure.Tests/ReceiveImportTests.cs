@@ -33,6 +33,7 @@ public class ReceiveImportTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _items = new ItemRepository(_ctx);
         _movements = new StockMovementRepository(_ctx);

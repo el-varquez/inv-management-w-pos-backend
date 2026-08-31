@@ -6,7 +6,6 @@ public record UpdateStoreSettingsCommand(
     string StoreName,
     string Address,
     string ReceiptFooter,
-    bool AcceptUtang,
     decimal DefaultUtangMarkup,
     bool TrackEWalletFloat,
     Guid? EWalletFeeItemId

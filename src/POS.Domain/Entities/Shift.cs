@@ -28,4 +28,7 @@ public class Shift : BaseEntity
 
     public ICollection<CashDrawerMovement> DrawerMovements { get; set; }
         = new List<CashDrawerMovement>();
+
+    public ICollection<ShiftMethodSales> MethodSales { get; set; }
+        = new List<ShiftMethodSales>();
 }

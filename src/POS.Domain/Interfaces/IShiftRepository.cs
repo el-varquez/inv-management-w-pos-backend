@@ -27,4 +27,7 @@ public interface IShiftRepository
         Guid feeTransactionId, CancellationToken ct = default);
     Task AddEWalletTransactionAsync(
         EWalletTransaction transaction, CancellationToken ct = default);
+
+    Task AddMethodSalesAsync(
+        IList<ShiftMethodSales> rows, CancellationToken ct = default);
 }

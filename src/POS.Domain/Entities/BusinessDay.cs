@@ -21,4 +21,7 @@ public class BusinessDay : BaseEntity
     public ZReadSnapshot? Snapshot { get; set; }
 
     public ICollection<Shift> Shifts { get; set; } = new List<Shift>();
+
+    public ICollection<DayMethodSales> MethodSales { get; set; }
+        = new List<DayMethodSales>();
 }

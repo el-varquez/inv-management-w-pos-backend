@@ -6,7 +6,7 @@ namespace POS.Application.Common;
 public static class PaidSales
 {
     /// Paid sales netting convention (matches the sales report):
-    /// non-refund totals minus |refund totals|. Utang is never in here.
+    /// non-refund totals minus |refund totals|. Invoice methods are never in here.
     public static decimal Net(IEnumerable<Transaction> transactions)
     {
         var paid = Paid(transactions);
@@ -28,6 +28,6 @@ public static class PaidSales
 
     private static IEnumerable<Transaction> Paid(
         IEnumerable<Transaction> transactions)
-        => transactions.Where(t => t.PaymentType != PaymentType.Utang)
+        => transactions.Where(t => t.PaymentMethod!.Type == PaymentMethodType.Sales)
             .ToList();
 }

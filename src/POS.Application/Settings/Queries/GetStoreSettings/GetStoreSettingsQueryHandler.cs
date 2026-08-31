@@ -12,12 +12,11 @@ public class GetStoreSettingsQueryHandler : IRequestHandler<GetStoreSettingsQuer
     {
         var settings = await _settings.GetAsync(ct);
         return settings is null
-            ? new StoreSettingsDto("My Store", string.Empty, string.Empty, true, 0m, false, null)
+            ? new StoreSettingsDto("My Store", string.Empty, string.Empty, 0m, false, null)
             : new StoreSettingsDto(
                 settings.StoreName,
                 settings.Address,
                 settings.ReceiptFooter,
-                settings.AcceptUtang,
                 settings.DefaultUtangMarkup,
                 settings.TrackEWalletFloat,
                 settings.EWalletFeeItemId);

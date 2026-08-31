@@ -10,17 +10,20 @@ public class GetCurrentDayQueryHandler : IRequestHandler<GetCurrentDayQuery, Day
     private readonly IShiftRepository _shifts;
     private readonly ITransactionRepository _transactions;
     private readonly IUtangRepository _utang;
+    private readonly IPaymentMethodRepository _methods;
 
     public GetCurrentDayQueryHandler(
         IBusinessDayRepository days,
         IShiftRepository shifts,
         ITransactionRepository transactions,
-        IUtangRepository utang)
+        IUtangRepository utang,
+        IPaymentMethodRepository methods)
     {
         _days = days;
         _shifts = shifts;
         _transactions = transactions;
         _utang = utang;
+        _methods = methods;
     }
 
     public async Task<DayReadDto?> Handle(GetCurrentDayQuery request, CancellationToken ct)
@@ -29,6 +32,7 @@ public class GetCurrentDayQueryHandler : IRequestHandler<GetCurrentDayQuery, Day
         if (day is null) return null;
 
         var shifts = await _days.GetShiftsAsync(day.Id, ct);
+        var methods = await _methods.GetAllAsync(ct);
         var reads = new List<ShiftReadDto>();
         foreach (var shift in shifts)
         {
@@ -38,7 +42,7 @@ public class GetCurrentDayQueryHandler : IRequestHandler<GetCurrentDayQuery, Day
             var utangCharges = await _utang.GetChargesByShiftAsync(shift.Id, ct);
             var utangPayments = await _utang.GetPaymentsByShiftAsync(shift.Id, ct);
             reads.Add(ShiftRead.Build(
-                shift, transactions, movements, eWalletTransactions, utangCharges, utangPayments));
+                shift, transactions, movements, eWalletTransactions, utangCharges, utangPayments, methods));
         }
 
         return DayRead.Build(day, reads);

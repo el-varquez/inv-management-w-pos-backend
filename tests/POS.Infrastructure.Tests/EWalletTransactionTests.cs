@@ -25,6 +25,7 @@ public class EWalletTransactionTests : IDisposable
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
+    private readonly PaymentMethodRepository _paymentMethods;
     private readonly UnitOfWork _uow;
     private readonly FakeCurrentUser _user = new();
     private readonly Guid _categoryId = Guid.NewGuid();
@@ -41,12 +42,14 @@ public class EWalletTransactionTests : IDisposable
 
         _ctx = new AppDbContext(options);
         _ctx.Database.EnsureCreated();
+        PaymentMethodSeeder.Seed(_ctx);
 
         _items = new ItemRepository(_ctx);
         _transactions = new TransactionRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _paymentMethods = new PaymentMethodRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -116,7 +119,7 @@ public class EWalletTransactionTests : IDisposable
         var fee = await _ctx.Transactions
             .Include(t => t.Items)
             .SingleAsync(t => t.Id == tx.FeeTransactionId);
-        Assert.Equal(PaymentType.Cash, fee.PaymentType);
+        Assert.Equal(PaymentMethodIds.Cash, fee.PaymentMethodId);
         Assert.Equal(10m, fee.Total);
         Assert.Equal(_shift.Id, fee.ShiftId);
         var line = Assert.Single(fee.Items);
@@ -240,10 +243,10 @@ public class EWalletTransactionTests : IDisposable
     }
 
     private GetShiftReadQueryHandler ReadHandler()
-        => new(_shifts, _transactions, _utang);
+        => new(_shifts, _transactions, _utang, _paymentMethods);
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _settings, _uow, _user, _utang);
+        => new(_shifts, _transactions, _settings, _uow, _user, _utang, _paymentMethods);
 
     [Fact]
     public async Task A_cash_in_raises_expected_cash_and_lowers_expected_wallet()
@@ -261,7 +264,8 @@ public class EWalletTransactionTests : IDisposable
         Assert.Equal(0, read.EWalletCashOutCount);
         Assert.Equal(2010m, read.ExpectedCash);
         Assert.Equal(7000m, read.ExpectedEWalletBalance);
-        Assert.Equal(10m, read.CashSales);
+        Assert.Equal(
+            10m, read.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.Cash).Amount);
         Assert.Equal(10m, read.NetSales);
     }
 
@@ -278,7 +282,8 @@ public class EWalletTransactionTests : IDisposable
 
         Assert.Equal(1, read.EWalletCashOutCount);
         Assert.Equal(1000m, read.EWalletCashOut);
-        Assert.Equal(20m, read.CashSales);
+        Assert.Equal(
+            20m, read.MethodSales.Single(m => m.PaymentMethodId == PaymentMethodIds.Cash).Amount);
         Assert.Equal(20m, read.ExpectedCash);
         Assert.Equal(9000m, read.ExpectedEWalletBalance);
     }

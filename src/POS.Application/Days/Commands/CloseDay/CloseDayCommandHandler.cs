@@ -47,9 +47,6 @@ public class CloseDayCommandHandler : IRequestHandler<CloseDayCommand>
         {
             NetSales = reads.Sum(x => x.NetSales),
             TransactionCount = reads.Sum(x => x.TransactionCount),
-            CashSales = reads.Sum(x => x.CashSales),
-            GcashSales = reads.Sum(x => x.GcashSales),
-            MayaSales = reads.Sum(x => x.MayaSales),
             DrawerMovementsNet = reads.Sum(x => x.DrawerMovementsNet),
             CashVariance = reads.Sum(x => x.CashVariance),
             CountedCash = lastRead?.CountedCash ?? 0m,
@@ -68,7 +65,20 @@ public class CloseDayCommandHandler : IRequestHandler<CloseDayCommand>
         day.ClosedLate = day.OpenedAt.ToLocalTime().Date < closedAt.ToLocalTime().Date;
         day.UpdatedAt = closedAt;
 
+        var methodSalesRows = shifts
+            .SelectMany(s => s.MethodSales)
+            .GroupBy(m => m.PaymentMethodId)
+            .Select(g => new DayMethodSales
+            {
+                BusinessDayId = day.Id,
+                PaymentMethodId = g.Key,
+                MethodName = g.First().MethodName,
+                Amount = g.Sum(m => m.Amount)
+            })
+            .ToList();
+
         await _days.UpdateAsync(day, ct);
+        await _days.AddMethodSalesAsync(methodSalesRows, ct);
         await _unitOfWork.SaveChangesAsync(ct);
     }
 }

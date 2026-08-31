@@ -1,5 +1,4 @@
 using POS.Domain.Common;
-using POS.Domain.Enums;
 
 namespace POS.Domain.Entities;
 
@@ -10,7 +9,8 @@ public class Transaction : BaseEntity
     public decimal Subtotal { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal Total { get; set; }
-    public PaymentType PaymentType { get; set; }
+    public Guid PaymentMethodId { get; set; }
+    public PaymentMethod? PaymentMethod { get; set; }
     public decimal AmountTendered { get; set; }
     public decimal Change { get; set; }
     public bool IsRefunded { get; set; }
