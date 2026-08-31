@@ -36,6 +36,9 @@ public class AppDbContext : DbContext
     public DbSet<UtangCharge> UtangCharges => Set<UtangCharge>();
     public DbSet<UtangPayment> UtangPayments => Set<UtangPayment>();
     public DbSet<UtangAdjustment> UtangAdjustments => Set<UtangAdjustment>();
+    public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
+    public DbSet<ShiftMethodSales> ShiftMethodSales => Set<ShiftMethodSales>();
+    public DbSet<DayMethodSales> DayMethodSales => Set<DayMethodSales>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -46,6 +49,12 @@ public class AppDbContext : DbContext
         builder.Entity<User>().Property(u => u.Email).HasMaxLength(256);
 
         builder.Entity<Category>().HasIndex(c => c.Name).IsUnique();
+
+        builder.Entity<PaymentMethod>(entity =>
+        {
+            entity.Property(m => m.Name).HasMaxLength(40);
+            entity.HasIndex(m => m.Name).IsUnique();
+        });
 
         builder.Entity<Item>().Property(i => i.CostPrice).HasPrecision(18, 2);
         builder.Entity<Item>().Property(i => i.SellingPrice).HasPrecision(18, 2);
@@ -78,6 +87,12 @@ public class AppDbContext : DbContext
             .HasOne(t => t.Shift)
             .WithMany()
             .HasForeignKey(t => t.ShiftId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<Transaction>()
+            .HasOne(t => t.PaymentMethod)
+            .WithMany()
+            .HasForeignKey(t => t.PaymentMethodId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<TransactionItem>().Property(ti => ti.UnitPrice).HasPrecision(18, 2);
@@ -134,9 +149,6 @@ public class AppDbContext : DbContext
         builder.Entity<Shift>().OwnsOne(s => s.Snapshot, snapshot =>
         {
             snapshot.Property(x => x.NetSales).HasPrecision(18, 2);
-            snapshot.Property(x => x.CashSales).HasPrecision(18, 2);
-            snapshot.Property(x => x.GcashSales).HasPrecision(18, 2);
-            snapshot.Property(x => x.MayaSales).HasPrecision(18, 2);
             snapshot.Property(x => x.EWalletCashIn).HasPrecision(18, 2);
             snapshot.Property(x => x.EWalletCashOut).HasPrecision(18, 2);
             snapshot.Property(x => x.UtangCharged).HasPrecision(18, 2);
@@ -160,9 +172,6 @@ public class AppDbContext : DbContext
         builder.Entity<BusinessDay>().OwnsOne(d => d.Snapshot, snapshot =>
         {
             snapshot.Property(x => x.NetSales).HasPrecision(18, 2);
-            snapshot.Property(x => x.CashSales).HasPrecision(18, 2);
-            snapshot.Property(x => x.GcashSales).HasPrecision(18, 2);
-            snapshot.Property(x => x.MayaSales).HasPrecision(18, 2);
             snapshot.Property(x => x.DrawerMovementsNet).HasPrecision(18, 2);
             snapshot.Property(x => x.CountedCash).HasPrecision(18, 2);
             snapshot.Property(x => x.CashVariance).HasPrecision(18, 2);
@@ -175,6 +184,28 @@ public class AppDbContext : DbContext
             .WithMany(d => d.Shifts)
             .HasForeignKey(s => s.BusinessDayId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<ShiftMethodSales>(entity =>
+        {
+            entity.Property(x => x.MethodName).HasMaxLength(40);
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.HasIndex(x => x.ShiftId);
+            entity.HasOne(x => x.Shift)
+                .WithMany(s => s.MethodSales)
+                .HasForeignKey(x => x.ShiftId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<DayMethodSales>(entity =>
+        {
+            entity.Property(x => x.MethodName).HasMaxLength(40);
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.HasIndex(x => x.BusinessDayId);
+            entity.HasOne(x => x.BusinessDay)
+                .WithMany(d => d.MethodSales)
+                .HasForeignKey(x => x.BusinessDayId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         builder.Entity<CashDrawerMovement>()
             .HasOne(m => m.Shift)

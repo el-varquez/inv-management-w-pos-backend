@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using POS.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using POS.Infrastructure.Persistence;
 namespace POS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260831084507_AddPaymentMethods")]
+    partial class AddPaymentMethods
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -175,40 +178,6 @@ namespace POS.Infrastructure.Migrations
                     b.HasIndex("ParentItemId");
 
                     b.ToTable("CompositeItems");
-                });
-
-            modelBuilder.Entity("POS.Domain.Entities.DayMethodSales", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid>("BusinessDayId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("MethodName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
-
-                    b.Property<Guid>("PaymentMethodId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BusinessDayId");
-
-                    b.ToTable("DayMethodSales");
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.EWalletTransaction", b =>
@@ -511,40 +480,6 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("Shifts");
                 });
 
-            modelBuilder.Entity("POS.Domain.Entities.ShiftMethodSales", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("MethodName")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
-
-                    b.Property<Guid>("PaymentMethodId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ShiftId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ShiftId");
-
-                    b.ToTable("ShiftMethodSales");
-                });
-
             modelBuilder.Entity("POS.Domain.Entities.StockMovement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -594,6 +529,9 @@ namespace POS.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("AcceptUtang")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Address")
                         .IsRequired()
@@ -684,8 +622,8 @@ namespace POS.Infrastructure.Migrations
                     b.Property<bool>("IsRefunded")
                         .HasColumnType("boolean");
 
-                    b.Property<Guid>("PaymentMethodId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("PaymentType")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ReceiptNumber")
                         .IsRequired()
@@ -716,8 +654,6 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("PaymentMethodId");
 
                     b.HasIndex("ReceiptNumber")
                         .IsUnique();
@@ -976,6 +912,10 @@ namespace POS.Infrastructure.Migrations
                             b1.Property<Guid>("BusinessDayId")
                                 .HasColumnType("uuid");
 
+                            b1.Property<decimal>("CashSales")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
                             b1.Property<decimal>("CashVariance")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
@@ -993,6 +933,14 @@ namespace POS.Infrastructure.Migrations
                                 .HasColumnType("numeric(18,2)");
 
                             b1.Property<decimal?>("EWalletVariance")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
+                            b1.Property<decimal>("GcashSales")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
+                            b1.Property<decimal>("MayaSales")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
 
@@ -1045,17 +993,6 @@ namespace POS.Infrastructure.Migrations
                     b.Navigation("ComponentItem");
 
                     b.Navigation("ParentItem");
-                });
-
-            modelBuilder.Entity("POS.Domain.Entities.DayMethodSales", b =>
-                {
-                    b.HasOne("POS.Domain.Entities.BusinessDay", "BusinessDay")
-                        .WithMany("MethodSales")
-                        .HasForeignKey("BusinessDayId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BusinessDay");
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.EWalletTransaction", b =>
@@ -1119,6 +1056,10 @@ namespace POS.Infrastructure.Migrations
                             b1.Property<Guid>("ShiftId")
                                 .HasColumnType("uuid");
 
+                            b1.Property<decimal>("CashSales")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
                             b1.Property<decimal>("CashVariance")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
@@ -1175,6 +1116,14 @@ namespace POS.Infrastructure.Migrations
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
 
+                            b1.Property<decimal>("GcashSales")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
+                            b1.Property<decimal>("MayaSales")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)");
+
                             b1.Property<decimal>("NetSales")
                                 .HasPrecision(18, 2)
                                 .HasColumnType("numeric(18,2)");
@@ -1217,17 +1166,6 @@ namespace POS.Infrastructure.Migrations
                     b.Navigation("Snapshot");
                 });
 
-            modelBuilder.Entity("POS.Domain.Entities.ShiftMethodSales", b =>
-                {
-                    b.HasOne("POS.Domain.Entities.Shift", "Shift")
-                        .WithMany("MethodSales")
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Shift");
-                });
-
             modelBuilder.Entity("POS.Domain.Entities.StockMovement", b =>
                 {
                     b.HasOne("POS.Domain.Entities.Item", "Item")
@@ -1241,18 +1179,10 @@ namespace POS.Infrastructure.Migrations
 
             modelBuilder.Entity("POS.Domain.Entities.Transaction", b =>
                 {
-                    b.HasOne("POS.Domain.Entities.PaymentMethod", "PaymentMethod")
-                        .WithMany()
-                        .HasForeignKey("PaymentMethodId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("POS.Domain.Entities.Shift", "Shift")
                         .WithMany()
                         .HasForeignKey("ShiftId")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("PaymentMethod");
 
                     b.Navigation("Shift");
                 });
@@ -1326,8 +1256,6 @@ namespace POS.Infrastructure.Migrations
 
             modelBuilder.Entity("POS.Domain.Entities.BusinessDay", b =>
                 {
-                    b.Navigation("MethodSales");
-
                     b.Navigation("Shifts");
                 });
 
@@ -1355,8 +1283,6 @@ namespace POS.Infrastructure.Migrations
             modelBuilder.Entity("POS.Domain.Entities.Shift", b =>
                 {
                     b.Navigation("DrawerMovements");
-
-                    b.Navigation("MethodSales");
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Transaction", b =>

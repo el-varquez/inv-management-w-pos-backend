@@ -106,6 +106,7 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
     AdminSeeder.Seed(db);
     CategorySeeder.Seed(db);
+    PaymentMethodSeeder.Seed(db);
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
