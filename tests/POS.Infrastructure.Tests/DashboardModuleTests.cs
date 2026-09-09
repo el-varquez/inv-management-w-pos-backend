@@ -13,9 +13,10 @@ public class DashboardModuleTests : IDisposable
 {
     private readonly SqliteConnection _connection;
     private readonly AppDbContext _ctx;
-    private readonly TransactionRepository _transactions;
+    private readonly SaleRepository _sales;
     private readonly ItemRepository _items;
     private readonly UtangRepository _utang;
+    private readonly InvoiceRepository _invoices;
     private readonly PaymentMethodRepository _paymentMethods;
     private int _codeSeq;
 
@@ -36,17 +37,18 @@ public class DashboardModuleTests : IDisposable
         _ctx.Database.EnsureCreated();
         PaymentMethodSeeder.Seed(_ctx);
 
-        _transactions = new TransactionRepository(_ctx);
+        _sales = new SaleRepository(_ctx);
         _items = new ItemRepository(_ctx);
         _utang = new UtangRepository(_ctx);
+        _invoices = new InvoiceRepository(_ctx);
         _paymentMethods = new PaymentMethodRepository(_ctx);
     }
 
-    private async Task<Transaction> SeedSale(
+    private async Task<Sale> SeedSale(
         decimal total, DateTime createdAtUtc,
         Guid? paymentMethodId = null, Guid? refundOf = null)
     {
-        var t = new Transaction
+        var t = new Sale
         {
             ReceiptNumber = Guid.NewGuid().ToString("N")[..10],
             Subtotal = Math.Abs(total),
@@ -56,7 +58,7 @@ public class DashboardModuleTests : IDisposable
             CreatedBy = Guid.NewGuid(),
             CreatedAt = createdAtUtc,
         };
-        _ctx.Transactions.Add(t);
+        _ctx.Sales.Add(t);
         await _ctx.SaveChangesAsync();
         return t;
     }
@@ -86,32 +88,48 @@ public class DashboardModuleTests : IDisposable
         await _ctx.SaveChangesAsync();
     }
 
-    private async Task SeedCharge(
-        decimal amount, DateTime createdAtUtc, bool voided = false)
+    private Suki? _suki;
+    private Shift? _shift;
+
+    private async Task SeedInvoice(decimal total, DateTime createdAtUtc, bool voided = false)
     {
-        var suki = await _ctx.Sukis.FirstOrDefaultAsync();
-        if (suki == null)
+        if (_suki is null)
         {
-            suki = new Suki { Name = "Aling Nena", CreatedBy = Guid.NewGuid() };
-            _ctx.Sukis.Add(suki);
+            _suki = new Suki { Name = "Aling Nena", CreatedBy = Guid.NewGuid() };
+            _shift = new Shift
+            {
+                Number = 1,
+                Status = ShiftStatus.Open,
+                OpenedAt = DateTime.UtcNow,
+                OpenedBy = Guid.NewGuid(),
+                BusinessDay = new BusinessDay
+                {
+                    Number = 1,
+                    Status = DayStatus.Open,
+                    OpenedAt = DateTime.UtcNow,
+                    OpenedBy = Guid.NewGuid()
+                }
+            };
+            _ctx.Sukis.Add(_suki);
+            _ctx.Shifts.Add(_shift);
             await _ctx.SaveChangesAsync();
         }
-        var sale = await SeedSale(amount, createdAtUtc, PaymentMethodIds.Utang);
-        _ctx.UtangCharges.Add(new UtangCharge
+        _ctx.Invoices.Add(new Invoice
         {
-            SukiId = suki.Id,
-            Amount = amount,
-            TransactionId = sale.Id,
-            ShiftId = Guid.NewGuid(),
+            InvoiceNumber = Guid.NewGuid().ToString("N")[..20],
+            SukiId = _suki.Id,
+            ShiftId = _shift!.Id,
+            Subtotal = total,
+            Total = total,
             IsVoided = voided,
             CreatedBy = Guid.NewGuid(),
-            CreatedAt = createdAtUtc,
+            CreatedAt = createdAtUtc
         });
         await _ctx.SaveChangesAsync();
     }
 
     private GetDashboardSummaryQueryHandler SummaryHandler()
-        => new(_transactions, _items, _utang, _paymentMethods);
+        => new(_sales, _items, _utang, _paymentMethods);
 
     [Fact]
     public async Task Today_kpis_net_out_refunds_and_average()
@@ -186,22 +204,20 @@ public class DashboardModuleTests : IDisposable
     public async Task Payments_split_lists_active_sales_methods_with_zero_rows()
     {
         await SeedSale(100m, TodayUtc, PaymentMethodIds.Cash);
-        await SeedSale(999m, YesterdayUtc, PaymentMethodIds.EWallet); // not today → excluded
+        await SeedSale(999m, YesterdayUtc, PaymentMethodIds.GCash); // not today → excluded
 
         var result = await SummaryHandler()
             .Handle(new GetDashboardSummaryQuery(), CancellationToken.None);
 
-        Assert.Equal(2, result.PaymentsToday.Count);
+        Assert.Equal(3, result.PaymentsToday.Count);
         Assert.Equal(100m, result.PaymentsToday.Single(p => p.Method == "Cash").Amount);
         Assert.Equal(1, result.PaymentsToday.Single(p => p.Method == "Cash").TransactionCount);
-        Assert.Equal(0m, result.PaymentsToday.Single(p => p.Method == "E-Wallet").Amount);
-        Assert.Equal(0, result.PaymentsToday.Single(p => p.Method == "E-Wallet").TransactionCount);
-        Assert.DoesNotContain(result.PaymentsToday, p => p.Method == "Utang");
+        Assert.Equal(0m, result.PaymentsToday.Single(p => p.Method == "GCash").Amount);
+        Assert.Equal(0, result.PaymentsToday.Single(p => p.Method == "GCash").TransactionCount);
 
         _ctx.PaymentMethods.Add(new PaymentMethod
         {
             Name = "Bank Transfer",
-            Type = PaymentMethodType.Sales,
             IsActive = true,
         });
         await _ctx.SaveChangesAsync();
@@ -209,7 +225,7 @@ public class DashboardModuleTests : IDisposable
         var afterAdd = await SummaryHandler()
             .Handle(new GetDashboardSummaryQuery(), CancellationToken.None);
 
-        Assert.Equal(3, afterAdd.PaymentsToday.Count);
+        Assert.Equal(4, afterAdd.PaymentsToday.Count);
         Assert.Equal(0m, afterAdd.PaymentsToday.Single(p => p.Method == "Bank Transfer").Amount);
         Assert.Equal(0, afterAdd.PaymentsToday.Single(p => p.Method == "Bank Transfer").TransactionCount);
     }
@@ -227,7 +243,7 @@ public class DashboardModuleTests : IDisposable
     }
 
     private POS.Application.Dashboard.Queries.GetSalesTrend.GetSalesTrendQueryHandler
-        TrendHandler() => new(_transactions, _utang);
+        TrendHandler() => new(_sales, _invoices);
 
     [Fact]
     public async Task Week_trend_returns_7_zero_filled_buckets_with_sales_in_the_right_day()
@@ -249,11 +265,11 @@ public class DashboardModuleTests : IDisposable
     }
 
     [Fact]
-    public async Task Week_trend_buckets_utang_charges_by_day_and_keeps_them_out_of_paid_sales()
+    public async Task Week_trend_buckets_invoices_by_day_and_keeps_them_out_of_paid_sales()
     {
         await SeedSale(300m, TodayUtc);
-        await SeedCharge(250m, TodayUtc.AddMinutes(5));
-        await SeedCharge(100m, YesterdayUtc);
+        await SeedInvoice(250m, TodayUtc.AddMinutes(5));
+        await SeedInvoice(100m, YesterdayUtc);
 
         var result = await TrendHandler().Handle(
             new POS.Application.Dashboard.Queries.GetSalesTrend.GetSalesTrendQuery("week"),
@@ -268,10 +284,10 @@ public class DashboardModuleTests : IDisposable
     }
 
     [Fact]
-    public async Task Voided_charges_never_reach_the_trend()
+    public async Task Voided_invoices_never_reach_the_trend()
     {
-        await SeedCharge(200m, TodayUtc);
-        await SeedCharge(500m, TodayUtc.AddMinutes(5), voided: true);
+        await SeedInvoice(200m, TodayUtc);
+        await SeedInvoice(500m, TodayUtc.AddMinutes(5), voided: true);
 
         var result = await TrendHandler().Handle(
             new POS.Application.Dashboard.Queries.GetSalesTrend.GetSalesTrendQuery("week"),

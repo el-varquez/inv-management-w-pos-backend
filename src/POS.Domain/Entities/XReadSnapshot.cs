@@ -5,11 +5,6 @@ public class XReadSnapshot
     public decimal NetSales { get; set; }
     public int TransactionCount { get; set; }
 
-    public int UtangChargedCount { get; set; }
-    public decimal UtangCharged { get; set; }
-    public decimal UtangMarkup { get; set; }
-    public decimal UtangCollections { get; set; }
-
     public decimal Refunds { get; set; }
     public int RefundCount { get; set; }
 

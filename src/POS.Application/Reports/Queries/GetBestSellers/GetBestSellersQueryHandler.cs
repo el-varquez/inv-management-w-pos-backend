@@ -1,5 +1,4 @@
 using MediatR;
-using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Reports.Queries.GetBestSellers;
@@ -7,34 +6,40 @@ namespace POS.Application.Reports.Queries.GetBestSellers;
 public class GetBestSellersQueryHandler
     : IRequestHandler<GetBestSellersQuery, IList<BestSellerDto>>
 {
-    private readonly ITransactionRepository _transactionRepository;
+    private readonly ISaleRepository _sales;
+    private readonly IInvoiceRepository _invoices;
 
-    public GetBestSellersQueryHandler(ITransactionRepository transactionRepository)
-        => _transactionRepository = transactionRepository;
+    public GetBestSellersQueryHandler(ISaleRepository sales, IInvoiceRepository invoices)
+    {
+        _sales = sales;
+        _invoices = invoices;
+    }
 
     public async Task<IList<BestSellerDto>> Handle(
         GetBestSellersQuery request, CancellationToken ct)
     {
-        var transactions = await _transactionRepository.GetAllAsync(
-            request.From, request.To, ct);
+        var sales = await _sales.GetAllAsync(request.From, request.To, ct);
+        var invoices = await _invoices.GetAllAsync(request.From, request.To, ct);
 
-        var lines = transactions
-            .SelectMany(t => t.Items.Select(i => (Type: t.PaymentMethod!.Type, Line: i)));
+        var saleLines = sales.SelectMany(s => s.Items).ToList();
+        var quantities = saleLines
+            .Select(l => (l.ItemId, l.ItemName, l.Quantity))
+            .Concat(invoices
+                .Where(i => !i.IsVoided)
+                .SelectMany(i => i.Items)
+                .Select(l => (l.ItemId, l.ItemName, l.Quantity)));
 
-        return lines
-            .GroupBy(x => x.Line.ItemId)
+        return quantities
+            .GroupBy(x => x.ItemId)
             .Select(g =>
             {
-                var paidLines = g
-                    .Where(x => x.Type == PaymentMethodType.Sales)
-                    .Select(x => x.Line)
-                    .ToList();
+                var paidLines = saleLines.Where(l => l.ItemId == g.Key).ToList();
                 var revenue = paidLines.Sum(i => i.Total);
                 var profit = paidLines.Sum(i => i.Total - i.CostPrice * i.Quantity);
                 return new BestSellerDto(
                     g.Key,
-                    g.Select(x => x.Line.ItemName).FirstOrDefault() ?? string.Empty,
-                    g.Sum(x => x.Line.Quantity),
+                    g.Select(x => x.ItemName).FirstOrDefault() ?? string.Empty,
+                    g.Sum(x => x.Quantity),
                     revenue,
                     profit,
                     revenue != 0 ? Math.Round(profit / revenue * 100, 2) : 0

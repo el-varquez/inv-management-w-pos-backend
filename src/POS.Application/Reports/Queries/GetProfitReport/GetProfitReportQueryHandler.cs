@@ -8,30 +8,26 @@ namespace POS.Application.Reports.Queries.GetProfitReport;
 public class GetProfitReportQueryHandler
     : IRequestHandler<GetProfitReportQuery, ProfitReportDto>
 {
-    private readonly ITransactionRepository _transactionRepository;
+    private readonly ISaleRepository _sales;
     private readonly IStockMovementRepository _stockMovementRepository;
 
     public GetProfitReportQueryHandler(
-        ITransactionRepository transactionRepository,
+        ISaleRepository saleRepository,
         IStockMovementRepository stockMovementRepository)
     {
-        _transactionRepository = transactionRepository;
+        _sales = saleRepository;
         _stockMovementRepository = stockMovementRepository;
     }
 
     public async Task<ProfitReportDto> Handle(
         GetProfitReportQuery request, CancellationToken ct)
     {
-        var transactions = await _transactionRepository.GetAllWithItemCategoriesAsync(
+        var allSales = await _sales.GetAllWithItemCategoriesAsync(
             request.From, request.To, ct);
-
-        transactions = transactions
-            .Where(t => t.PaymentMethod!.Type == PaymentMethodType.Sales)
-            .ToList();
 
         var isFiltered = request.ItemId.HasValue || request.CategoryId.HasValue;
 
-        var allLines = transactions.SelectMany(t => t.Items);
+        var allLines = allSales.SelectMany(t => t.Items);
         var lines = LineFilter(allLines, request).ToList();
 
         var cogs = lines.Sum(i => i.CostPrice * i.Quantity);
@@ -43,8 +39,8 @@ public class GetProfitReportQueryHandler
         }
         else
         {
-            var sales = transactions.Where(t => t.RefundedFromId == null);
-            var refunds = Math.Abs(transactions
+            var sales = allSales.Where(t => t.RefundedFromId == null);
+            var refunds = Math.Abs(allSales
                 .Where(t => t.RefundedFromId != null)
                 .Sum(t => t.Total));
             netSales = sales.Sum(t => t.Total) - refunds;
@@ -106,8 +102,8 @@ public class GetProfitReportQueryHandler
         );
     }
 
-    private static IEnumerable<TransactionItem> LineFilter(
-        IEnumerable<TransactionItem> lines, GetProfitReportQuery request)
+    private static IEnumerable<SaleItem> LineFilter(
+        IEnumerable<SaleItem> lines, GetProfitReportQuery request)
     {
         if (request.ItemId.HasValue)
             return lines.Where(i => i.ItemId == request.ItemId.Value);

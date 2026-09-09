@@ -3,14 +3,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using POS.Application.Utang.Commands.CollectUtangPayment;
 using POS.Application.Utang.Commands.CreateSuki;
-using POS.Application.Utang.Commands.CreateUtangAdjustment;
 using POS.Application.Utang.Commands.DeleteSuki;
 using POS.Application.Utang.Commands.UpdateSuki;
-using POS.Application.Utang.Commands.VoidUtangAdjustment;
 using POS.Application.Utang.Commands.EditUtangPayment;
 using POS.Application.Utang.Commands.VoidUtangPayment;
 using POS.Application.Utang.Queries.GetSukiLedger;
 using POS.Application.Utang.Queries.GetSukis;
+using POS.Application.Utang.Queries.GetUtangOutstanding;
 using POS.Application.Utang.Queries.GetUtangSummary;
 
 namespace POS.API.Controllers;
@@ -57,24 +56,14 @@ public class UtangController : ControllerBase
         [FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(await _mediator.Send(new GetUtangSummaryQuery(from, to)));
 
+    [HttpGet("outstanding")]
+    public async Task<IActionResult> GetOutstanding()
+        => Ok(await _mediator.Send(new GetUtangOutstandingQuery()));
+
     [HttpPost("collect")]
     public async Task<IActionResult> Collect(
         [FromBody] CollectUtangPaymentCommand command)
         => Ok(new EntryIdResponse(await _mediator.Send(command)));
-
-    [HttpPost("adjustments")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateAdjustment(
-        [FromBody] CreateUtangAdjustmentCommand command)
-        => Ok(new EntryIdResponse(await _mediator.Send(command)));
-
-    [HttpPost("adjustments/{id:guid}/void")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> VoidAdjustment(Guid id)
-    {
-        await _mediator.Send(new VoidUtangAdjustmentCommand(id));
-        return NoContent();
-    }
 
     [HttpPost("payments/{id:guid}/void")]
     [Authorize(Roles = "Admin")]

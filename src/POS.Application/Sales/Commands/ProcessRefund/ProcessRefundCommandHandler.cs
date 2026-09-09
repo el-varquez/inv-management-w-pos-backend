@@ -10,27 +10,24 @@ namespace POS.Application.Sales.Commands.ProcessRefund;
 public class ProcessRefundCommandHandler
     : IRequestHandler<ProcessRefundCommand, RefundResult>
 {
-    private readonly ITransactionRepository _transactionRepository;
+    private readonly ISaleRepository _sales;
     private readonly IReceiptNumberGenerator _receiptGenerator;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
     private readonly IShiftRepository _shifts;
-    private readonly IUtangRepository _utang;
 
     public ProcessRefundCommandHandler(
-        ITransactionRepository transactionRepository,
+        ISaleRepository saleRepository,
         IReceiptNumberGenerator receiptGenerator,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
-        IShiftRepository shifts,
-        IUtangRepository utang)
+        IShiftRepository shifts)
     {
-        _transactionRepository = transactionRepository;
+        _sales = saleRepository;
         _receiptGenerator = receiptGenerator;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _shifts = shifts;
-        _utang = utang;
     }
 
     public async Task<RefundResult> Handle(
@@ -40,19 +37,19 @@ public class ProcessRefundCommandHandler
             ?? throw new DomainException(
                 "No open shift — voids land in the current shift. Declare starting cash first.");
 
-        var original = await _transactionRepository.GetByIdAsync(request.TransactionId, ct)
-            ?? throw new NotFoundException("Transaction", request.TransactionId);
+        var original = await _sales.GetByIdAsync(request.SaleId, ct)
+            ?? throw new NotFoundException("Sale", request.SaleId);
 
         if (original.IsRefunded)
-            throw new DomainException("This transaction has already been refunded.");
+            throw new DomainException("This sale has already been refunded.");
 
         original.IsRefunded = true;
         original.UpdatedAt = DateTime.UtcNow;
-        await _transactionRepository.UpdateAsync(original, ct);
+        await _sales.UpdateAsync(original, ct);
 
         var receiptNumber = await _receiptGenerator.GenerateAsync(ct);
 
-        var refund = new Transaction
+        var refund = new Sale
         {
             ReceiptNumber = receiptNumber,
             Subtotal = -original.Subtotal,
@@ -65,7 +62,7 @@ public class ProcessRefundCommandHandler
             RefundedFromId = original.Id,
             CreatedBy = _currentUser.Id,
             ShiftId = shift.Id,
-            Items = original.Items.Select(i => new TransactionItem
+            Items = original.Items.Select(i => new SaleItem
             {
                 ItemId = i.ItemId,
                 ItemName = i.ItemName,
@@ -83,33 +80,7 @@ public class ProcessRefundCommandHandler
         refund.AddDomainEvent(
             new SaleRefundedEvent(refund.Id, refundedItems, _currentUser.Id));
 
-        await _transactionRepository.AddAsync(refund, ct);
-
-        var charges = await _utang.GetChargesByTransactionAsync(original.Id, ct);
-        foreach (var charge in charges.Where(c => !c.IsVoided))
-        {
-            charge.IsVoided = true;
-            charge.VoidedAt = DateTime.UtcNow;
-            charge.VoidedBy = _currentUser.Id;
-        }
-
-        var payments = await _utang.GetPaymentsByTransactionAsync(original.Id, ct);
-        foreach (var payment in payments.Where(p => !p.IsVoided))
-        {
-            payment.IsVoided = true;
-            payment.VoidedAt = DateTime.UtcNow;
-            payment.VoidedBy = _currentUser.Id;
-            if (payment.ShiftId != shift.Id)
-            {
-                await _shifts.AddMovementAsync(new CashDrawerMovement
-                {
-                    ShiftId = shift.Id,
-                    Amount = -payment.Amount,
-                    Note = $"Utang void — down payment returned · {original.ReceiptNumber}",
-                    CreatedBy = _currentUser.Id
-                }, ct);
-            }
-        }
+        await _sales.AddAsync(refund, ct);
 
         for (var attempt = 0; ; attempt++)
         {

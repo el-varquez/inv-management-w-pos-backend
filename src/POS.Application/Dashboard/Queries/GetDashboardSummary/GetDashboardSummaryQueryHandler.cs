@@ -1,7 +1,6 @@
 using MediatR;
 using POS.Application.Common;
 using POS.Domain.Entities;
-using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Dashboard.Queries.GetDashboardSummary;
@@ -9,18 +8,18 @@ namespace POS.Application.Dashboard.Queries.GetDashboardSummary;
 public class GetDashboardSummaryQueryHandler
     : IRequestHandler<GetDashboardSummaryQuery, DashboardSummaryDto>
 {
-    private readonly ITransactionRepository _transactionRepository;
+    private readonly ISaleRepository _sales;
     private readonly IItemRepository _itemRepository;
     private readonly IUtangRepository _utang;
     private readonly IPaymentMethodRepository _paymentMethods;
 
     public GetDashboardSummaryQueryHandler(
-        ITransactionRepository transactionRepository,
+        ISaleRepository saleRepository,
         IItemRepository itemRepository,
         IUtangRepository utang,
         IPaymentMethodRepository paymentMethods)
     {
-        _transactionRepository = transactionRepository;
+        _sales = saleRepository;
         _itemRepository = itemRepository;
         _utang = utang;
         _paymentMethods = paymentMethods;
@@ -33,10 +32,10 @@ public class GetDashboardSummaryQueryHandler
         var todayStartUtc = DateTime.Today.ToUniversalTime();
         var yesterdayStartUtc = todayStartUtc.AddDays(-1);
 
-        var transactions = await _transactionRepository.GetAllAsync(
+        var sales = await _sales.GetAllAsync(
             yesterdayStartUtc, null, ct);
-        var today = transactions.Where(t => t.CreatedAt >= todayStartUtc).ToList();
-        var yesterday = transactions.Where(t => t.CreatedAt < todayStartUtc).ToList();
+        var today = sales.Where(t => t.CreatedAt >= todayStartUtc).ToList();
+        var yesterday = sales.Where(t => t.CreatedAt < todayStartUtc).ToList();
 
         var net = PaidSales.Net(today);
         var count = PaidSales.Count(today);
@@ -54,7 +53,6 @@ public class GetDashboardSummaryQueryHandler
 
         var methods = await _paymentMethods.GetAllAsync(ct);
         var paymentsToday = methods
-            .Where(m => m.Type == PaymentMethodType.Sales)
             .Where(m => m.IsActive || today.Any(t => t.PaymentMethodId == m.Id))
             .Select(m =>
             {

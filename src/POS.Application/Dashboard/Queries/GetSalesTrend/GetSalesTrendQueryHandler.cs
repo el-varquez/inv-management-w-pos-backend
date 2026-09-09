@@ -7,15 +7,15 @@ namespace POS.Application.Dashboard.Queries.GetSalesTrend;
 public class GetSalesTrendQueryHandler
     : IRequestHandler<GetSalesTrendQuery, SalesTrendDto>
 {
-    private readonly ITransactionRepository _transactionRepository;
-    private readonly IUtangRepository _utangRepository;
+    private readonly ISaleRepository _sales;
+    private readonly IInvoiceRepository _invoices;
 
     public GetSalesTrendQueryHandler(
-        ITransactionRepository transactionRepository,
-        IUtangRepository utangRepository)
+        ISaleRepository saleRepository,
+        IInvoiceRepository invoices)
     {
-        _transactionRepository = transactionRepository;
-        _utangRepository = utangRepository;
+        _sales = saleRepository;
+        _invoices = invoices;
     }
 
     public async Task<SalesTrendDto> Handle(GetSalesTrendQuery request, CancellationToken ct)
@@ -31,11 +31,11 @@ public class GetSalesTrendQueryHandler
             _ => (new DateTime(todayLocal.Year, todayLocal.Month, 1).AddMonths(-11), 12),
         };
 
-        var transactions = await _transactionRepository.GetAllAsync(
+        var sales = await _sales.GetAllAsync(
             fromLocal.ToUniversalTime(), null, ct);
-        var charges = (await _utangRepository.GetChargesInRangeAsync(
+        var invoices = (await _invoices.GetAllAsync(
             fromLocal.ToUniversalTime(), null, ct))
-            .Where(c => !c.IsVoided)
+            .Where(i => !i.IsVoided)
             .ToList();
 
         var buckets = new List<SalesTrendBucketDto>(bucketCount);
@@ -54,15 +54,15 @@ public class GetSalesTrendQueryHandler
                 _ => startLocal.AddMonths(1),
             };
 
-            var inBucket = transactions
+            var inBucket = sales
                 .Where(t => t.CreatedAt.ToLocalTime() >= startLocal
                          && t.CreatedAt.ToLocalTime() < endLocal)
                 .ToList();
 
-            var chargedInBucket = charges
-                .Where(c => c.CreatedAt.ToLocalTime() >= startLocal
-                         && c.CreatedAt.ToLocalTime() < endLocal)
-                .Sum(c => c.Amount);
+            var chargedInBucket = invoices
+                .Where(inv => inv.CreatedAt.ToLocalTime() >= startLocal
+                         && inv.CreatedAt.ToLocalTime() < endLocal)
+                .Sum(inv => inv.Total);
 
             buckets.Add(new SalesTrendBucketDto(
                 startLocal, PaidSales.Net(inBucket), chargedInBucket));

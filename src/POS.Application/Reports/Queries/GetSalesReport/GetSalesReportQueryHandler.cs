@@ -1,5 +1,4 @@
 using MediatR;
-using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Reports.Queries.GetSalesReport;
@@ -7,25 +6,21 @@ namespace POS.Application.Reports.Queries.GetSalesReport;
 public class GetSalesReportQueryHandler
     : IRequestHandler<GetSalesReportQuery, SalesReportDto>
 {
-    private readonly ITransactionRepository _transactionRepository;
+    private readonly ISaleRepository _sales;
 
-    public GetSalesReportQueryHandler(ITransactionRepository transactionRepository)
-        => _transactionRepository = transactionRepository;
+    public GetSalesReportQueryHandler(ISaleRepository saleRepository)
+        => _sales = saleRepository;
 
     public async Task<SalesReportDto> Handle(
         GetSalesReportQuery request, CancellationToken ct)
     {
-        var transactions = await _transactionRepository.GetAllAsync(
+        var allSales = await _sales.GetAllAsync(
             request.From, request.To, ct);
 
-        transactions = transactions
-            .Where(t => t.PaymentMethod!.Type == PaymentMethodType.Sales)
-            .ToList();
+        var sales = allSales.Where(t => t.RefundedFromId == null).ToList();
+        var refundTxns = allSales.Where(t => t.RefundedFromId != null).ToList();
 
-        var sales = transactions.Where(t => t.RefundedFromId == null).ToList();
-        var refundTxns = transactions.Where(t => t.RefundedFromId != null).ToList();
-
-        var dailyBreakdown = transactions
+        var dailyBreakdown = sales
             .GroupBy(t => t.CreatedAt.Date)
             .OrderBy(g => g.Key)
             .Select(g =>

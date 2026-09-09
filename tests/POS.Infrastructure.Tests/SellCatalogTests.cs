@@ -16,7 +16,7 @@ public class SellCatalogTests : IDisposable
     private readonly AppDbContext _ctx;
     private readonly ItemRepository _items;
     private readonly CompositeItemRepository _composites;
-    private readonly TransactionRepository _transactions;
+    private readonly SaleRepository _sales;
     private readonly UnitOfWork _uow;
     private readonly Guid _categoryId = Guid.NewGuid();
     private int _codeSeq;
@@ -35,7 +35,7 @@ public class SellCatalogTests : IDisposable
 
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
-        _transactions = new TransactionRepository(_ctx);
+        _sales = new SaleRepository(_ctx);
         _uow = new UnitOfWork(_ctx);
 
         _ctx.Categories.Add(new Category { Id = _categoryId, Name = "General" });
@@ -66,7 +66,7 @@ public class SellCatalogTests : IDisposable
 
     private async Task SoldAsync(Item item, int qty, int daysAgo)
     {
-        var tx = new Transaction
+        var tx = new Sale
         {
             ReceiptNumber = $"R-SEED-{item.ItemCode}-{daysAgo}-{qty}",
             Subtotal = item.SellingPrice * qty,
@@ -76,7 +76,7 @@ public class SellCatalogTests : IDisposable
             CreatedBy = Guid.NewGuid(),
             Items =
             [
-                new TransactionItem
+                new SaleItem
                 {
                     ItemId = item.Id,
                     ItemName = item.Name,
@@ -87,7 +87,7 @@ public class SellCatalogTests : IDisposable
                 }
             ]
         };
-        _ctx.Transactions.Add(tx);
+        _ctx.Sales.Add(tx);
         await _ctx.SaveChangesAsync();
         tx.CreatedAt = DateTime.UtcNow.AddDays(-daysAgo);
         await _ctx.SaveChangesAsync();
@@ -158,7 +158,7 @@ public class SellCatalogTests : IDisposable
         var b = await SeedItemAsync("Sky Flakes");
         await SoldAsync(a, 3, daysAgo: 1);
         await SoldAsync(b, 9, daysAgo: 2);
-        var handler = new GetPopularItemsQueryHandler(_items, _composites, _transactions);
+        var handler = new GetPopularItemsQueryHandler(_items, _composites, _sales, new InvoiceRepository(_ctx));
 
         var result = await handler.Handle(new GetPopularItemsQuery(), CancellationToken.None);
 
@@ -172,7 +172,7 @@ public class SellCatalogTests : IDisposable
     {
         var a = await SeedItemAsync("Pancit Canton");
         await SoldAsync(a, 5, daysAgo: 8);
-        var handler = new GetPopularItemsQueryHandler(_items, _composites, _transactions);
+        var handler = new GetPopularItemsQueryHandler(_items, _composites, _sales, new InvoiceRepository(_ctx));
 
         var result = await handler.Handle(new GetPopularItemsQuery(), CancellationToken.None);
 
@@ -189,7 +189,7 @@ public class SellCatalogTests : IDisposable
         }
         var inactive = await SeedItemAsync("Gone item", isActive: false);
         await SoldAsync(inactive, 99, daysAgo: 1);
-        var handler = new GetPopularItemsQueryHandler(_items, _composites, _transactions);
+        var handler = new GetPopularItemsQueryHandler(_items, _composites, _sales, new InvoiceRepository(_ctx));
 
         var result = await handler.Handle(new GetPopularItemsQuery(), CancellationToken.None);
 

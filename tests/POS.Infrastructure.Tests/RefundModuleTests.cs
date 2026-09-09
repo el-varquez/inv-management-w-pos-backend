@@ -1,8 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using POS.Application.Sales.Commands.CreateTransaction;
+using POS.Application.Sales.Commands.CreateSale;
 using POS.Application.Sales.Commands.ProcessRefund;
-using POS.Application.Sales.Queries.GetTransactionById;
+using POS.Application.Sales.Queries.GetSaleById;
 using POS.Application.Shifts.Commands.CloseShift;
 using POS.Application.Shifts.Queries.GetShiftRead;
 using POS.Domain.Entities;
@@ -22,7 +22,7 @@ public class RefundModuleTests : IDisposable
     private readonly AppDbContext _ctx;
     private readonly ItemRepository _items;
     private readonly CompositeItemRepository _composites;
-    private readonly TransactionRepository _transactions;
+    private readonly SaleRepository _sales;
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
@@ -46,7 +46,7 @@ public class RefundModuleTests : IDisposable
 
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
-        _transactions = new TransactionRepository(_ctx);
+        _sales = new SaleRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
@@ -89,26 +89,26 @@ public class RefundModuleTests : IDisposable
         return item;
     }
 
-    private CreateTransactionCommandHandler SaleHandler(
+    private CreateSaleCommandHandler SaleHandler(
         POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null) =>
-        new(_items, _transactions, generator ?? new ReceiptNumberGenerator(_transactions), _uow,
-            _user, _composites, _shifts, _settings, _utang, _paymentMethods);
+        new(_items, _sales, generator ?? new ReceiptNumberGenerator(_sales), _uow,
+            _user, _composites, _shifts, _paymentMethods);
 
     private ProcessRefundCommandHandler RefundHandler(
         POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null) =>
-        new(_transactions, generator ?? new ReceiptNumberGenerator(_transactions), _uow,
-            _user, _shifts, _utang);
+        new(_sales, generator ?? new ReceiptNumberGenerator(_sales), _uow,
+            _user, _shifts);
 
     private async Task<Guid> SellAsync(
         Item item, int qty = 1,
         POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null)
     {
         var result = await SaleHandler(generator).Handle(
-            new CreateTransactionCommand(
+            new CreateSaleCommand(
                 [new CartItemInput(item.Id, qty, 0m)], 0m,
                 PaymentMethodIds.Cash, item.SellingPrice * qty),
             CancellationToken.None);
-        return result.TransactionId;
+        return result.SaleId;
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class RefundModuleTests : IDisposable
         var result = await RefundHandler().Handle(
             new ProcessRefundCommand(saleId), CancellationToken.None);
 
-        var mirror = await _ctx.Transactions.SingleAsync(t => t.Id == result.RefundTransactionId);
+        var mirror = await _ctx.Sales.SingleAsync(t => t.Id == result.RefundSaleId);
         Assert.Equal(_shift.Id, mirror.ShiftId);
         Assert.Equal(saleId, mirror.RefundedFromId);
     }
@@ -139,7 +139,7 @@ public class RefundModuleTests : IDisposable
         Assert.Equal(
             "No open shift — voids land in the current shift. Declare starting cash first.",
             ex.Message);
-        var original = await _ctx.Transactions.SingleAsync(t => t.Id == saleId);
+        var original = await _ctx.Sales.SingleAsync(t => t.Id == saleId);
         Assert.False(original.IsRefunded);
     }
 
@@ -166,15 +166,15 @@ public class RefundModuleTests : IDisposable
             .Handle(new ProcessRefundCommand(saleId), CancellationToken.None);
 
         Assert.Equal("R-20260820-0002", result.ReceiptNumber);
-        var mirror = await _ctx.Transactions.SingleAsync(t => t.Id == result.RefundTransactionId);
+        var mirror = await _ctx.Sales.SingleAsync(t => t.Id == result.RefundSaleId);
         Assert.Equal("R-20260820-0002", mirror.ReceiptNumber);
     }
 
     private CloseShiftCommandHandler CloseHandler()
-        => new(_shifts, _transactions, _uow, _user, _utang, _paymentMethods);
+        => new(_shifts, _sales, _uow, _user, _paymentMethods);
 
     private GetShiftReadQueryHandler ReadHandler()
-        => new(_shifts, _transactions, _utang, _paymentMethods);
+        => new(_shifts, _sales, _paymentMethods);
 
     [Fact]
     public async Task The_live_x_read_reports_the_refund()
@@ -252,13 +252,13 @@ public class RefundModuleTests : IDisposable
     {
         var item = await SeedItemAsync();
         var result = await SaleHandler().Handle(
-            new CreateTransactionCommand(
+            new CreateSaleCommand(
                 [new CartItemInput(item.Id, 1, 0m)], 0m,
-                PaymentMethodIds.EWallet, 25m, "REF-777"),
+                PaymentMethodIds.GCash, 25m, "REF-777"),
             CancellationToken.None);
 
-        var detail = await new GetTransactionByIdQueryHandler(_transactions).Handle(
-            new GetTransactionByIdQuery(result.TransactionId), CancellationToken.None);
+        var detail = await new GetSaleByIdQueryHandler(_sales).Handle(
+            new GetSaleByIdQuery(result.SaleId), CancellationToken.None);
 
         Assert.Equal("REF-777", detail.ReferenceNumber);
     }

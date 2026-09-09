@@ -22,8 +22,8 @@ public class AppDbContext : DbContext
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Item> Items => Set<Item>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
-    public DbSet<Transaction> Transactions => Set<Transaction>();
-    public DbSet<TransactionItem> TransactionItems => Set<TransactionItem>();
+    public DbSet<Sale> Sales => Set<Sale>();
+    public DbSet<SaleItem> SaleItems => Set<SaleItem>();
     public DbSet<CompositeItem> CompositeItems => Set<CompositeItem>();
     public DbSet<InventoryCount> InventoryCounts => Set<InventoryCount>();
     public DbSet<InventoryCountLine> InventoryCountLines => Set<InventoryCountLine>();
@@ -32,12 +32,12 @@ public class AppDbContext : DbContext
     public DbSet<BusinessDay> BusinessDays => Set<BusinessDay>();
     public DbSet<CashDrawerMovement> CashDrawerMovements => Set<CashDrawerMovement>();
     public DbSet<Suki> Sukis => Set<Suki>();
-    public DbSet<UtangCharge> UtangCharges => Set<UtangCharge>();
-    public DbSet<UtangPayment> UtangPayments => Set<UtangPayment>();
-    public DbSet<UtangAdjustment> UtangAdjustments => Set<UtangAdjustment>();
     public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
     public DbSet<ShiftMethodSales> ShiftMethodSales => Set<ShiftMethodSales>();
     public DbSet<DayMethodSales> DayMethodSales => Set<DayMethodSales>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
+    public DbSet<Payment> Payments => Set<Payment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -75,37 +75,37 @@ public class AppDbContext : DbContext
             .HasForeignKey(s => s.ItemId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.Entity<Transaction>().Property(t => t.Subtotal).HasPrecision(18, 2);
-        builder.Entity<Transaction>().Property(t => t.DiscountAmount).HasPrecision(18, 2);
-        builder.Entity<Transaction>().Property(t => t.Total).HasPrecision(18, 2);
-        builder.Entity<Transaction>().Property(t => t.AmountTendered).HasPrecision(18, 2);
-        builder.Entity<Transaction>().Property(t => t.Change).HasPrecision(18, 2);
-        builder.Entity<Transaction>().HasIndex(t => t.ReceiptNumber).IsUnique();
-        builder.Entity<Transaction>().Property(t => t.ReferenceNumber).HasMaxLength(64);
-        builder.Entity<Transaction>()
+        builder.Entity<Sale>().Property(t => t.Subtotal).HasPrecision(18, 2);
+        builder.Entity<Sale>().Property(t => t.DiscountAmount).HasPrecision(18, 2);
+        builder.Entity<Sale>().Property(t => t.Total).HasPrecision(18, 2);
+        builder.Entity<Sale>().Property(t => t.AmountTendered).HasPrecision(18, 2);
+        builder.Entity<Sale>().Property(t => t.Change).HasPrecision(18, 2);
+        builder.Entity<Sale>().HasIndex(t => t.ReceiptNumber).IsUnique();
+        builder.Entity<Sale>().Property(t => t.ReferenceNumber).HasMaxLength(64);
+        builder.Entity<Sale>()
             .HasOne(t => t.Shift)
             .WithMany()
             .HasForeignKey(t => t.ShiftId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.Entity<Transaction>()
+        builder.Entity<Sale>()
             .HasOne(t => t.PaymentMethod)
             .WithMany()
             .HasForeignKey(t => t.PaymentMethodId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.Entity<TransactionItem>().Property(ti => ti.UnitPrice).HasPrecision(18, 2);
-        builder.Entity<TransactionItem>().Property(ti => ti.CostPrice).HasPrecision(18, 2);
-        builder.Entity<TransactionItem>().Property(ti => ti.Discount).HasPrecision(18, 2);
-        builder.Entity<TransactionItem>().Property(ti => ti.Total).HasPrecision(18, 2);
-        builder.Entity<TransactionItem>()
-            .HasOne(ti => ti.Transaction)
+        builder.Entity<SaleItem>().Property(ti => ti.UnitPrice).HasPrecision(18, 2);
+        builder.Entity<SaleItem>().Property(ti => ti.CostPrice).HasPrecision(18, 2);
+        builder.Entity<SaleItem>().Property(ti => ti.Discount).HasPrecision(18, 2);
+        builder.Entity<SaleItem>().Property(ti => ti.Total).HasPrecision(18, 2);
+        builder.Entity<SaleItem>()
+            .HasOne(ti => ti.Sale)
             .WithMany(ti => ti.Items)
-            .HasForeignKey(ti => ti.TransactionId)
+            .HasForeignKey(ti => ti.SaleId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.Entity<TransactionItem>()
+        builder.Entity<SaleItem>()
             .HasOne(ti => ti.Item)
-            .WithMany(i => i.TransactionItems)
+            .WithMany(i => i.SaleItems)
             .HasForeignKey(ti => ti.ItemId)
             .OnDelete(DeleteBehavior.Restrict);
 
@@ -147,9 +147,6 @@ public class AppDbContext : DbContext
         builder.Entity<Shift>().OwnsOne(s => s.Snapshot, snapshot =>
         {
             snapshot.Property(x => x.NetSales).HasPrecision(18, 2);
-            snapshot.Property(x => x.UtangCharged).HasPrecision(18, 2);
-            snapshot.Property(x => x.UtangMarkup).HasPrecision(18, 2);
-            snapshot.Property(x => x.UtangCollections).HasPrecision(18, 2);
             snapshot.Property(x => x.Refunds).HasPrecision(18, 2);
             snapshot.Property(x => x.DrawerMovementsNet).HasPrecision(18, 2);
             snapshot.Property(x => x.ExpectedCash).HasPrecision(18, 2);
@@ -213,51 +210,52 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Phone).HasMaxLength(32);
         });
 
-        builder.Entity<UtangCharge>(entity =>
+        builder.Entity<Invoice>(entity =>
         {
-            entity.Property(x => x.Amount).HasPrecision(18, 2);
-            entity.Property(x => x.Markup).HasPrecision(18, 2);
+            entity.Property(x => x.InvoiceNumber).HasMaxLength(20);
+            entity.HasIndex(x => x.InvoiceNumber).IsUnique();
+            entity.Property(x => x.Subtotal).HasPrecision(18, 2);
+            entity.Property(x => x.DiscountAmount).HasPrecision(18, 2);
+            entity.Property(x => x.MarkupTotal).HasPrecision(18, 2);
+            entity.Property(x => x.Total).HasPrecision(18, 2);
             entity.HasIndex(x => x.SukiId);
-            entity.HasIndex(x => x.TransactionId);
             entity.HasOne(x => x.Suki)
                 .WithMany()
                 .HasForeignKey(x => x.SukiId)
                 .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Transaction)
+            entity.HasOne(x => x.Shift)
                 .WithMany()
-                .HasForeignKey(x => x.TransactionId)
+                .HasForeignKey(x => x.ShiftId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        builder.Entity<UtangPayment>(entity =>
+        builder.Entity<InvoiceItem>(entity =>
+        {
+            entity.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            entity.Property(x => x.CostPrice).HasPrecision(18, 2);
+            entity.Property(x => x.Discount).HasPrecision(18, 2);
+            entity.Property(x => x.Total).HasPrecision(18, 2);
+            entity.HasOne(x => x.Invoice)
+                .WithMany(i => i.Items)
+                .HasForeignKey(x => x.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Item)
+                .WithMany()
+                .HasForeignKey(x => x.ItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Payment>(entity =>
         {
             entity.Property(x => x.Amount).HasPrecision(18, 2);
             entity.Property(x => x.EditedFrom).HasPrecision(18, 2);
             entity.Property(x => x.Note).HasMaxLength(200);
             entity.HasIndex(x => x.SukiId);
-            entity.HasIndex(x => x.TransactionId);
-            entity.HasOne(x => x.Suki)
-                .WithMany()
-                .HasForeignKey(x => x.SukiId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Transaction)
-                .WithMany()
-                .HasForeignKey(x => x.TransactionId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        builder.Entity<UtangAdjustment>(entity =>
-        {
-            entity.Property(x => x.Amount).HasPrecision(18, 2);
-            entity.Property(x => x.Note).IsRequired().HasMaxLength(200);
-            entity.HasIndex(x => x.SukiId);
             entity.HasOne(x => x.Suki)
                 .WithMany()
                 .HasForeignKey(x => x.SukiId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
-
-        builder.Entity<Transaction>().HasIndex(t => t.SukiId);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)

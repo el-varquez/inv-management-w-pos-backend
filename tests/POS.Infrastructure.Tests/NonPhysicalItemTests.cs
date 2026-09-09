@@ -7,7 +7,7 @@ using POS.Application.Inventory.Commands.SetCompositeItem;
 using POS.Application.Inventory.Queries.GetLowStockItems;
 using POS.Application.Items.Commands.CreateItem;
 using POS.Application.Items.Commands.UpdateItem;
-using POS.Application.Sales.Commands.CreateTransaction;
+using POS.Application.Sales.Commands.CreateSale;
 using POS.Application.Sales.EventHandlers;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -28,7 +28,7 @@ public class NonPhysicalItemTests : IDisposable
     private readonly CategoryRepository _categories;
     private readonly CompositeItemRepository _composites;
     private readonly StockMovementRepository _movements;
-    private readonly TransactionRepository _transactions;
+    private readonly SaleRepository _sales;
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
@@ -55,7 +55,7 @@ public class NonPhysicalItemTests : IDisposable
         _categories = new CategoryRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
         _movements = new StockMovementRepository(_ctx);
-        _transactions = new TransactionRepository(_ctx);
+        _sales = new SaleRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
@@ -106,9 +106,9 @@ public class NonPhysicalItemTests : IDisposable
         await _ctx.SaveChangesAsync();
     }
 
-    private CreateTransactionCommandHandler SaleHandler() =>
-        new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow, _user, _composites,
-            _shifts, _settings, _utang, _paymentMethods);
+    private CreateSaleCommandHandler SaleHandler() =>
+        new(_items, _sales, new FakeReceiptNumberGenerator(), _uow, _user, _composites,
+            _shifts, _paymentMethods);
 
     [Fact]
     public async Task Items_in_an_ordinary_category_track_stock()
@@ -174,14 +174,14 @@ public class NonPhysicalItemTests : IDisposable
         var fee = await SeedAsync("GCash fee", tracksStock: false, stock: 0);
 
         var result = await SaleHandler().Handle(
-            new CreateTransactionCommand(
+            new CreateSaleCommand(
                 new List<CartItemInput> { new(fee.Id, 20, 0m) },
                 0m,
                 PaymentMethodIds.Cash,
                 20m),
             CancellationToken.None);
 
-        Assert.NotEqual(Guid.Empty, result.TransactionId);
+        Assert.NotEqual(Guid.Empty, result.SaleId);
     }
 
     [Fact]
@@ -260,7 +260,7 @@ public class NonPhysicalItemTests : IDisposable
         await SeedAsync("GCash fee", tracksStock: false, stock: 0, threshold: 5);
         var rice = await SeedAsync("Rice 1kg", stock: 2, threshold: 5);
 
-        var handler = new GetDashboardSummaryQueryHandler(_transactions, _items, _utang, _paymentMethods);
+        var handler = new GetDashboardSummaryQueryHandler(_sales, _items, _utang, _paymentMethods);
 
         var result = await handler.Handle(new GetDashboardSummaryQuery(), CancellationToken.None);
 
