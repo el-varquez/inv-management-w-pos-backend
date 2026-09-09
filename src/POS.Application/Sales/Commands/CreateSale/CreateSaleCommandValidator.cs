@@ -1,10 +1,10 @@
 using FluentValidation;
 
-namespace POS.Application.Sales.Commands.CreateTransaction;
+namespace POS.Application.Sales.Commands.CreateSale;
 
-public class CreateTransactionCommandValidator : AbstractValidator<CreateTransactionCommand>
+public class CreateSaleCommandValidator : AbstractValidator<CreateSaleCommand>
 {
-    public CreateTransactionCommandValidator()
+    public CreateSaleCommandValidator()
     {
         RuleFor(x => x.Items)
             .NotEmpty().WithMessage("Cart cannot be empty.");
@@ -28,8 +28,5 @@ public class CreateTransactionCommandValidator : AbstractValidator<CreateTransac
 
         RuleFor(x => x.PaymentMethodId)
             .NotEmpty().WithMessage("Pick a payment method.");
-
-        RuleFor(x => x.DownPayment)
-            .GreaterThanOrEqualTo(0).WithMessage("Down payment cannot be negative.");
     }
 }

@@ -2,11 +2,11 @@ using POS.Domain.Common;
 
 namespace POS.Domain.Entities;
 
-public class TransactionItem : BaseEntity
+public class SaleItem : BaseEntity
 {
-    public Guid TransactionId { get; set; }
-    public Transaction Transaction { get; set; } = null!;
-    
+    public Guid SaleId { get; set; }
+    public Sale Sale { get; set; } = null!;
+
     public Guid ItemId { get; set; }
     public Item Item { get; set; } = null!;
 

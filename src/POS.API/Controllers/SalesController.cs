@@ -1,11 +1,11 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using POS.Application.Sales.Commands.CreateTransaction;
+using POS.Application.Sales.Commands.CreateSale;
 using POS.Application.Sales.Commands.ProcessRefund;
 using POS.Application.Sales.Queries.GetSalesSummary;
-using POS.Application.Sales.Queries.GetTransactionById;
-using POS.Application.Sales.Queries.GetTransactions;
+using POS.Application.Sales.Queries.GetSaleById;
+using POS.Application.Sales.Queries.GetSales;
 
 namespace POS.API.Controllers;
 
@@ -19,7 +19,7 @@ public class SalesController : ControllerBase
     public SalesController(IMediator mediator) => _mediator = mediator;
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateTransactionCommand command)
+    public async Task<IActionResult> Create([FromBody] CreateSaleCommand command)
     {
         var result = await _mediator.Send(command);
         return Ok(result);
@@ -39,11 +39,11 @@ public class SalesController : ControllerBase
         [FromQuery] DateTime? to,
         [FromQuery] int? page,
         [FromQuery] int? pageSize)
-        => Ok(await _mediator.Send(new GetTransactionsQuery(from, to, page, pageSize)));
+        => Ok(await _mediator.Send(new GetSalesQuery(from, to, page, pageSize)));
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
-        => Ok(await _mediator.Send(new GetTransactionByIdQuery(id)));
+        => Ok(await _mediator.Send(new GetSaleByIdQuery(id)));
 
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(

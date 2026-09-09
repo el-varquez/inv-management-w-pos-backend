@@ -1,10 +1,10 @@
 using MediatR;
 
-namespace POS.Application.Sales.Queries.GetTransactionById;
+namespace POS.Application.Sales.Queries.GetSaleById;
 
-public record GetTransactionByIdQuery(Guid Id) : IRequest<TransactionDetailDto>;
+public record GetSaleByIdQuery(Guid Id) : IRequest<SaleDetailDto>;
 
-public record TransactionLineDto(
+public record SaleLineDto(
     string ItemName,
     decimal UnitPrice,
     int Quantity,
@@ -12,7 +12,7 @@ public record TransactionLineDto(
     decimal Total
 );
 
-public record TransactionDetailDto(
+public record SaleDetailDto(
     Guid Id,
     string ReceiptNumber,
     decimal Subtotal,
@@ -20,12 +20,10 @@ public record TransactionDetailDto(
     decimal Total,
     Guid PaymentMethodId,
     string PaymentMethod,
-    string MethodType,
     string? ReferenceNumber,
     decimal AmountTendered,
     decimal Change,
     bool IsRefunded,
-    Guid? SukiId,
-    IList<TransactionLineDto> Lines,
+    IList<SaleLineDto> Lines,
     DateTime CreatedAt
 );

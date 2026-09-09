@@ -1,54 +1,46 @@
 using MediatR;
-using POS.Application.Common;
 using POS.Application.Common.Interfaces;
 using POS.Domain.Entities;
-using POS.Domain.Enums;
 using POS.Domain.Events;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
-namespace POS.Application.Sales.Commands.CreateTransaction;
+namespace POS.Application.Sales.Commands.CreateSale;
 
-public class CreateTransactionCommandHandler
-    : IRequestHandler<CreateTransactionCommand, CreateTransactionResult>
+public class CreateSaleCommandHandler
+    : IRequestHandler<CreateSaleCommand, CreateSaleResult>
 {
-    private readonly IItemRepository _itemRepository;
-    private readonly ITransactionRepository _transactionRepository;
+    private readonly IItemRepository _items;
+    private readonly ISaleRepository _sales;
     private readonly IReceiptNumberGenerator _receiptGenerator;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
-    private readonly ICompositeItemRepository _compositeItemRepository;
+    private readonly ICompositeItemRepository _composites;
     private readonly IShiftRepository _shifts;
-    private readonly IStoreSettingsRepository _settings;
-    private readonly IUtangRepository _utang;
     private readonly IPaymentMethodRepository _paymentMethods;
 
-    public CreateTransactionCommandHandler(
-        IItemRepository itemRepository,
-        ITransactionRepository transactionRepository,
+    public CreateSaleCommandHandler(
+        IItemRepository items,
+        ISaleRepository sales,
         IReceiptNumberGenerator receiptGenerator,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
-        ICompositeItemRepository compositeItemRepository,
+        ICompositeItemRepository composites,
         IShiftRepository shifts,
-        IStoreSettingsRepository settings,
-        IUtangRepository utang,
         IPaymentMethodRepository paymentMethods)
     {
-        _itemRepository = itemRepository;
-        _transactionRepository = transactionRepository;
+        _items = items;
+        _sales = sales;
         _receiptGenerator = receiptGenerator;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
-        _compositeItemRepository = compositeItemRepository;
+        _composites = composites;
         _shifts = shifts;
-        _settings = settings;
-        _utang = utang;
         _paymentMethods = paymentMethods;
     }
 
-    public async Task<CreateTransactionResult> Handle(
-        CreateTransactionCommand request, CancellationToken ct)
+    public async Task<CreateSaleResult> Handle(
+        CreateSaleCommand request, CancellationToken ct)
     {
         var shift = await _shifts.GetOpenAsync(ct)
             ?? throw new DomainException(
@@ -60,21 +52,7 @@ public class CreateTransactionCommandHandler
             throw new DomainException(
                 $"{method.Name} is turned off — turn it on in web admin Settings.");
 
-        var isInvoice = method.Type == PaymentMethodType.Invoice;
-        Suki? suki = null;
-        var defaultMarkup = 0m;
-        if (isInvoice)
-        {
-            if (request.SukiId is null)
-                throw new DomainException("Pick a suki to charge.");
-            suki = await _utang.GetSukiByIdAsync(request.SukiId.Value, ct)
-                ?? throw new NotFoundException("Suki", request.SukiId.Value);
-            var settings = await _settings.GetAsync(ct);
-            defaultMarkup = settings?.DefaultUtangMarkup ?? 0m;
-        }
-        decimal markupTotal = 0;
-
-        var transactionItems = new List<TransactionItem>();
+        var saleItems = new List<SaleItem>();
         var soldItems = new List<(Guid ItemId, int Quantity)>();
         var demand = new Dictionary<Guid, int>();
         decimal subtotal = 0;
@@ -82,13 +60,13 @@ public class CreateTransactionCommandHandler
 
         foreach (var cartItem in request.Items)
         {
-            var item = await _itemRepository.GetByIdAsync(cartItem.ItemId, ct)
+            var item = await _items.GetByIdAsync(cartItem.ItemId, ct)
                 ?? throw new NotFoundException("Item", cartItem.ItemId);
 
             decimal costPrice;
             if (item.IsComposite)
             {
-                var components = await _compositeItemRepository.GetByParentIdAsync(item.Id, ct);
+                var components = await _composites.GetByParentIdAsync(item.Id, ct);
                 foreach (var component in components)
                 {
                     var required = (int)Math.Ceiling(component.Quantity * cartItem.Quantity);
@@ -103,21 +81,13 @@ public class CreateTransactionCommandHandler
                 costPrice = item.CostPrice;
             }
 
-            var unitPrice = item.SellingPrice;
-            if (isInvoice)
-            {
-                var utangPrice = UtangPricing.Resolve(item, defaultMarkup, cartItem.Quantity);
-                unitPrice = utangPrice.UnitPrice;
-                markupTotal += utangPrice.MarkupPerUnit * cartItem.Quantity;
-            }
+            var lineTotal = (item.SellingPrice * cartItem.Quantity) - cartItem.Discount;
 
-            var lineTotal = (unitPrice * cartItem.Quantity) - cartItem.Discount;
-
-            transactionItems.Add(new TransactionItem
+            saleItems.Add(new SaleItem
             {
                 ItemId = item.Id,
                 ItemName = item.Name,
-                UnitPrice = unitPrice,
+                UnitPrice = item.SellingPrice,
                 CostPrice = costPrice,
                 Quantity = cartItem.Quantity,
                 Discount = cartItem.Discount,
@@ -125,13 +95,13 @@ public class CreateTransactionCommandHandler
             });
 
             soldItems.Add((item.Id, cartItem.Quantity));
-            subtotal += unitPrice * cartItem.Quantity;
+            subtotal += item.SellingPrice * cartItem.Quantity;
             totalLineDiscounts += cartItem.Discount;
         }
 
         foreach (var (itemId, required) in demand)
         {
-            var stockItem = await _itemRepository.GetByIdAsync(itemId, ct);
+            var stockItem = await _items.GetByIdAsync(itemId, ct);
             if (stockItem is null || !stockItem.TracksStock) continue;
             if (stockItem.Stock < required)
                 throw new InsufficientStockException(stockItem.Name, required, stockItem.Stock);
@@ -143,62 +113,34 @@ public class CreateTransactionCommandHandler
         if (total < 0)
             throw new DomainException("Total cannot be negative after discounts.");
 
-        if (isInvoice && request.DownPayment >= total)
-            throw new DomainException(
-                "The down payment covers the whole charge — ring it as a paid sale instead.");
-
-        if (!isInvoice && request.AmountTendered < total)
+        if (request.AmountTendered < total)
             throw new DomainException(
                 $"Amount tendered ({request.AmountTendered:N2}) is less than total ({total:N2}).");
 
         var receiptNumber = await _receiptGenerator.GenerateAsync(ct);
-        var change = isInvoice ? 0m : request.AmountTendered - total;
+        var change = request.AmountTendered - total;
 
-        var transaction = new Transaction
+        var sale = new Sale
         {
             ReceiptNumber = receiptNumber,
             Subtotal = subtotal,
             DiscountAmount = totalDiscount,
             Total = total,
             PaymentMethodId = method.Id,
-            AmountTendered = isInvoice ? 0m : request.AmountTendered,
+            AmountTendered = request.AmountTendered,
             ReferenceNumber = string.IsNullOrWhiteSpace(request.ReferenceNumber)
                 ? null
                 : request.ReferenceNumber.Trim(),
             Change = change,
             CreatedBy = _currentUser.Id,
             ShiftId = shift.Id,
-            SukiId = suki?.Id,
-            Items = transactionItems
+            Items = saleItems
         };
 
-        transaction.AddDomainEvent(
-            new SaleCompletedEvent(transaction.Id, soldItems, _currentUser.Id));
+        sale.AddDomainEvent(
+            new SaleCompletedEvent(sale.Id, soldItems, _currentUser.Id));
 
-        await _transactionRepository.AddAsync(transaction, ct);
-        if (isInvoice)
-        {
-            await _utang.AddChargeAsync(new UtangCharge
-            {
-                SukiId = suki!.Id,
-                Amount = total,
-                Markup = markupTotal,
-                Transaction = transaction,
-                ShiftId = shift.Id,
-                CreatedBy = _currentUser.Id
-            }, ct);
-            if (request.DownPayment > 0m)
-            {
-                await _utang.AddPaymentAsync(new UtangPayment
-                {
-                    SukiId = suki.Id,
-                    Amount = request.DownPayment,
-                    Transaction = transaction,
-                    ShiftId = shift.Id,
-                    CreatedBy = _currentUser.Id
-                }, ct);
-            }
-        }
+        await _sales.AddAsync(sale, ct);
         for (var attempt = 0; ; attempt++)
         {
             try
@@ -208,17 +150,17 @@ public class CreateTransactionCommandHandler
             }
             catch (ReceiptNumberCollisionException) when (attempt < 2)
             {
-                transaction.ReceiptNumber = await _receiptGenerator.GenerateAsync(ct);
+                sale.ReceiptNumber = await _receiptGenerator.GenerateAsync(ct);
             }
         }
 
-        return new CreateTransactionResult(
-            transaction.Id,
-            transaction.ReceiptNumber,
+        return new CreateSaleResult(
+            sale.Id,
+            sale.ReceiptNumber,
             subtotal,
             totalDiscount,
             total,
-            transaction.AmountTendered,
+            sale.AmountTendered,
             change
         );
     }

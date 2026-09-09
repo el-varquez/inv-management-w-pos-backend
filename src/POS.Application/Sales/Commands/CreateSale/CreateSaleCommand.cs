@@ -1,6 +1,6 @@
 using MediatR;
 
-namespace POS.Application.Sales.Commands.CreateTransaction;
+namespace POS.Application.Sales.Commands.CreateSale;
 
 public record CartItemInput(
     Guid ItemId,
@@ -8,18 +8,16 @@ public record CartItemInput(
     decimal Discount
 );
 
-public record CreateTransactionCommand(
+public record CreateSaleCommand(
     IList<CartItemInput> Items,
     decimal TransactionDiscount,
     Guid PaymentMethodId,
     decimal AmountTendered,
-    string? ReferenceNumber = null,
-    Guid? SukiId = null,
-    decimal DownPayment = 0m
-) : IRequest<CreateTransactionResult>;
+    string? ReferenceNumber = null
+) : IRequest<CreateSaleResult>;
 
-public record CreateTransactionResult(
-    Guid TransactionId,
+public record CreateSaleResult(
+    Guid SaleId,
     string ReceiptNumber,
     decimal Subtotal,
     decimal DiscountAmount,

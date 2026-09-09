@@ -5,15 +5,15 @@ namespace POS.Infrastructure.Services;
 
 public class ReceiptNumberGenerator : IReceiptNumberGenerator
 {
-    private readonly ITransactionRepository _transactionRepository;
+    private readonly ISaleRepository _sales;
 
-    public ReceiptNumberGenerator(ITransactionRepository transactionRepository)
-        => _transactionRepository = transactionRepository;
+    public ReceiptNumberGenerator(ISaleRepository saleRepository)
+        => _sales = saleRepository;
 
     public async Task<string> GenerateAsync(CancellationToken ct = default)
     {
         var prefix = $"R-{DateTime.Now:yyyyMMdd}-";
-        var next = await _transactionRepository.GetMaxReceiptSequenceAsync(prefix, ct) + 1;
+        var next = await _sales.GetMaxReceiptSequenceAsync(prefix, ct) + 1;
         return $"{prefix}{next:D4}";
     }
 }

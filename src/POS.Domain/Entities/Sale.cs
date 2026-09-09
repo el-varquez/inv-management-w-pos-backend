@@ -2,7 +2,7 @@ using POS.Domain.Common;
 
 namespace POS.Domain.Entities;
 
-public class Transaction : BaseEntity
+public class Sale : BaseEntity
 {
     public string ReceiptNumber { get; set; } = string.Empty;
     public string? ReferenceNumber { get; set; }
@@ -18,7 +18,6 @@ public class Transaction : BaseEntity
     public Guid CreatedBy { get; set; }
     public Guid? ShiftId { get; set; }
     public Shift? Shift { get; set; }
-    public Guid? SukiId { get; set; }
 
-    public ICollection<TransactionItem> Items { get; set; } = new List<TransactionItem>();
+    public ICollection<SaleItem> Items { get; set; } = new List<SaleItem>();
 }

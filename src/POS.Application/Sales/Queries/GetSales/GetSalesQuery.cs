@@ -1,16 +1,16 @@
 using MediatR;
 using POS.Application.Common.Models;
 
-namespace POS.Application.Sales.Queries.GetTransactions;
+namespace POS.Application.Sales.Queries.GetSales;
 
-public record GetTransactionsQuery(
+public record GetSalesQuery(
     DateTime? From,
     DateTime? To,
     int? Page,
     int? PageSize
-) : IRequest<PagedResult<TransactionDto>>;
+) : IRequest<PagedResult<SaleDto>>;
 
-public record TransactionDto(
+public record SaleDto(
     Guid Id,
     string ReceiptNumber,
     decimal Subtotal,
@@ -18,12 +18,10 @@ public record TransactionDto(
     decimal Total,
     Guid PaymentMethodId,
     string PaymentMethod,
-    string MethodType,
     decimal AmountTendered,
     decimal Change,
     bool IsRefunded,
     Guid? RefundedFromId,
-    Guid? SukiId,
     int ItemCount,
     DateTime CreatedAt
 );
