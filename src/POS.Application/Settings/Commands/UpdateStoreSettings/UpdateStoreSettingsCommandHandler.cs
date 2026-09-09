@@ -30,6 +30,7 @@ public class UpdateStoreSettingsCommandHandler : IRequestHandler<UpdateStoreSett
         settings.Address = request.Address.Trim();
         settings.ReceiptFooter = request.ReceiptFooter.Trim();
         settings.DefaultUtangMarkup = request.DefaultUtangMarkup;
+        settings.UtangReminderDays = request.UtangReminderDays;
 
         await _unitOfWork.SaveChangesAsync(ct);
     }

@@ -15,6 +15,10 @@ public class UpdateStoreSettingsCommandValidator : AbstractValidator<UpdateStore
             .WithMessage("Default utang markup must be 0 or greater.")
             .Must(HasAtMostTwoDecimalPlaces)
             .WithMessage("Default utang markup cannot have more than 2 decimal places.");
+
+        RuleFor(x => x.UtangReminderDays)
+            .InclusiveBetween(1, 365)
+            .WithMessage("Reminder days must be between 1 and 365.");
     }
 
     private static bool HasAtMostTwoDecimalPlaces(decimal value)
