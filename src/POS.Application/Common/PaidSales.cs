@@ -1,5 +1,4 @@
 using POS.Domain.Entities;
-using POS.Domain.Enums;
 
 namespace POS.Application.Common;
 
@@ -7,27 +6,20 @@ public static class PaidSales
 {
     /// Paid sales netting convention (matches the sales report):
     /// non-refund totals minus |refund totals|. Invoice methods are never in here.
-    public static decimal Net(IEnumerable<Transaction> transactions)
+    public static decimal Net(IEnumerable<Sale> sales)
     {
-        var paid = Paid(transactions);
-        var sales = paid.Where(t => t.RefundedFromId == null).Sum(t => t.Total);
-        var refunds = Math.Abs(
-            paid.Where(t => t.RefundedFromId != null).Sum(t => t.Total));
-        return sales - refunds;
+        var list = sales.ToList();
+        var gross = list.Where(t => t.RefundedFromId == null).Sum(t => t.Total);
+        var refunds = Math.Abs(list.Where(t => t.RefundedFromId != null).Sum(t => t.Total));
+        return gross - refunds;
     }
 
-    public static int Count(IEnumerable<Transaction> transactions)
-        => Paid(transactions).Count(t => t.RefundedFromId == null);
+    public static int Count(IEnumerable<Sale> sales)
+        => sales.Count(t => t.RefundedFromId == null);
 
-    public static decimal Refunds(IEnumerable<Transaction> transactions)
-        => Math.Abs(Paid(transactions)
-            .Where(t => t.RefundedFromId != null).Sum(t => t.Total));
+    public static decimal Refunds(IEnumerable<Sale> sales)
+        => Math.Abs(sales.Where(t => t.RefundedFromId != null).Sum(t => t.Total));
 
-    public static int RefundCount(IEnumerable<Transaction> transactions)
-        => Paid(transactions).Count(t => t.RefundedFromId != null);
-
-    private static IEnumerable<Transaction> Paid(
-        IEnumerable<Transaction> transactions)
-        => transactions.Where(t => t.PaymentMethod!.Type == PaymentMethodType.Sales)
-            .ToList();
+    public static int RefundCount(IEnumerable<Sale> sales)
+        => sales.Count(t => t.RefundedFromId != null);
 }

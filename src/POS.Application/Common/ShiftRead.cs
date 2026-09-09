@@ -26,10 +26,6 @@ public record ShiftReadDto(
     decimal Refunds,
     int RefundCount,
     IList<MethodSalesDto> MethodSales,
-    int UtangChargedCount,
-    decimal UtangCharged,
-    decimal UtangMarkup,
-    decimal UtangCollections,
     decimal DrawerMovementsNet,
     decimal ExpectedCash,
     decimal? CountedCash,
@@ -42,10 +38,8 @@ public static class ShiftRead
 {
     public static ShiftReadDto Build(
         Shift shift,
-        IList<Transaction> transactions,
+        IList<Sale> sales,
         IList<CashDrawerMovement> movements,
-        IList<UtangCharge> utangCharges,
-        IList<UtangPayment> utangPayments,
         IList<PaymentMethod> methods)
     {
         var movementDtos = movements
@@ -66,38 +60,28 @@ public static class ShiftRead
                 s.NetSales, s.TransactionCount,
                 s.Refunds, s.RefundCount,
                 frozenMethodSales,
-                s.UtangChargedCount, s.UtangCharged, s.UtangMarkup, s.UtangCollections,
                 s.DrawerMovementsNet, s.ExpectedCash,
                 s.CountedCash, s.CountedCashOriginal, s.CorrectionReason, s.CashVariance,
                 movementDtos);
         }
 
-        var utang = UtangTotals.Of(utangCharges, utangPayments);
         var movementsNet = movements.Where(m => !m.IsVoided).Sum(m => m.Amount);
 
         var methodSales = methods
-            .Where(m => m.Type == PaymentMethodType.Sales)
-            .Where(m => m.IsActive || transactions.Any(t => t.PaymentMethodId == m.Id))
+            .Where(m => m.IsActive || sales.Any(t => t.PaymentMethodId == m.Id))
             .Select(m => new MethodSalesDto(m.Id, m.Name,
-                PaidSales.Net(transactions.Where(t => t.PaymentMethodId == m.Id))))
+                PaidSales.Net(sales.Where(t => t.PaymentMethodId == m.Id))))
             .ToList();
-        var cashSales = methodSales
-            .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.Cash)?.Amount ?? 0m;
-        var eWalletSales = methodSales
-            .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.EWallet)?.Amount ?? 0m;
-
-        var expectedCash = shift.StartingCash + cashSales + eWalletSales
-            + movementsNet + utang.Collections;
+        var expectedCash = shift.StartingCash + PaidSales.Net(sales) + movementsNet;
 
         return new ShiftReadDto(
             shift.Id, shift.Number, false,
             shift.OpenedAt, null,
             shift.StartingCash, shift.StartingCashOriginal,
             shift.StartingCashCorrectionReason,
-            PaidSales.Net(transactions), PaidSales.Count(transactions),
-            PaidSales.Refunds(transactions), PaidSales.RefundCount(transactions),
+            PaidSales.Net(sales), PaidSales.Count(sales),
+            PaidSales.Refunds(sales), PaidSales.RefundCount(sales),
             methodSales,
-            utang.ChargeCount, utang.Charged, utang.Markup, utang.Collections,
             movementsNet, expectedCash,
             null, null, null, null,
             movementDtos);

@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using POS.Application.Sales.Commands.CreateTransaction;
+using POS.Application.Sales.Commands.CreateSale;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Exceptions;
@@ -18,7 +18,7 @@ public class SellSaleTests : IDisposable
     private readonly AppDbContext _ctx;
     private readonly ItemRepository _items;
     private readonly CompositeItemRepository _composites;
-    private readonly TransactionRepository _transactions;
+    private readonly SaleRepository _sales;
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
@@ -41,7 +41,7 @@ public class SellSaleTests : IDisposable
 
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
-        _transactions = new TransactionRepository(_ctx);
+        _sales = new SaleRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
@@ -83,10 +83,10 @@ public class SellSaleTests : IDisposable
         return item;
     }
 
-    private CreateTransactionCommandHandler Handler(POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null) =>
-        new(_items, _transactions, generator ?? new ReceiptNumberGenerator(_transactions), _uow,
+    private CreateSaleCommandHandler Handler(POS.Application.Common.Interfaces.IReceiptNumberGenerator? generator = null) =>
+        new(_items, _sales, generator ?? new ReceiptNumberGenerator(_sales), _uow,
             new FakeCurrentUser { Id = _userId, Role = "Cashier" },
-            _composites, _shifts, _settings, _utang, _paymentMethods);
+            _composites, _shifts, _paymentMethods);
 
     [Fact]
     public async Task A_gcash_sale_persists_its_reference_number()
@@ -94,11 +94,11 @@ public class SellSaleTests : IDisposable
         var item = await SeedItemAsync();
 
         var result = await Handler().Handle(
-            new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.EWallet, 25m, "  REF-90210  "),
+            new CreateSaleCommand(
+                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.GCash, 25m, "  REF-90210  "),
             CancellationToken.None);
 
-        var saved = await _ctx.Transactions.SingleAsync(t => t.Id == result.TransactionId);
+        var saved = await _ctx.Sales.SingleAsync(t => t.Id == result.SaleId);
         Assert.Equal("REF-90210", saved.ReferenceNumber);
     }
 
@@ -108,11 +108,11 @@ public class SellSaleTests : IDisposable
         var item = await SeedItemAsync();
 
         var result = await Handler().Handle(
-            new CreateTransactionCommand(
+            new CreateSaleCommand(
                 [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Cash, 100m),
             CancellationToken.None);
 
-        var saved = await _ctx.Transactions.SingleAsync(t => t.Id == result.TransactionId);
+        var saved = await _ctx.Sales.SingleAsync(t => t.Id == result.SaleId);
         Assert.Null(saved.ReferenceNumber);
     }
 
@@ -120,7 +120,7 @@ public class SellSaleTests : IDisposable
     public async Task Receipt_numbers_continue_from_the_days_max_suffix()
     {
         var item = await SeedItemAsync();
-        _ctx.Transactions.Add(new Transaction
+        _ctx.Sales.Add(new Sale
         {
             ReceiptNumber = $"R-{DateTime.Now:yyyyMMdd}-0007",
             PaymentMethodId = PaymentMethodIds.Cash,
@@ -129,7 +129,7 @@ public class SellSaleTests : IDisposable
         await _ctx.SaveChangesAsync();
 
         var result = await Handler().Handle(
-            new CreateTransactionCommand(
+            new CreateSaleCommand(
                 [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Cash, 100m),
             CancellationToken.None);
 
@@ -140,7 +140,7 @@ public class SellSaleTests : IDisposable
     public async Task Receipt_numbers_ignore_other_days()
     {
         var item = await SeedItemAsync();
-        _ctx.Transactions.Add(new Transaction
+        _ctx.Sales.Add(new Sale
         {
             ReceiptNumber = "R-19990101-0099",
             PaymentMethodId = PaymentMethodIds.Cash,
@@ -149,7 +149,7 @@ public class SellSaleTests : IDisposable
         await _ctx.SaveChangesAsync();
 
         var result = await Handler().Handle(
-            new CreateTransactionCommand(
+            new CreateSaleCommand(
                 [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Cash, 100m),
             CancellationToken.None);
 
@@ -159,12 +159,12 @@ public class SellSaleTests : IDisposable
     [Fact]
     public async Task A_receipt_collision_is_translated_by_the_unit_of_work()
     {
-        _ctx.Transactions.Add(new Transaction
+        _ctx.Sales.Add(new Sale
         {
             ReceiptNumber = "R-DUP-0001", PaymentMethodId = PaymentMethodIds.Cash, CreatedBy = _userId
         });
         await _ctx.SaveChangesAsync();
-        _ctx.Transactions.Add(new Transaction
+        _ctx.Sales.Add(new Sale
         {
             ReceiptNumber = "R-DUP-0001", PaymentMethodId = PaymentMethodIds.Cash, CreatedBy = _userId
         });
@@ -176,7 +176,7 @@ public class SellSaleTests : IDisposable
     public async Task A_sale_retries_with_a_fresh_number_after_a_collision()
     {
         var item = await SeedItemAsync();
-        _ctx.Transactions.Add(new Transaction
+        _ctx.Sales.Add(new Sale
         {
             ReceiptNumber = "R-DUP-0001", PaymentMethodId = PaymentMethodIds.Cash, CreatedBy = _userId
         });
@@ -184,7 +184,7 @@ public class SellSaleTests : IDisposable
 
         var result = await Handler(new FakeCollidingReceiptNumberGenerator("R-DUP-0001", "R-DUP-0002"))
             .Handle(
-                new CreateTransactionCommand(
+                new CreateSaleCommand(
                     [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Cash, 100m),
                 CancellationToken.None);
 

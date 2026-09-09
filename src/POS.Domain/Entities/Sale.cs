@@ -1,0 +1,23 @@
+using POS.Domain.Common;
+
+namespace POS.Domain.Entities;
+
+public class Sale : BaseEntity
+{
+    public string ReceiptNumber { get; set; } = string.Empty;
+    public string? ReferenceNumber { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal Total { get; set; }
+    public Guid PaymentMethodId { get; set; }
+    public PaymentMethod? PaymentMethod { get; set; }
+    public decimal AmountTendered { get; set; }
+    public decimal Change { get; set; }
+    public bool IsRefunded { get; set; }
+    public Guid? RefundedFromId { get; set; }
+    public Guid CreatedBy { get; set; }
+    public Guid? ShiftId { get; set; }
+    public Shift? Shift { get; set; }
+
+    public ICollection<SaleItem> Items { get; set; } = new List<SaleItem>();
+}

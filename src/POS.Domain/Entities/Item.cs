@@ -21,7 +21,7 @@ public class Item : BaseEntity
     public Category Category { get; set; } = null!;
 
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
-    public ICollection<TransactionItem> TransactionItems { get; set; } = new List<TransactionItem>();
+    public ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
     public ICollection<CompositeItem> Components { get; set; } = new List<CompositeItem>(); 
     public ICollection<CompositeItem> UsedInItems { get; set; } = new List<CompositeItem>();
 

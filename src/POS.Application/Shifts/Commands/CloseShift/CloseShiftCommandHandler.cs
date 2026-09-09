@@ -11,25 +11,22 @@ namespace POS.Application.Shifts.Commands.CloseShift;
 public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
 {
     private readonly IShiftRepository _shifts;
-    private readonly ITransactionRepository _transactions;
+    private readonly ISaleRepository _sales;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
-    private readonly IUtangRepository _utang;
     private readonly IPaymentMethodRepository _methods;
 
     public CloseShiftCommandHandler(
         IShiftRepository shifts,
-        ITransactionRepository transactions,
+        ISaleRepository sales,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser,
-        IUtangRepository utang,
         IPaymentMethodRepository methods)
     {
         _shifts = shifts;
-        _transactions = transactions;
+        _sales = sales;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
-        _utang = utang;
         _methods = methods;
     }
 
@@ -41,39 +38,26 @@ public class CloseShiftCommandHandler : IRequestHandler<CloseShiftCommand>
         if (shift.Status == ShiftStatus.Closed)
             throw new DomainException($"Shift #{shift.Number} is already closed.");
 
-        var transactions = await _transactions.GetByShiftAsync(shift.Id, ct);
+        var sales = await _sales.GetByShiftAsync(shift.Id, ct);
         var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
-        var utangCharges = await _utang.GetChargesByShiftAsync(shift.Id, ct);
-        var utangPayments = await _utang.GetPaymentsByShiftAsync(shift.Id, ct);
-        var utang = UtangTotals.Of(utangCharges, utangPayments);
         var methods = await _methods.GetAllAsync(ct);
 
         var movementsNet = movements.Where(m => !m.IsVoided).Sum(m => m.Amount);
         var methodSales = methods
-            .Where(m => m.Type == PaymentMethodType.Sales)
-            .Where(m => m.IsActive || transactions.Any(t => t.PaymentMethodId == m.Id))
+            .Where(m => m.IsActive || sales.Any(t => t.PaymentMethodId == m.Id))
             .Select(m => new MethodSalesDto(m.Id, m.Name,
-                PaidSales.Net(transactions.Where(t => t.PaymentMethodId == m.Id))))
+                PaidSales.Net(sales.Where(t => t.PaymentMethodId == m.Id))))
             .ToList();
-        var cashSales = methodSales
-            .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.Cash)?.Amount ?? 0m;
-        var eWalletSales = methodSales
-            .FirstOrDefault(m => m.PaymentMethodId == PaymentMethodIds.EWallet)?.Amount ?? 0m;
-        var expectedCash = shift.StartingCash + cashSales + eWalletSales
-            + movementsNet + utang.Collections;
+        var expectedCash = shift.StartingCash + PaidSales.Net(sales) + movementsNet;
 
         var closedAt = DateTime.UtcNow;
 
         var snapshot = new XReadSnapshot
         {
-            NetSales = PaidSales.Net(transactions),
-            TransactionCount = PaidSales.Count(transactions),
-            UtangChargedCount = utang.ChargeCount,
-            UtangCharged = utang.Charged,
-            UtangMarkup = utang.Markup,
-            UtangCollections = utang.Collections,
-            Refunds = PaidSales.Refunds(transactions),
-            RefundCount = PaidSales.RefundCount(transactions),
+            NetSales = PaidSales.Net(sales),
+            TransactionCount = PaidSales.Count(sales),
+            Refunds = PaidSales.Refunds(sales),
+            RefundCount = PaidSales.RefundCount(sales),
             DrawerMovementsNet = movementsNet,
             ExpectedCash = expectedCash,
             CountedCash = request.CountedCash,

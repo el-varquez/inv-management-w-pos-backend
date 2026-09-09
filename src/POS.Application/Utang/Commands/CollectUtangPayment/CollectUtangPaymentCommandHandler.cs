@@ -1,4 +1,5 @@
 using MediatR;
+using POS.Application.Common;
 using POS.Application.Common.Interfaces;
 using POS.Domain.Entities;
 using POS.Domain.Exceptions;
@@ -10,18 +11,18 @@ public class CollectUtangPaymentCommandHandler
     : IRequestHandler<CollectUtangPaymentCommand, Guid>
 {
     private readonly IUtangRepository _utang;
-    private readonly IShiftRepository _shifts;
+    private readonly IStoreSettingsRepository _settings;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUser _currentUser;
 
     public CollectUtangPaymentCommandHandler(
         IUtangRepository utang,
-        IShiftRepository shifts,
+        IStoreSettingsRepository settings,
         IUnitOfWork unitOfWork,
         ICurrentUser currentUser)
     {
         _utang = utang;
-        _shifts = shifts;
+        _settings = settings;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
     }
@@ -29,9 +30,7 @@ public class CollectUtangPaymentCommandHandler
     public async Task<Guid> Handle(
         CollectUtangPaymentCommand request, CancellationToken ct)
     {
-        var shift = await _shifts.GetOpenAsync(ct)
-            ?? throw new DomainException(
-                "No open shift — collections go into the drawer. Declare starting cash first.");
+        await UtangGate.RequireOnAsync(_settings, ct);
 
         var suki = await _utang.GetSukiByIdAsync(request.SukiId, ct)
             ?? throw new NotFoundException("Suki", request.SukiId);
@@ -41,12 +40,11 @@ public class CollectUtangPaymentCommandHandler
             throw new DomainException(
                 $"That's more than {suki.Name} owes — the balance is ₱{balance:N2}.");
 
-        var payment = new UtangPayment
+        var payment = new Payment
         {
             SukiId = suki.Id,
             Amount = request.Amount,
             Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
-            ShiftId = shift.Id,
             CreatedBy = _currentUser.Id
         };
 

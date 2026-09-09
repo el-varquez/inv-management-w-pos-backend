@@ -8,4 +8,6 @@ public record StoreSettingsDto(
     string StoreName,
     string Address,
     string ReceiptFooter,
-    decimal DefaultUtangMarkup);
+    decimal DefaultUtangMarkup,
+    bool AcceptUtang,
+    int UtangReminderDays);

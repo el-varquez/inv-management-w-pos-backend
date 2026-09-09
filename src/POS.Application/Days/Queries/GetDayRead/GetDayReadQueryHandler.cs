@@ -9,21 +9,18 @@ public class GetDayReadQueryHandler : IRequestHandler<GetDayReadQuery, DayReadDt
 {
     private readonly IBusinessDayRepository _days;
     private readonly IShiftRepository _shifts;
-    private readonly ITransactionRepository _transactions;
-    private readonly IUtangRepository _utang;
+    private readonly ISaleRepository _sales;
     private readonly IPaymentMethodRepository _methods;
 
     public GetDayReadQueryHandler(
         IBusinessDayRepository days,
         IShiftRepository shifts,
-        ITransactionRepository transactions,
-        IUtangRepository utang,
+        ISaleRepository sales,
         IPaymentMethodRepository methods)
     {
         _days = days;
         _shifts = shifts;
-        _transactions = transactions;
-        _utang = utang;
+        _sales = sales;
         _methods = methods;
     }
 
@@ -37,12 +34,10 @@ public class GetDayReadQueryHandler : IRequestHandler<GetDayReadQuery, DayReadDt
         var reads = new List<ShiftReadDto>();
         foreach (var shift in shifts)
         {
-            var transactions = await _transactions.GetByShiftAsync(shift.Id, ct);
+            var sales = await _sales.GetByShiftAsync(shift.Id, ct);
             var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
-            var utangCharges = await _utang.GetChargesByShiftAsync(shift.Id, ct);
-            var utangPayments = await _utang.GetPaymentsByShiftAsync(shift.Id, ct);
             reads.Add(ShiftRead.Build(
-                shift, transactions, movements, utangCharges, utangPayments, methods));
+                shift, sales, movements, methods));
         }
 
         return DayRead.Build(day, reads);

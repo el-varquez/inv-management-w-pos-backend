@@ -6,5 +6,6 @@ public record UpdateStoreSettingsCommand(
     string StoreName,
     string Address,
     string ReceiptFooter,
-    decimal DefaultUtangMarkup
+    decimal DefaultUtangMarkup,
+    int UtangReminderDays = 7
 ) : IRequest;

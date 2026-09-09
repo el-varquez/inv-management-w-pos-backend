@@ -1,5 +1,4 @@
 using MediatR;
-using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Sales.Queries.GetSalesSummary;
@@ -7,23 +6,19 @@ namespace POS.Application.Sales.Queries.GetSalesSummary;
 public class GetSalesSummaryQueryHandler
     : IRequestHandler<GetSalesSummaryQuery, SalesSummaryDto>
 {
-    private readonly ITransactionRepository _transactionRepository;
+    private readonly ISaleRepository _sales;
 
-    public GetSalesSummaryQueryHandler(ITransactionRepository transactionRepository)
-        => _transactionRepository = transactionRepository;
+    public GetSalesSummaryQueryHandler(ISaleRepository saleRepository)
+        => _sales = saleRepository;
 
     public async Task<SalesSummaryDto> Handle(
         GetSalesSummaryQuery request, CancellationToken ct)
     {
-        var transactions = await _transactionRepository.GetAllAsync(
+        var allSales = await _sales.GetAllAsync(
             request.From, request.To, ct);
 
-        transactions = transactions
-            .Where(t => t.PaymentMethod!.Type == PaymentMethodType.Sales)
-            .ToList();
-
-        var sales = transactions.Where(t => t.RefundedFromId == null).ToList();
-        var refundTxns = transactions.Where(t => t.RefundedFromId != null).ToList();
+        var sales = allSales.Where(t => t.RefundedFromId == null).ToList();
+        var refundTxns = allSales.Where(t => t.RefundedFromId != null).ToList();
 
         var grossSales = sales.Sum(t => t.Subtotal);
         var totalDiscounts = sales.Sum(t => t.DiscountAmount);

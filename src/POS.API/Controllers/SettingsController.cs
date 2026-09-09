@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using POS.Application.Settings.Commands.SetAcceptUtang;
 using POS.Application.Settings.Commands.UpdateStoreSettings;
 using POS.Application.Settings.Queries.GetStoreName;
 using POS.Application.Settings.Queries.GetStoreSettings;
@@ -27,6 +29,15 @@ public class SettingsController : ControllerBase
     [HttpPut]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update([FromBody] UpdateStoreSettingsCommand command)
+    {
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    [HttpPost("accept-utang")]
+    [Authorize(Roles = "Admin")]
+    [EnableRateLimiting("login")]
+    public async Task<IActionResult> SetAcceptUtang([FromBody] SetAcceptUtangCommand command)
     {
         await _mediator.Send(command);
         return NoContent();

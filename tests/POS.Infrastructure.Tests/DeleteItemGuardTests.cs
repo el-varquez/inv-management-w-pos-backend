@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using POS.Application.Inventory.Commands.CreateInventoryCount;
 using POS.Application.Inventory.Commands.SetCompositeItem;
 using POS.Application.Items.Commands.DeleteItem;
-using POS.Application.Sales.Commands.CreateTransaction;
+using POS.Application.Sales.Commands.CreateSale;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Exceptions;
@@ -22,7 +22,7 @@ public class DeleteItemGuardTests : IDisposable
     private readonly CategoryRepository _categories;
     private readonly CompositeItemRepository _composites;
     private readonly StockMovementRepository _movements;
-    private readonly TransactionRepository _transactions;
+    private readonly SaleRepository _sales;
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
@@ -48,7 +48,7 @@ public class DeleteItemGuardTests : IDisposable
         _categories = new CategoryRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
         _movements = new StockMovementRepository(_ctx);
-        _transactions = new TransactionRepository(_ctx);
+        _sales = new SaleRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
@@ -98,9 +98,9 @@ public class DeleteItemGuardTests : IDisposable
         await _ctx.SaveChangesAsync();
     }
 
-    private CreateTransactionCommandHandler SaleHandler() =>
-        new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow, _user, _composites,
-            _shifts, _settings, _utang, _paymentMethods);
+    private CreateSaleCommandHandler SaleHandler() =>
+        new(_items, _sales, new FakeReceiptNumberGenerator(), _uow, _user, _composites,
+            _shifts, _paymentMethods);
 
     [Fact]
     public async Task Delete_refuses_an_item_with_sales_history()
@@ -108,7 +108,7 @@ public class DeleteItemGuardTests : IDisposable
         await SeedOpenShiftAsync();
         var item = await SeedAsync("Coke 1L", stock: 10);
         await SaleHandler().Handle(
-            new CreateTransactionCommand(
+            new CreateSaleCommand(
                 new List<CartItemInput> { new(item.Id, 1, 0m) }, 0m, PaymentMethodIds.Cash, 100m),
             CancellationToken.None);
         var handler = new DeleteItemCommandHandler(_items, _uow);
@@ -157,6 +157,37 @@ public class DeleteItemGuardTests : IDisposable
         await handler.Handle(new DeleteItemCommand(item.Id), CancellationToken.None);
 
         Assert.Null(await _ctx.Items.AsNoTracking().SingleOrDefaultAsync(i => i.Id == item.Id));
+    }
+
+    [Fact]
+    public async Task Delete_refuses_an_item_on_an_invoice()
+    {
+        var item = await SeedAsync("Invoiced", stock: 10);
+        var suki = new Suki { Name = "Aling Rosa", CreatedBy = _user.Id };
+        var day = new BusinessDay
+        {
+            Number = 1, Status = DayStatus.Open, OpenedAt = DateTime.UtcNow, OpenedBy = _user.Id
+        };
+        var shift = new Shift
+        {
+            Number = 1, Status = ShiftStatus.Open, OpenedAt = DateTime.UtcNow,
+            OpenedBy = _user.Id, BusinessDay = day
+        };
+        _ctx.Sukis.Add(suki);
+        _ctx.Shifts.Add(shift);
+        _ctx.Invoices.Add(new Invoice
+        {
+            InvoiceNumber = "INV-TEST-0001",
+            SukiId = suki.Id,
+            ShiftId = shift.Id,
+            CreatedBy = _user.Id,
+            Items = { new InvoiceItem { ItemId = item.Id, ItemName = item.Name, Quantity = 1 } }
+        });
+        await _ctx.SaveChangesAsync();
+        var handler = new DeleteItemCommandHandler(_items, _uow);
+
+        await Assert.ThrowsAsync<DomainException>(() =>
+            handler.Handle(new DeleteItemCommand(item.Id), CancellationToken.None));
     }
 
     public void Dispose()

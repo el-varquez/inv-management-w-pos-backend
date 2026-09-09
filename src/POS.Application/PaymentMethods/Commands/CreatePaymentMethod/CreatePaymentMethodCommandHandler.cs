@@ -26,7 +26,6 @@ public class CreatePaymentMethodCommandHandler : IRequestHandler<CreatePaymentMe
         var method = new PaymentMethod
         {
             Name = request.Name,
-            Type = request.Type,
             RequiresReference = request.RequiresReference,
             IsActive = true,
             IsSystem = false
@@ -36,6 +35,6 @@ public class CreatePaymentMethodCommandHandler : IRequestHandler<CreatePaymentMe
         await _unitOfWork.SaveChangesAsync(ct);
 
         return new PaymentMethodDto(
-            method.Id, method.Name, method.Type.ToString(), method.RequiresReference, method.IsActive, method.IsSystem);
+            method.Id, method.Name, method.RequiresReference, method.IsActive, method.IsSystem);
     }
 }

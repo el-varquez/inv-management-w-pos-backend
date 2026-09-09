@@ -25,13 +25,15 @@ public static class DependencyInjection
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<IInventoryCountRepository, InventoryCountRepository>();
         services.AddScoped<ICompositeItemRepository, CompositeItemRepository>();
-        services.AddScoped<ITransactionRepository, TransactionRepository>();
+        services.AddScoped<ISaleRepository, SaleRepository>();
         services.AddScoped<IStoreSettingsRepository, StoreSettingsRepository>();
         services.AddScoped<IShiftRepository, ShiftRepository>();
         services.AddScoped<IBusinessDayRepository, BusinessDayRepository>();
         services.AddScoped<IUtangRepository, UtangRepository>();
         services.AddScoped<IPaymentMethodRepository, PaymentMethodRepository>();
+        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
+        services.AddScoped<IInvoiceNumberGenerator, InvoiceNumberGenerator>();
 
         services.AddScoped<IJwtService, JwtService>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();

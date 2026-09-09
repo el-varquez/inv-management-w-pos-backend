@@ -7,19 +7,16 @@ namespace POS.Application.Shifts.Queries.GetCurrentShift;
 public class GetCurrentShiftQueryHandler : IRequestHandler<GetCurrentShiftQuery, ShiftReadDto?>
 {
     private readonly IShiftRepository _shifts;
-    private readonly ITransactionRepository _transactions;
-    private readonly IUtangRepository _utang;
+    private readonly ISaleRepository _sales;
     private readonly IPaymentMethodRepository _methods;
 
     public GetCurrentShiftQueryHandler(
         IShiftRepository shifts,
-        ITransactionRepository transactions,
-        IUtangRepository utang,
+        ISaleRepository sales,
         IPaymentMethodRepository methods)
     {
         _shifts = shifts;
-        _transactions = transactions;
-        _utang = utang;
+        _sales = sales;
         _methods = methods;
     }
 
@@ -28,13 +25,11 @@ public class GetCurrentShiftQueryHandler : IRequestHandler<GetCurrentShiftQuery,
         var shift = await _shifts.GetOpenAsync(ct);
         if (shift is null) return null;
 
-        var transactions = await _transactions.GetByShiftAsync(shift.Id, ct);
+        var sales = await _sales.GetByShiftAsync(shift.Id, ct);
         var movements = await _shifts.GetMovementsAsync(shift.Id, ct);
-        var utangCharges = await _utang.GetChargesByShiftAsync(shift.Id, ct);
-        var utangPayments = await _utang.GetPaymentsByShiftAsync(shift.Id, ct);
         var methods = await _methods.GetAllAsync(ct);
 
         return ShiftRead.Build(
-            shift, transactions, movements, utangCharges, utangPayments, methods);
+            shift, sales, movements, methods);
     }
 }

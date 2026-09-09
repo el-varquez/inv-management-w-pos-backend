@@ -15,6 +15,10 @@ public class UnitOfWork : IUnitOfWork
         {
             return await _context.SaveChangesAsync(ct);
         }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("InvoiceNumber") == true)
+        {
+            throw new InvoiceNumberCollisionException();
+        }
         catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("ReceiptNumber") == true)
         {
             throw new ReceiptNumberCollisionException();

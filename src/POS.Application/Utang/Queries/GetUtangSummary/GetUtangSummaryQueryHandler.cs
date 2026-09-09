@@ -7,29 +7,31 @@ public class GetUtangSummaryQueryHandler
     : IRequestHandler<GetUtangSummaryQuery, UtangSummaryDto>
 {
     private readonly IUtangRepository _utang;
+    private readonly IInvoiceRepository _invoices;
 
-    public GetUtangSummaryQueryHandler(IUtangRepository utang) => _utang = utang;
+    public GetUtangSummaryQueryHandler(IUtangRepository utang, IInvoiceRepository invoices)
+    {
+        _utang = utang;
+        _invoices = invoices;
+    }
 
     public async Task<UtangSummaryDto> Handle(
         GetUtangSummaryQuery request, CancellationToken ct)
     {
-        var charges = await _utang.GetChargesInRangeAsync(request.From, request.To, ct);
+        var invoices = (await _invoices.GetAllAsync(request.From, request.To, ct))
+            .Where(i => !i.IsVoided)
+            .ToList();
         var payments = await _utang.GetPaymentsInRangeAsync(request.From, request.To, ct);
-        var liveCharges = charges.Where(c => !c.IsVoided).ToList();
 
-        var top = liveCharges
-            .GroupBy(c => c.SukiId)
-            .Select(g => new
-            {
-                g.First().Suki.Name,
-                Charged = g.Sum(c => c.Amount)
-            })
+        var top = invoices
+            .GroupBy(i => i.SukiId)
+            .Select(g => new { g.First().Suki.Name, Charged = g.Sum(i => i.Total) })
             .OrderByDescending(x => x.Charged)
             .ThenBy(x => x.Name)
             .FirstOrDefault();
 
         return new UtangSummaryDto(
-            liveCharges.Sum(c => c.Amount),
+            invoices.Sum(i => i.Total),
             payments.Where(p => !p.IsVoided).Sum(p => p.Amount),
             top?.Name,
             top?.Charged ?? 0m);

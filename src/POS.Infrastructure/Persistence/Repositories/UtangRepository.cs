@@ -31,64 +31,41 @@ public class UtangRepository : IUtangRepository
             .Take(pageSize)
             .ToListAsync(ct);
 
-        return (await AttachBalancesAsync(sukis, ct), total);
+        return (await AttachLedgersAsync(sukis, ct), total);
     }
 
     public async Task<IList<SukiWithBalance>> GetAllSukiBalancesAsync(
         CancellationToken ct = default)
-        => await AttachBalancesAsync(
+        => await AttachLedgersAsync(
             await _context.Sukis.OrderBy(s => s.Name).ToListAsync(ct), ct);
 
-    private async Task<IList<SukiWithBalance>> AttachBalancesAsync(
+    private async Task<IList<SukiWithBalance>> AttachLedgersAsync(
         IList<Suki> sukis, CancellationToken ct)
     {
         var ids = sukis.Select(s => s.Id).ToList();
-        var chargeTotals = await _context.UtangCharges
-            .Where(c => !c.IsVoided && ids.Contains(c.SukiId))
-            .GroupBy(c => c.SukiId)
-            .Select(g => new
-            {
-                SukiId = g.Key,
-                Charged = g.Sum(c => c.Amount),
-                Count = g.Count(),
-                Oldest = g.Min(c => (DateTime?)c.CreatedAt)
-            })
+        var invoices = await _context.Invoices
+            .Where(i => ids.Contains(i.SukiId))
+            .OrderBy(i => i.CreatedAt)
             .ToListAsync(ct);
-        var paymentTotals = await _context.UtangPayments
-            .Where(p => !p.IsVoided && ids.Contains(p.SukiId))
-            .GroupBy(p => p.SukiId)
-            .Select(g => new { SukiId = g.Key, Paid = g.Sum(p => p.Amount) })
+        var payments = await _context.Payments
+            .Where(p => ids.Contains(p.SukiId))
+            .OrderBy(p => p.CreatedAt)
             .ToListAsync(ct);
+        var invoicesBySuki = invoices.ToLookup(i => i.SukiId);
+        var paymentsBySuki = payments.ToLookup(p => p.SukiId);
 
-        var adjustmentRows = await _context.UtangAdjustments
-            .Where(a => !a.IsVoided && ids.Contains(a.SukiId))
-            .Select(a => new { a.SukiId, a.Amount, a.CreatedAt })
-            .ToListAsync(ct);
-        var adjustments = adjustmentRows
-            .GroupBy(a => a.SukiId)
-            .ToDictionary(
-                g => g.Key,
-                g => new
-                {
-                    Adjusted = g.Sum(a => a.Amount),
-                    Count = g.Count(a => a.Amount > 0m),
-                    Oldest = g.Where(a => a.Amount > 0m)
-                        .Min(a => (DateTime?)a.CreatedAt)
-                });
-
-        var charges = chargeTotals.ToDictionary(t => t.SukiId);
-        var payments = paymentTotals.ToDictionary(t => t.SukiId);
         return sukis
             .Select(s =>
             {
-                var c = charges.GetValueOrDefault(s.Id);
-                var a = adjustments.GetValueOrDefault(s.Id);
-                var paid = payments.GetValueOrDefault(s.Id)?.Paid ?? 0m;
+                var live = invoicesBySuki[s.Id].Where(i => !i.IsVoided).ToList();
+                var paid = paymentsBySuki[s.Id].Where(p => !p.IsVoided).Sum(p => p.Amount);
                 return new SukiWithBalance(
                     s,
-                    (c?.Charged ?? 0m) + (a?.Adjusted ?? 0m) - paid,
-                    (c?.Count ?? 0) + (a?.Count ?? 0),
-                    new[] { c?.Oldest, a?.Oldest }.Min());
+                    live.Sum(i => i.Total) - paid,
+                    live.Count,
+                    live.Count == 0 ? null : live.Min(i => i.CreatedAt),
+                    invoicesBySuki[s.Id].ToList(),
+                    paymentsBySuki[s.Id].ToList());
             })
             .ToList();
     }
@@ -96,12 +73,9 @@ public class UtangRepository : IUtangRepository
     public async Task AddSukiAsync(Suki suki, CancellationToken ct = default)
         => await _context.Sukis.AddAsync(suki, ct);
 
-    public async Task<bool> HasLedgerHistoryAsync(
-        Guid sukiId, CancellationToken ct = default)
-        => await _context.UtangCharges.AnyAsync(c => c.SukiId == sukiId, ct)
-            || await _context.UtangPayments.AnyAsync(p => p.SukiId == sukiId, ct)
-            || await _context.UtangAdjustments.AnyAsync(a => a.SukiId == sukiId, ct)
-            || await _context.Transactions.AnyAsync(t => t.SukiId == sukiId, ct);
+    public async Task<bool> HasLedgerHistoryAsync(Guid sukiId, CancellationToken ct = default)
+        => await _context.Invoices.AnyAsync(i => i.SukiId == sukiId, ct)
+            || await _context.Payments.AnyAsync(p => p.SukiId == sukiId, ct);
 
     public async Task DeleteSukiAsync(Guid id, CancellationToken ct = default)
     {
@@ -109,74 +83,26 @@ public class UtangRepository : IUtangRepository
         if (suki is not null) _context.Sukis.Remove(suki);
     }
 
-    public async Task<IList<UtangCharge>> GetChargesBySukiAsync(
+    public async Task<Payment?> GetPaymentByIdAsync(Guid id, CancellationToken ct = default)
+        => await _context.Payments.FirstOrDefaultAsync(p => p.Id == id, ct);
+
+    public async Task<IList<Payment>> GetPaymentsBySukiAsync(
         Guid sukiId, CancellationToken ct = default)
-        => await _context.UtangCharges
-            .Include(c => c.Transaction)
-            .Where(c => c.SukiId == sukiId)
-            .ToListAsync(ct);
-
-    public async Task<IList<UtangCharge>> GetChargesByShiftAsync(
-        Guid shiftId, CancellationToken ct = default)
-        => await _context.UtangCharges
-            .Where(c => c.ShiftId == shiftId)
-            .ToListAsync(ct);
-
-    public async Task<IList<UtangCharge>> GetChargesByTransactionAsync(
-        Guid transactionId, CancellationToken ct = default)
-        => await _context.UtangCharges
-            .Where(c => c.TransactionId == transactionId)
-            .ToListAsync(ct);
-
-    public async Task<IList<UtangCharge>> GetChargesInRangeAsync(
-        DateTime? fromUtc, DateTime? toUtc, CancellationToken ct = default)
-    {
-        var query = _context.UtangCharges
-            .Include(c => c.Suki)
-            .AsQueryable();
-
-        if (fromUtc.HasValue) query = query.Where(c => c.CreatedAt >= fromUtc.Value);
-        if (toUtc.HasValue) query = query.Where(c => c.CreatedAt <= toUtc.Value);
-
-        return await query.ToListAsync(ct);
-    }
-
-    public async Task AddChargeAsync(UtangCharge charge, CancellationToken ct = default)
-        => await _context.UtangCharges.AddAsync(charge, ct);
-
-    public async Task<UtangPayment?> GetPaymentByIdAsync(
-        Guid id, CancellationToken ct = default)
-        => await _context.UtangPayments.FirstOrDefaultAsync(p => p.Id == id, ct);
-
-    public async Task<IList<UtangPayment>> GetPaymentsBySukiAsync(
-        Guid sukiId, CancellationToken ct = default)
-        => await _context.UtangPayments
-            .Include(p => p.Transaction)
+        => await _context.Payments
             .Where(p => p.SukiId == sukiId)
+            .OrderBy(p => p.CreatedAt)
             .ToListAsync(ct);
 
-    public async Task<IList<UtangPayment>> GetPaymentsByShiftAsync(
-        Guid shiftId, CancellationToken ct = default)
-        => await _context.UtangPayments
-            .Where(p => p.ShiftId == shiftId)
-            .ToListAsync(ct);
-
-    public async Task<IList<UtangPayment>> GetPaymentsByTransactionAsync(
-        Guid transactionId, CancellationToken ct = default)
-        => await _context.UtangPayments
-            .Where(p => p.TransactionId == transactionId)
-            .ToListAsync(ct);
-
-    public async Task<IList<UtangPayment>> GetPaymentsSinceAsync(
+    public async Task<IList<Payment>> GetPaymentsSinceAsync(
         DateTime fromUtc, CancellationToken ct = default)
-        => await _context.UtangPayments
+        => await _context.Payments
             .Where(p => !p.IsVoided && p.CreatedAt >= fromUtc)
             .ToListAsync(ct);
 
-    public async Task<IList<UtangPayment>> GetPaymentsInRangeAsync(
+    public async Task<IList<Payment>> GetPaymentsInRangeAsync(
         DateTime? fromUtc, DateTime? toUtc, CancellationToken ct = default)
     {
-        var query = _context.UtangPayments.AsQueryable();
+        var query = _context.Payments.AsQueryable();
 
         if (fromUtc.HasValue) query = query.Where(p => p.CreatedAt >= fromUtc.Value);
         if (toUtc.HasValue) query = query.Where(p => p.CreatedAt <= toUtc.Value);
@@ -184,36 +110,17 @@ public class UtangRepository : IUtangRepository
         return await query.ToListAsync(ct);
     }
 
-    public async Task AddPaymentAsync(UtangPayment payment, CancellationToken ct = default)
-        => await _context.UtangPayments.AddAsync(payment, ct);
+    public async Task AddPaymentAsync(Payment payment, CancellationToken ct = default)
+        => await _context.Payments.AddAsync(payment, ct);
 
-    public async Task<UtangAdjustment?> GetAdjustmentByIdAsync(
-        Guid id, CancellationToken ct = default)
-        => await _context.UtangAdjustments.FirstOrDefaultAsync(a => a.Id == id, ct);
-
-    public async Task<IList<UtangAdjustment>> GetAdjustmentsBySukiAsync(
-        Guid sukiId, CancellationToken ct = default)
-        => await _context.UtangAdjustments
-            .Where(a => a.SukiId == sukiId)
-            .OrderBy(a => a.CreatedAt)
-            .ToListAsync(ct);
-
-    public async Task AddAdjustmentAsync(
-        UtangAdjustment adjustment, CancellationToken ct = default)
-        => await _context.UtangAdjustments.AddAsync(adjustment, ct);
-
-    public async Task<decimal> GetBalanceAsync(
-        Guid sukiId, CancellationToken ct = default)
+    public async Task<decimal> GetBalanceAsync(Guid sukiId, CancellationToken ct = default)
     {
-        var charged = await _context.UtangCharges
-            .Where(c => c.SukiId == sukiId && !c.IsVoided)
-            .SumAsync(c => (decimal?)c.Amount, ct) ?? 0m;
-        var adjusted = await _context.UtangAdjustments
-            .Where(a => a.SukiId == sukiId && !a.IsVoided)
-            .SumAsync(a => (decimal?)a.Amount, ct) ?? 0m;
-        var paid = await _context.UtangPayments
+        var invoiced = await _context.Invoices
+            .Where(i => i.SukiId == sukiId && !i.IsVoided)
+            .SumAsync(i => (decimal?)i.Total, ct) ?? 0m;
+        var paid = await _context.Payments
             .Where(p => p.SukiId == sukiId && !p.IsVoided)
             .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
-        return charged + adjusted - paid;
+        return invoiced - paid;
     }
 }

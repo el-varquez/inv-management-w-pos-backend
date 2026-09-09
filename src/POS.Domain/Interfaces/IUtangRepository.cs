@@ -3,7 +3,12 @@ using POS.Domain.Entities;
 namespace POS.Domain.Interfaces;
 
 public record SukiWithBalance(
-    Suki Suki, decimal Balance, int ChargeCount, DateTime? OldestChargeAt);
+    Suki Suki,
+    decimal Balance,
+    int ChargeCount,
+    DateTime? OldestChargeAt,
+    IReadOnlyList<Invoice> Invoices,
+    IReadOnlyList<Payment> Payments);
 
 public interface IUtangRepository
 {
@@ -15,33 +20,12 @@ public interface IUtangRepository
     Task<bool> HasLedgerHistoryAsync(Guid sukiId, CancellationToken ct = default);
     Task DeleteSukiAsync(Guid id, CancellationToken ct = default);
 
-    Task<IList<UtangCharge>> GetChargesBySukiAsync(
-        Guid sukiId, CancellationToken ct = default);
-    Task<IList<UtangCharge>> GetChargesByShiftAsync(
-        Guid shiftId, CancellationToken ct = default);
-    Task<IList<UtangCharge>> GetChargesByTransactionAsync(
-        Guid transactionId, CancellationToken ct = default);
-    Task<IList<UtangCharge>> GetChargesInRangeAsync(
+    Task<Payment?> GetPaymentByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IList<Payment>> GetPaymentsBySukiAsync(Guid sukiId, CancellationToken ct = default);
+    Task<IList<Payment>> GetPaymentsSinceAsync(DateTime fromUtc, CancellationToken ct = default);
+    Task<IList<Payment>> GetPaymentsInRangeAsync(
         DateTime? fromUtc, DateTime? toUtc, CancellationToken ct = default);
-    Task AddChargeAsync(UtangCharge charge, CancellationToken ct = default);
-
-    Task<UtangPayment?> GetPaymentByIdAsync(Guid id, CancellationToken ct = default);
-    Task<IList<UtangPayment>> GetPaymentsBySukiAsync(
-        Guid sukiId, CancellationToken ct = default);
-    Task<IList<UtangPayment>> GetPaymentsByShiftAsync(
-        Guid shiftId, CancellationToken ct = default);
-    Task<IList<UtangPayment>> GetPaymentsByTransactionAsync(
-        Guid transactionId, CancellationToken ct = default);
-    Task<IList<UtangPayment>> GetPaymentsSinceAsync(
-        DateTime fromUtc, CancellationToken ct = default);
-    Task<IList<UtangPayment>> GetPaymentsInRangeAsync(
-        DateTime? fromUtc, DateTime? toUtc, CancellationToken ct = default);
-    Task AddPaymentAsync(UtangPayment payment, CancellationToken ct = default);
-
-    Task<UtangAdjustment?> GetAdjustmentByIdAsync(Guid id, CancellationToken ct = default);
-    Task<IList<UtangAdjustment>> GetAdjustmentsBySukiAsync(
-        Guid sukiId, CancellationToken ct = default);
-    Task AddAdjustmentAsync(UtangAdjustment adjustment, CancellationToken ct = default);
+    Task AddPaymentAsync(Payment payment, CancellationToken ct = default);
 
     Task<decimal> GetBalanceAsync(Guid sukiId, CancellationToken ct = default);
 }

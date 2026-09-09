@@ -10,29 +10,36 @@ public class GetPopularItemsQueryHandler
     private const int TileCount = 8;
     private const int WindowDays = 7;
 
-    private readonly IItemRepository _itemRepository;
-    private readonly ICompositeItemRepository _compositeItemRepository;
-    private readonly ITransactionRepository _transactionRepository;
+    private readonly IItemRepository _items;
+    private readonly ICompositeItemRepository _composites;
+    private readonly ISaleRepository _sales;
+    private readonly IInvoiceRepository _invoices;
 
     public GetPopularItemsQueryHandler(
-        IItemRepository itemRepository,
-        ICompositeItemRepository compositeItemRepository,
-        ITransactionRepository transactionRepository)
+        IItemRepository items,
+        ICompositeItemRepository composites,
+        ISaleRepository sales,
+        IInvoiceRepository invoices)
     {
-        _itemRepository = itemRepository;
-        _compositeItemRepository = compositeItemRepository;
-        _transactionRepository = transactionRepository;
+        _items = items;
+        _composites = composites;
+        _sales = sales;
+        _invoices = invoices;
     }
 
     public async Task<IList<PopularItemDto>> Handle(GetPopularItemsQuery request, CancellationToken ct)
     {
-        var transactions = await _transactionRepository.GetAllAsync(
-            DateTime.UtcNow.AddDays(-WindowDays), null, ct);
+        var since = DateTime.UtcNow.AddDays(-WindowDays);
+        var sales = await _sales.GetAllAsync(since, null, ct);
+        var invoices = await _invoices.GetAllAsync(since, null, ct);
 
-        var ranked = transactions
-            .SelectMany(t => t.Items)
-            .GroupBy(i => i.ItemId)
-            .Select(g => (ItemId: g.Key, Sold: g.Sum(i => i.Quantity)))
+        var ranked = sales
+            .SelectMany(s => s.Items.Select(i => (i.ItemId, i.Quantity)))
+            .Concat(invoices
+                .Where(i => !i.IsVoided)
+                .SelectMany(i => i.Items.Select(l => (l.ItemId, l.Quantity))))
+            .GroupBy(x => x.ItemId)
+            .Select(g => (ItemId: g.Key, Sold: g.Sum(x => x.Quantity)))
             .Where(x => x.Sold > 0)
             .OrderByDescending(x => x.Sold)
             .ToList();
@@ -44,13 +51,13 @@ public class GetPopularItemsQueryHandler
             {
                 break;
             }
-            var item = await _itemRepository.GetByIdAsync(itemId, ct);
+            var item = await _items.GetByIdAsync(itemId, ct);
             if (item is null || !item.IsActive)
             {
                 continue;
             }
             var stock = item.IsComposite
-                ? CompositeStock.Buildable(await _compositeItemRepository.GetByParentIdAsync(item.Id, ct))
+                ? CompositeStock.Buildable(await _composites.GetByParentIdAsync(item.Id, ct))
                 : item.Stock;
             dtos.Add(new PopularItemDto(
                 item.Id, item.Name, item.Barcode, item.ItemCode, item.SellingPrice,
