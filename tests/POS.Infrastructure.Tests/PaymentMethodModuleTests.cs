@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using POS.Application.Common;
 using POS.Application.PaymentMethods.Commands.CreatePaymentMethod;
 using POS.Application.PaymentMethods.Commands.UpdatePaymentMethod;
-using POS.Application.Sales.Commands.CreateTransaction;
+using POS.Application.Sales.Commands.CreateSale;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Exceptions;
@@ -21,7 +21,7 @@ public class PaymentMethodModuleTests : IDisposable
     private readonly PaymentMethodRepository _methods;
     private readonly ItemRepository _items;
     private readonly CompositeItemRepository _composites;
-    private readonly TransactionRepository _transactions;
+    private readonly SaleRepository _sales;
     private readonly ShiftRepository _shifts;
     private readonly StoreSettingsRepository _settings;
     private readonly UtangRepository _utang;
@@ -42,7 +42,7 @@ public class PaymentMethodModuleTests : IDisposable
         _methods = new PaymentMethodRepository(_ctx);
         _items = new ItemRepository(_ctx);
         _composites = new CompositeItemRepository(_ctx);
-        _transactions = new TransactionRepository(_ctx);
+        _sales = new SaleRepository(_ctx);
         _shifts = new ShiftRepository(_ctx);
         _settings = new StoreSettingsRepository(_ctx);
         _utang = new UtangRepository(_ctx);
@@ -98,36 +98,47 @@ public class PaymentMethodModuleTests : IDisposable
         return suki;
     }
 
-    private async Task<Guid> SeedInvoiceMethodAsync(string name = "Lista")
-    {
-        var dto = await new CreatePaymentMethodCommandHandler(_methods, _uow).Handle(
-            new CreatePaymentMethodCommand(name, PaymentMethodType.Invoice, false), default);
-        return dto.Id;
-    }
-
-    private CreateTransactionCommandHandler SaleHandler() =>
-        new(_items, _transactions, new FakeReceiptNumberGenerator(), _uow, _user,
-            _composites, _shifts, _settings, _utang, _methods);
+    private CreateSaleCommandHandler SaleHandler() =>
+        new(_items, _sales, new FakeReceiptNumberGenerator(), _uow, _user,
+            _composites, _shifts, _methods);
 
     [Fact]
-    public void Seeder_creates_three_system_methods_idempotently()
+    public void Seeder_creates_cash_gcash_and_maya_idempotently()
     {
         PaymentMethodSeeder.Seed(_ctx);
         PaymentMethodSeeder.Seed(_ctx);
-        var methods = _ctx.PaymentMethods.OrderBy(m => m.CreatedAt).ToList();
+        var methods = _ctx.PaymentMethods.ToList();
+
         Assert.Equal(3, methods.Count);
         Assert.All(methods, m => Assert.True(m.IsSystem));
-        Assert.Equal(PaymentMethodIds.Cash, methods[0].Id);
-        Assert.Equal("E-Wallet", methods.Single(m => m.Id == PaymentMethodIds.EWallet).Name);
-        Assert.Equal(PaymentMethodType.Invoice, methods.Single(m => m.Id == PaymentMethodIds.Utang).Type);
-        Assert.True(methods.Single(m => m.Id == PaymentMethodIds.EWallet).RequiresReference);
+        var cash = methods.Single(m => m.Id == PaymentMethodIds.Cash);
+        var gcash = methods.Single(m => m.Id == PaymentMethodIds.GCash);
+        var maya = methods.Single(m => m.Id == PaymentMethodIds.Maya);
+        Assert.Equal("Cash", cash.Name);
+        Assert.False(cash.RequiresReference);
+        Assert.Equal("GCash", gcash.Name);
+        Assert.True(gcash.RequiresReference);
+        Assert.Equal("Maya", maya.Name);
+        Assert.True(maya.RequiresReference);
+    }
+
+    [Fact]
+    public void Seeder_skips_a_method_that_already_exists_by_name()
+    {
+        _ctx.PaymentMethods.Add(new PaymentMethod { Name = "Maya", IsActive = true });
+        _ctx.SaveChanges();
+
+        PaymentMethodSeeder.Seed(_ctx);
+
+        Assert.Equal(3, _ctx.PaymentMethods.Count());
+        Assert.DoesNotContain(_ctx.PaymentMethods, m => m.Id == PaymentMethodIds.Maya);
     }
 
     [Fact]
     public async Task Duplicate_name_hits_the_unique_index()
     {
         PaymentMethodSeeder.Seed(_ctx);
-        _ctx.PaymentMethods.Add(new PaymentMethod { Name = "Cash", Type = PaymentMethodType.Sales });
+        _ctx.PaymentMethods.Add(new PaymentMethod { Name = "Cash" });
         await Assert.ThrowsAsync<DbUpdateException>(() => _ctx.SaveChangesAsync());
     }
 
@@ -137,9 +148,9 @@ public class PaymentMethodModuleTests : IDisposable
         PaymentMethodSeeder.Seed(_ctx);
         var handler = new CreatePaymentMethodCommandHandler(_methods, _uow);
         var dto = await handler.Handle(
-            new CreatePaymentMethodCommand("Bank transfer", PaymentMethodType.Sales, true), default);
+            new CreatePaymentMethodCommand("Bank transfer", true), default);
         Assert.Equal("Bank transfer", dto.Name);
-        Assert.Equal("Sales", dto.Type);
+        Assert.True(dto.RequiresReference);
         Assert.False(_ctx.PaymentMethods.Single(m => m.Id == dto.Id).IsSystem);
     }
 
@@ -149,7 +160,7 @@ public class PaymentMethodModuleTests : IDisposable
         PaymentMethodSeeder.Seed(_ctx);
         var handler = new CreatePaymentMethodCommandHandler(_methods, _uow);
         var ex = await Assert.ThrowsAsync<DomainException>(() => handler.Handle(
-            new CreatePaymentMethodCommand("cash", PaymentMethodType.Sales, false), default));
+            new CreatePaymentMethodCommand("cash", false), default));
         Assert.Equal("A payment method named \"cash\" already exists.", ex.Message);
     }
 
@@ -169,11 +180,10 @@ public class PaymentMethodModuleTests : IDisposable
         PaymentMethodSeeder.Seed(_ctx);
         var handler = new UpdatePaymentMethodCommandHandler(_methods, _uow);
         await handler.Handle(
-            new UpdatePaymentMethodCommand(PaymentMethodIds.Utang, "Lista", false, false), default);
-        var utang = _ctx.PaymentMethods.Single(m => m.Id == PaymentMethodIds.Utang);
-        Assert.Equal("Lista", utang.Name);
-        Assert.False(utang.IsActive);
-        Assert.Equal(PaymentMethodType.Invoice, utang.Type);
+            new UpdatePaymentMethodCommand(PaymentMethodIds.Maya, "Lista", false, false), default);
+        var maya = _ctx.PaymentMethods.Single(m => m.Id == PaymentMethodIds.Maya);
+        Assert.Equal("Lista", maya.Name);
+        Assert.False(maya.IsActive);
     }
 
     [Fact]
@@ -181,18 +191,18 @@ public class PaymentMethodModuleTests : IDisposable
     {
         PaymentMethodSeeder.Seed(_ctx);
         await new UpdatePaymentMethodCommandHandler(_methods, _uow).Handle(
-            new UpdatePaymentMethodCommand(PaymentMethodIds.EWallet, "E-Wallet", true, false),
+            new UpdatePaymentMethodCommand(PaymentMethodIds.GCash, "GCash", true, false),
             default);
         await SeedOpenShiftAsync();
         var item = await SeedItemAsync();
 
         var ex = await Assert.ThrowsAsync<DomainException>(() => SaleHandler().Handle(
-            new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.EWallet, 25m),
+            new CreateSaleCommand(
+                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.GCash, 25m),
             default));
 
         Assert.Equal(
-            "E-Wallet is turned off — turn it on in web admin Settings.", ex.Message);
+            "GCash is turned off — turn it on in web admin Settings.", ex.Message);
     }
 
     [Fact]
@@ -203,77 +213,9 @@ public class PaymentMethodModuleTests : IDisposable
         var item = await SeedItemAsync();
 
         await Assert.ThrowsAsync<NotFoundException>(() => SaleHandler().Handle(
-            new CreateTransactionCommand(
+            new CreateSaleCommand(
                 [new CartItemInput(item.Id, 1, 0m)], 0m, Guid.NewGuid(), 25m),
             default));
-    }
-
-    [Fact]
-    public async Task Custom_invoice_method_requires_suki_and_writes_a_ledger_charge()
-    {
-        PaymentMethodSeeder.Seed(_ctx);
-        var methodId = await SeedInvoiceMethodAsync();
-        await SeedOpenShiftAsync();
-        var item = await SeedItemAsync();
-
-        var noSuki = await Assert.ThrowsAsync<DomainException>(() => SaleHandler().Handle(
-            new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, methodId, 0m),
-            default));
-        Assert.Equal("Pick a suki to charge.", noSuki.Message);
-
-        var suki = await SeedSukiAsync();
-        var result = await SaleHandler().Handle(
-            new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, methodId, 0m, null, suki.Id),
-            default);
-
-        var charge = Assert.Single(await _utang.GetChargesByTransactionAsync(result.TransactionId));
-        Assert.Equal(suki.Id, charge.SukiId);
-        Assert.Equal(25m, charge.Amount);
-    }
-
-    [Fact]
-    public async Task Custom_invoice_method_is_excluded_from_paid_sales()
-    {
-        PaymentMethodSeeder.Seed(_ctx);
-        var methodId = await SeedInvoiceMethodAsync();
-        var shift = await SeedOpenShiftAsync();
-        var item = await SeedItemAsync();
-        var suki = await SeedSukiAsync();
-
-        await SaleHandler().Handle(
-            new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, methodId, 0m, null, suki.Id),
-            default);
-        await SaleHandler().Handle(
-            new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Cash, 25m),
-            default);
-
-        var transactions = await _transactions.GetByShiftAsync(shift.Id);
-        Assert.Equal(25m, PaidSales.Net(transactions));
-        Assert.Equal(1, PaidSales.Count(transactions));
-    }
-
-    [Fact]
-    public async Task Deactivated_utang_blocks_new_charges_with_settings_copy()
-    {
-        PaymentMethodSeeder.Seed(_ctx);
-        await new UpdatePaymentMethodCommandHandler(_methods, _uow).Handle(
-            new UpdatePaymentMethodCommand(PaymentMethodIds.Utang, "Utang", false, false),
-            default);
-        await SeedOpenShiftAsync();
-        var item = await SeedItemAsync();
-        var suki = await SeedSukiAsync();
-
-        var ex = await Assert.ThrowsAsync<DomainException>(() => SaleHandler().Handle(
-            new CreateTransactionCommand(
-                [new CartItemInput(item.Id, 1, 0m)], 0m, PaymentMethodIds.Utang, 0m, null, suki.Id),
-            default));
-
-        Assert.Equal(
-            "Utang is turned off — turn it on in web admin Settings.", ex.Message);
     }
 
     public void Dispose()

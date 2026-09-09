@@ -13,7 +13,7 @@ public class GetPaymentMethodsQueryHandler : IRequestHandler<GetPaymentMethodsQu
         var methods = await _methods.GetAllAsync(ct);
         return methods
             .Select(m => new PaymentMethodDto(
-                m.Id, m.Name, m.Type.ToString(), m.RequiresReference, m.IsActive, m.IsSystem))
+                m.Id, m.Name, m.RequiresReference, m.IsActive, m.IsSystem))
             .ToList();
     }
 }

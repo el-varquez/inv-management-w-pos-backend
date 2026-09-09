@@ -9,7 +9,5 @@ public class CreatePaymentMethodCommandValidator : AbstractValidator<CreatePayme
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Name is required.")
             .MaximumLength(40).WithMessage("Name is too long.");
-
-        RuleFor(x => x.Type).IsInEnum();
     }
 }
