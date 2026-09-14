@@ -45,7 +45,7 @@ builder.Services.AddSwaggerGen();
 
 var corsOrigins = builder.Configuration["Cors:AllowedOrigins"]
     ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-    ?? ["http://localhost:5173"];
+    ?? ["http://localhost:5173", "http://localhost"];
 
 builder.Services.AddCors(options =>
 {
