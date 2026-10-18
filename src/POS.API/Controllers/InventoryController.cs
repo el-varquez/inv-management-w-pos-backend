@@ -8,6 +8,7 @@ using POS.Application.Inventory.Commands.CreateInventoryCount;
 using POS.Application.Inventory.Commands.SaveInventoryCountProgress;
 using POS.Application.Inventory.Commands.SetCompositeItem;
 using POS.Application.Inventory.Queries.GetInventoryCount;
+using POS.Application.Inventory.Queries.GetInventoryCountLines;
 using POS.Application.Inventory.Queries.GetInventoryCounts;
 using POS.Application.Inventory.Queries.GetInventoryHistory;
 using POS.Application.Inventory.Queries.GetItemComponents;
@@ -88,6 +89,13 @@ public class InventoryController : ControllerBase
     [HttpGet("count/{id:guid}")]
     public async Task<IActionResult> GetCount(Guid id)
         => Ok(await _mediator.Send(new GetInventoryCountQuery(id)));
+
+    [HttpGet("count/{id:guid}/lines")]
+    public async Task<IActionResult> GetCountLines(
+        Guid id,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetInventoryCountLinesQuery(id, page, pageSize)));
 
     [HttpGet("items/{id:guid}/components")]
     public async Task<IActionResult> GetComponents(Guid id)

@@ -2,13 +2,6 @@ using MediatR;
 
 namespace POS.Application.Inventory.Queries.GetInventoryCount;
 
-public record InventoryCountLineDto(
-    Guid ItemId,
-    string ItemName,
-    string CategoryName,
-    int ExpectedQty,
-    int? ActualQty);
-
 public record InventoryCountDto(
     Guid Id,
     string Reference,
@@ -16,6 +9,8 @@ public record InventoryCountDto(
     string Status,
     DateTime CreatedAt,
     DateTime? CompletedAt,
-    IList<InventoryCountLineDto> Lines);
+    int LineCount,
+    int CountedCount,
+    int VarianceCount);
 
 public record GetInventoryCountQuery(Guid Id) : IRequest<InventoryCountDto>;
