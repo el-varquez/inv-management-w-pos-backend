@@ -592,9 +592,9 @@ public class UtangModuleTests : IDisposable
         await InvoiceAsync(suki, item, 3);
 
         var rows = await new GetBestSellersQueryHandler(_sales, _invoices)
-            .Handle(new GetBestSellersQuery(null, null), default);
+            .Handle(new GetBestSellersQuery(null, null, null, null), default);
 
-        var row = Assert.Single(rows);
+        var row = Assert.Single(rows.Items);
         Assert.Equal(5, row.QuantitySold);
         Assert.Equal(8m, row.Revenue);
         Assert.Equal(4m, row.Profit);

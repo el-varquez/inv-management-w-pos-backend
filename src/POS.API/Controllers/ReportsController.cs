@@ -46,6 +46,8 @@ public class ReportsController : ControllerBase
     [HttpGet("best-sellers")]
     public async Task<IActionResult> GetBestSellers(
         [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
-        => Ok(await _mediator.Send(new GetBestSellersQuery(from, to)));
+        [FromQuery] DateTime? to,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetBestSellersQuery(from, to, page, pageSize)));
 }

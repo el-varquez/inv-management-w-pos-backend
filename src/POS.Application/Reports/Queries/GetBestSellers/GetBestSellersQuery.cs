@@ -1,11 +1,14 @@
 using MediatR;
+using POS.Application.Common.Models;
 
 namespace POS.Application.Reports.Queries.GetBestSellers;
 
 public record GetBestSellersQuery(
     DateTime? From,
-    DateTime? To
-) : IRequest<IList<BestSellerDto>>;
+    DateTime? To,
+    int? Page,
+    int? PageSize
+) : IRequest<PagedResult<BestSellerDto>>;
 
 public record BestSellerDto(
     Guid ItemId,

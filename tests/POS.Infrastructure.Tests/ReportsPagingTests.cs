@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using POS.Application.Reports.Queries.GetBestSellers;
 using POS.Application.Reports.Queries.GetExpenseReport;
 using POS.Application.Reports.Queries.GetProfitReport;
 using POS.Application.Reports.Queries.GetSalesReport;
@@ -319,6 +320,99 @@ public class ReportsPagingTests : IDisposable
         Assert.Equal(0m, report.NetProfit);
         Assert.Equal(1, report.TotalCount);
         Assert.Equal(coke.Id, Assert.Single(report.Items).ItemId);
+    }
+
+    // ---------- Task 4: best sellers ----------
+
+    private async Task<Invoice> SeedInvoiceAsync(Suki suki, DateTime createdAt, bool voided, params Line[] lines)
+    {
+        var invoice = new Invoice
+        {
+            InvoiceNumber = $"INV{++_seq:D4}",
+            SukiId = suki.Id,
+            ShiftId = _shift.Id,
+            Subtotal = lines.Sum(l => l.Total),
+            Total = lines.Sum(l => l.Total),
+            IsVoided = voided,
+            CreatedBy = _user.Id,
+            CreatedAt = createdAt,
+            Items = lines.Select(l => new InvoiceItem
+            {
+                ItemId = l.Item.Id,
+                ItemName = l.Item.Name,
+                UnitPrice = l.Item.SellingPrice,
+                CostPrice = l.Item.CostPrice,
+                Quantity = l.Qty,
+                Total = l.Total,
+                CreatedAt = createdAt
+            }).ToList()
+        };
+        await _invoices.AddAsync(invoice);
+        await _uow.SaveChangesAsync();
+        return invoice;
+    }
+
+    [Fact]
+    public async Task Best_sellers_add_invoice_quantities_but_take_revenue_from_sales_only()
+    {
+        var suki = new Suki { Name = "Aling Rosa", CreatedBy = _user.Id };
+        _ctx.Sukis.Add(suki);
+        await _ctx.SaveChangesAsync();
+        var a = await SeedItemAsync("Item A", cost: 6m, price: 10m);
+        var b = await SeedItemAsync("Item B", cost: 4m, price: 5m);
+        await SeedSaleAsync(Day1, 30m, 0m, 30m, lines: new Line(a, 3, 30m));
+        await SeedSaleAsync(Day1.AddHours(1), 20m, 0m, 20m, lines: new Line(b, 4, 20m));
+        await SeedInvoiceAsync(suki, Day2, false, new Line(a, 2, 20m));
+        await SeedInvoiceAsync(suki, Day2.AddHours(1), true, new Line(a, 9, 90m));
+
+        var result = await new GetBestSellersQueryHandler(_sales, _invoices)
+            .Handle(new GetBestSellersQuery(null, null, null, null), CancellationToken.None);
+
+        Assert.Equal(2, result.TotalCount);
+        Assert.Equal(a.Id, result.Items[0].ItemId);
+        Assert.Equal(5, result.Items[0].QuantitySold);
+        Assert.Equal(30m, result.Items[0].Revenue);
+        Assert.Equal(12m, result.Items[0].Profit);
+        Assert.Equal(40m, result.Items[0].MarginPercent);
+        Assert.Equal(b.Id, result.Items[1].ItemId);
+        Assert.Equal(4, result.Items[1].QuantitySold);
+    }
+
+    [Fact]
+    public async Task Best_sellers_page_two_returns_the_remainder()
+    {
+        for (var i = 1; i <= 25; i++)
+        {
+            var item = await SeedItemAsync($"Item {i:D2}");
+            await SeedSaleAsync(Day1.AddMinutes(i), 20m, 0m, 20m, lines: new Line(item, 1, 20m));
+        }
+
+        var result = await new GetBestSellersQueryHandler(_sales, _invoices)
+            .Handle(new GetBestSellersQuery(null, null, 2, null), CancellationToken.None);
+
+        Assert.Equal(5, result.Items.Count);
+        Assert.Equal(25, result.TotalCount);
+    }
+
+    [Fact]
+    public async Task Best_sellers_list_an_item_charged_on_invoices_but_never_sold()
+    {
+        var suki = new Suki { Name = "Mang Ben", CreatedBy = _user.Id };
+        _ctx.Sukis.Add(suki);
+        await _ctx.SaveChangesAsync();
+        var a = await SeedItemAsync("Item A", cost: 6m, price: 10m);
+        await SeedInvoiceAsync(suki, Day1, false, new Line(a, 4, 40m));
+
+        var result = await new GetBestSellersQueryHandler(_sales, _invoices)
+            .Handle(new GetBestSellersQuery(null, null, null, null), CancellationToken.None);
+
+        var row = Assert.Single(result.Items);
+        Assert.Equal(a.Id, row.ItemId);
+        Assert.Equal("Item A", row.ItemName);
+        Assert.Equal(4, row.QuantitySold);
+        Assert.Equal(0m, row.Revenue);
+        Assert.Equal(0m, row.Profit);
+        Assert.Equal(0m, row.MarginPercent);
     }
 
     public void Dispose()

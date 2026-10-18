@@ -14,6 +14,9 @@ public record SaleLineTotals(decimal Revenue, decimal Cost);
 /// <summary>One item's sale lines aggregated in SQL for the profit report.</summary>
 public record ItemProfitRow(Guid ItemId, string ItemName, string CategoryName, int Quantity, decimal Revenue, decimal Cost);
 
+/// <summary>One item's sale lines aggregated in SQL for best sellers: quantity, revenue and profit from paid sales.</summary>
+public record ItemSalesRow(Guid ItemId, string ItemName, int Quantity, decimal Revenue, decimal Profit);
+
 public interface ISaleRepository
 {
     Task<Sale?> GetByIdAsync(Guid id, CancellationToken ct = default);
@@ -42,6 +45,9 @@ public interface ISaleRepository
     /// <summary>Per-item rows ordered by profit (revenue − cost) descending then ItemId.</summary>
     Task<(IList<ItemProfitRow> Rows, int Total)> GetItemProfitRowsPagedAsync(
         DateTime? from, DateTime? to, Guid? categoryId, Guid? itemId, int page, int pageSize, CancellationToken ct = default);
+
+    /// <summary>Every item sold in range, one aggregated row each (all sales, refund lines included).</summary>
+    Task<IList<ItemSalesRow>> GetItemSalesRowsAsync(DateTime? from, DateTime? to, CancellationToken ct = default);
 
     Task<IList<Sale>> GetByShiftAsync(Guid shiftId, CancellationToken ct = default);
     Task<int> GetMaxReceiptSequenceAsync(string prefix, CancellationToken ct = default);

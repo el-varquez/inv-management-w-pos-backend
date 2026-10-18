@@ -173,6 +173,26 @@ public class SaleRepository : ISaleRepository
             .ToList(), total);
     }
 
+    public async Task<IList<ItemSalesRow>> GetItemSalesRowsAsync(
+        DateTime? from, DateTime? to, CancellationToken ct = default)
+    {
+        var rows = await LinesInRange(from, to, null, null)
+            .GroupBy(l => new { l.ItemId, l.Item.Name })
+            .Select(g => new
+            {
+                g.Key.ItemId,
+                g.Key.Name,
+                Quantity = g.Sum(l => l.Quantity),
+                Revenue = g.Sum(l => l.Total),
+                Profit = g.Sum(l => l.Total - l.CostPrice * l.Quantity)
+            })
+            .ToListAsync(ct);
+
+        return rows
+            .Select(r => new ItemSalesRow(r.ItemId, r.Name, r.Quantity, r.Revenue, r.Profit))
+            .ToList();
+    }
+
     public async Task<IList<Sale>> GetByShiftAsync(
         Guid shiftId, CancellationToken ct = default)
         => await _context.Sales
