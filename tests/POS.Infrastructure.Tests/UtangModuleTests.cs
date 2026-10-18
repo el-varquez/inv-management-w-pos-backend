@@ -16,6 +16,7 @@ using POS.Application.Utang.Commands.EditUtangPayment;
 using POS.Application.Utang.Commands.UpdateSuki;
 using POS.Application.Utang.Commands.VoidUtangPayment;
 using POS.Application.Utang.Queries.GetSukiLedger;
+using POS.Application.Utang.Queries.GetSukiLedgerEntries;
 using POS.Application.Utang.Queries.GetSukis;
 using POS.Application.Utang.Queries.GetUtangSummary;
 using POS.Domain.Entities;
@@ -118,6 +119,10 @@ public class UtangModuleTests : IDisposable
     private GetSukisQueryHandler SukisHandler() => new(_utang, _settings);
 
     private GetSukiLedgerQueryHandler LedgerHandler() => new(_utang, _invoices, _settings);
+
+    private async Task<IReadOnlyList<UtangLedgerEntryDto>> EntriesAsync(Guid sukiId)
+        => (await new GetSukiLedgerEntriesQueryHandler(_utang)
+            .Handle(new GetSukiLedgerEntriesQuery(sukiId, null, null), default)).Items;
 
     private GetUtangSummaryQueryHandler SummaryHandler() => new(_utang, _invoices);
 
@@ -360,7 +365,7 @@ public class UtangModuleTests : IDisposable
     }
 
     [Fact]
-    public async Task The_ledger_lists_entries_chronologically_with_markup_earned()
+    public async Task The_ledger_lists_entries_newest_first_with_running_balances_and_markup_earned()
     {
         var suki = await SeedSukiAsync();
         var first = await SeedInvoiceAsync(suki, 100m, DaysAgo(3), markup: 5m);
@@ -368,14 +373,17 @@ public class UtangModuleTests : IDisposable
         await SeedInvoiceAsync(suki, 50m, DaysAgo(1), markup: 2m);
 
         var ledger = await LedgerHandler().Handle(new GetSukiLedgerQuery(suki.Id), default);
+        var entries = await EntriesAsync(suki.Id);
 
         Assert.Equal(120m, ledger.Balance);
+        Assert.Equal(30m, ledger.AmountPaid);
         Assert.Equal(7m, ledger.MarkupEarned);
-        Assert.Equal(new[] { "Charge", "Payment", "Charge" }, ledger.Entries.Select(e => e.Type).ToArray());
-        Assert.Equal(first.InvoiceNumber, ledger.Entries[0].InvoiceNumber);
-        Assert.Equal(first.Id, ledger.Entries[0].InvoiceId);
-        Assert.Equal(5m, ledger.Entries[0].Markup);
-        Assert.Equal("Partial", ledger.Entries[1].Note);
+        Assert.Equal(new[] { "Charge", "Payment", "Charge" }, entries.Select(e => e.Type).ToArray());
+        Assert.Equal(first.InvoiceNumber, entries[2].InvoiceNumber);
+        Assert.Equal(first.Id, entries[2].InvoiceId);
+        Assert.Equal(5m, entries[2].Markup);
+        Assert.Equal("Partial", entries[1].Note);
+        Assert.Equal(new decimal?[] { 120m, 70m, 100m }, entries.Select(e => e.RunningBalance).ToArray());
         Assert.NotNull(ledger.DebtSince);
     }
 
@@ -429,8 +437,8 @@ public class UtangModuleTests : IDisposable
 
         await CollectHandler().Handle(new CollectUtangPaymentCommand(suki.Id, 10m, "  Bayad kay Ben  "), default);
 
-        var ledger = await LedgerHandler().Handle(new GetSukiLedgerQuery(suki.Id), default);
-        Assert.Equal("Bayad kay Ben", ledger.Entries.Single(e => e.Type == "Payment").Note);
+        var entries = await EntriesAsync(suki.Id);
+        Assert.Equal("Bayad kay Ben", entries.Single(e => e.Type == "Payment").Note);
     }
 
     [Fact]
@@ -441,8 +449,8 @@ public class UtangModuleTests : IDisposable
 
         await CollectHandler().Handle(new CollectUtangPaymentCommand(suki.Id, 10m, "   "), default);
 
-        var ledger = await LedgerHandler().Handle(new GetSukiLedgerQuery(suki.Id), default);
-        Assert.Equal("Payment received", ledger.Entries.Single(e => e.Type == "Payment").Note);
+        var entries = await EntriesAsync(suki.Id);
+        Assert.Equal("Payment received", entries.Single(e => e.Type == "Payment").Note);
     }
 
     [Fact]

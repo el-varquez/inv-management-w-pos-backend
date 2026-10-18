@@ -123,4 +123,47 @@ public class UtangRepository : IUtangRepository
             .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
         return invoiced - paid;
     }
+
+    public async Task<(IList<LedgerEntryRow> Items, int Total)> GetLedgerEntriesPagedAsync(
+        Guid sukiId, int page, int pageSize, CancellationToken ct = default)
+    {
+        // The running balance needs the whole chronological sequence, so slim rows are
+        // projected (no items, no navigations), walked once in memory, then paged.
+        var charges = await _context.Invoices
+            .Where(i => i.SukiId == sukiId)
+            .Select(i => new { i.Id, i.Total, i.MarkupTotal, i.InvoiceNumber, i.IsVoided, i.CreatedAt })
+            .ToListAsync(ct);
+        var payments = await _context.Payments
+            .Where(p => p.SukiId == sukiId)
+            .Select(p => new { p.Id, p.Amount, p.Note, p.IsVoided, p.EditedFrom, p.CreatedAt })
+            .ToListAsync(ct);
+
+        var rows = charges
+            .Select(i => new LedgerEntryRow(
+                i.Id, "Charge", i.Total, i.MarkupTotal, i.Id, i.InvoiceNumber,
+                null, i.IsVoided, null, i.CreatedAt, null))
+            .Concat(payments.Select(p => new LedgerEntryRow(
+                p.Id, "Payment", p.Amount, 0m, null, null,
+                p.Note, p.IsVoided, p.EditedFrom, p.CreatedAt, null)))
+            .OrderBy(r => r.CreatedAt)
+            .ThenBy(r => r.Id)
+            .ToList();
+
+        var running = 0m;
+        for (var k = 0; k < rows.Count; k++)
+        {
+            var row = rows[k];
+            if (row.IsVoided) continue;
+            running += row.Type == "Payment" ? -row.Amount : row.Amount;
+            rows[k] = row with { RunningBalance = running };
+        }
+
+        rows.Reverse();
+        var items = rows
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return (items, rows.Count);
+    }
 }

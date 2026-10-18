@@ -8,6 +8,7 @@ using POS.Application.Utang.Commands.UpdateSuki;
 using POS.Application.Utang.Commands.EditUtangPayment;
 using POS.Application.Utang.Commands.VoidUtangPayment;
 using POS.Application.Utang.Queries.GetSukiLedger;
+using POS.Application.Utang.Queries.GetSukiLedgerEntries;
 using POS.Application.Utang.Queries.GetSukis;
 using POS.Application.Utang.Queries.GetUtangOutstanding;
 using POS.Application.Utang.Queries.GetUtangSummary;
@@ -50,6 +51,11 @@ public class UtangController : ControllerBase
     [HttpGet("sukis/{id:guid}/ledger")]
     public async Task<IActionResult> GetLedger(Guid id)
         => Ok(await _mediator.Send(new GetSukiLedgerQuery(id)));
+
+    [HttpGet("sukis/{id:guid}/ledger/entries")]
+    public async Task<IActionResult> GetLedgerEntries(
+        Guid id, [FromQuery] int? page, [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetSukiLedgerEntriesQuery(id, page, pageSize)));
 
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(

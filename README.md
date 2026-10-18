@@ -195,7 +195,7 @@ Run them locally with `node scripts/<name>.mjs`. The repo has no `package.json` 
 
 ## API surface
 
-All routes are prefixed with `/api` (68 endpoints).
+All routes are prefixed with `/api` (69 endpoints).
 
 | Controller | Route | Access |
 |---|---|---|
