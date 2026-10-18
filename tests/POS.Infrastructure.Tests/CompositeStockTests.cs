@@ -146,7 +146,7 @@ public class CompositeStockTests : IDisposable
         var coffee = await SeedCreamyCoffeeAsync();
 
         var result = await new GetInventoryValuationQueryHandler(_items)
-            .Handle(new GetInventoryValuationQuery(), CancellationToken.None);
+            .Handle(new GetInventoryValuationQuery(null, null), CancellationToken.None);
 
         Assert.DoesNotContain(result.Items, i => i.ItemId == coffee.Id);
     }

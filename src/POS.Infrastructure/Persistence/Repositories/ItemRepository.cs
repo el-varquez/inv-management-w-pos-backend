@@ -114,6 +114,25 @@ public class ItemRepository : IItemRepository
         return (items, total);
     }
 
+    public async Task<(IList<Item> Items, int Total, decimal TotalValue)> GetValuationPagedAsync(
+        int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _context.Items
+            .Where(i => i.IsActive && !i.IsComposite);
+
+        var total = await query.CountAsync(ct);
+        var totalValue = await query.SumAsync(i => (decimal?)(i.Stock * i.CostPrice), ct) ?? 0m;
+        var items = await query
+            .Include(i => i.Category)
+            .OrderBy(i => i.Name)
+            .ThenBy(i => i.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, total, totalValue);
+    }
+
     public async Task AddAsync(Item item, CancellationToken ct = default)
         => await _context.Items.AddAsync(item, ct);
 

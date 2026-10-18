@@ -112,6 +112,8 @@ public class InventoryController : ControllerBase
         => Ok(await _mediator.Send(new GetInventoryHistoryQuery(from, to, type, page, pageSize)));
 
     [HttpGet("valuation")]
-    public async Task<IActionResult> GetValuation()
-        => Ok(await _mediator.Send(new GetInventoryValuationQuery()));
+    public async Task<IActionResult> GetValuation(
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetInventoryValuationQuery(page, pageSize)));
 }
