@@ -71,7 +71,7 @@ public class ItemRepository : IItemRepository
             .ToListAsync(ct);
 
     public async Task<(IList<Item> Items, int Total)> GetPagedAsync(
-        int page, int pageSize, bool? isComposite = null, CancellationToken ct = default)
+        int page, int pageSize, bool? isComposite = null, bool? tracksStock = null, CancellationToken ct = default)
     {
         var query = _context.Items
             .Include(i => i.Category)
@@ -79,6 +79,9 @@ public class ItemRepository : IItemRepository
 
         if (isComposite.HasValue)
             query = query.Where(i => i.IsComposite == isComposite.Value);
+
+        if (tracksStock.HasValue)
+            query = query.Where(i => i.TracksStock == tracksStock.Value);
 
         var ordered = query
             .OrderBy(i => i.Name)
