@@ -7,7 +7,7 @@ public interface IStockMovementRepository
 {
     Task<IList<StockMovement>> GetByItemIdAsync(Guid ItemId, CancellationToken ct = default);
     Task<IList<StockMovement>> GetAllAsync(DateTime? from, DateTime? to, StockMovementType? type, CancellationToken ct = default);
-    Task<(IList<StockMovement> Items, int Total)> GetPagedAsync(DateTime? from, DateTime? to, StockMovementType? type, int page, int pageSize, CancellationToken ct = default);
+    Task<(IList<StockMovement> Items, int Total)> GetPagedAsync(DateTime? from, DateTime? to, StockMovementType? type, int page, int pageSize, string? search = null, CancellationToken ct = default);
 
     /// <summary>Sum of Quantity × CostPerUnit over AddStock rows that carry a cost.</summary>
     Task<decimal> GetPurchaseTotalAsync(DateTime? from, DateTime? to, CancellationToken ct = default);

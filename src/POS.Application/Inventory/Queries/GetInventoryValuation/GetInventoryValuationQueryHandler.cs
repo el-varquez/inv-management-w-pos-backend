@@ -16,7 +16,8 @@ public class GetInventoryValuationQueryHandler
         GetInventoryValuationQuery request, CancellationToken ct)
     {
         var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
-        var (items, total, totalValue) = await _itemRepository.GetValuationPagedAsync(page, pageSize, ct);
+        var (items, total, totalValue) = await _itemRepository.GetValuationPagedAsync(
+            page, pageSize, request.Search, ct);
 
         var dtos = items
             .Select(i => new InventoryValuationItemDto(

@@ -13,5 +13,6 @@ public record InventoryCountLineDto(
 public record GetInventoryCountLinesQuery(
     Guid CountId,
     int? Page,
-    int? PageSize
+    int? PageSize,
+    string? Search = null
 ) : IRequest<PagedResult<InventoryCountLineDto>>;

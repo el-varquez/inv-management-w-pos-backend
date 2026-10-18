@@ -17,7 +17,7 @@ public class GetInventoryHistoryQueryHandler
     {
         var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
         var (movements, total) = await _stockMovementRepository.GetPagedAsync(
-            request.From, request.To, request.Type, page, pageSize, ct);
+            request.From, request.To, request.Type, page, pageSize, request.Search, ct);
 
         var dtos = movements.Select(m => new InventoryHistoryDto(
             m.Id,

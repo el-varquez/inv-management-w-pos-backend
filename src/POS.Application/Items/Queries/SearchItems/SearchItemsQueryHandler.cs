@@ -24,7 +24,7 @@ public class SearchItemsQueryHandler
     public async Task<IList<SearchItemDto>> Handle(SearchItemsQuery request, CancellationToken ct)
     {
         var limit = Math.Clamp(request.Limit ?? DefaultLimit, 1, MaxLimit);
-        var items = await _itemRepository.SearchAsync(request.Term.Trim(), limit, ct);
+        var items = await _itemRepository.SearchAsync(request.Term.Trim(), limit, request.CategoryId, ct);
 
         var dtos = new List<SearchItemDto>();
         foreach (var i in items)

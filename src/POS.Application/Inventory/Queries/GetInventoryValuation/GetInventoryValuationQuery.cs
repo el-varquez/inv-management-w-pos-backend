@@ -3,7 +3,7 @@ using POS.Application.Common.Models;
 
 namespace POS.Application.Inventory.Queries.GetInventoryValuation;
 
-public record GetInventoryValuationQuery(int? Page, int? PageSize) : IRequest<InventoryValuationDto>;
+public record GetInventoryValuationQuery(int? Page, int? PageSize, string? Search = null) : IRequest<InventoryValuationDto>;
 
 public record InventoryValuationItemDto(
     Guid ItemId,

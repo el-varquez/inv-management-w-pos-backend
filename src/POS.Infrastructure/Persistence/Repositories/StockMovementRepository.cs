@@ -42,13 +42,15 @@ public class StockMovementRepository : IStockMovementRepository
         StockMovementType? type,
         int page,
         int pageSize,
+        string? search = null,
         CancellationToken ct = default
     )
     {
         var query = _context.StockMovements
         .Include(s => s.Item)
         .ThenInclude(i => i.Category)
-        .AsQueryable();
+        .AsQueryable()
+        .WhereItemMatches(search);
 
         if (from.HasValue) query = query.Where(s => s.CreatedAt >= from.Value);
         if (to.HasValue) query = query.Where(s => s.CreatedAt <= to.Value);
