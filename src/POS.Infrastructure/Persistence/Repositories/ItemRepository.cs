@@ -96,11 +96,23 @@ public class ItemRepository : IItemRepository
         return (items, total);
     }
 
-    public async Task<IList<Item>> GetLowStockAsync(CancellationToken ct = default)
-        => await _context.Items
+    public async Task<(IList<Item> Items, int Total)> GetLowStockPagedAsync(
+        int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _context.Items
             .Include(i => i.Category)
-            .Where(i => i.IsActive && i.TracksStock && i.Stock <= i.LowStockThreshold)
+            .Where(i => i.IsActive && i.TracksStock && !i.IsComposite && i.Stock <= i.LowStockThreshold)
+            .OrderBy(i => i.Name)
+            .ThenBy(i => i.Id);
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
+
+        return (items, total);
+    }
 
     public async Task AddAsync(Item item, CancellationToken ct = default)
         => await _context.Items.AddAsync(item, ct);

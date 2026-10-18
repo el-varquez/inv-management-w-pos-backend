@@ -34,8 +34,10 @@ public class InventoryController : ControllerBase
         => Ok(await _mediator.Send(new GetStockLevelsQuery(page, pageSize)));
 
     [HttpGet("low-stock")]
-    public async Task<IActionResult> GetLowStock()
-        => Ok(await _mediator.Send(new GetLowStockItemsQuery()));
+    public async Task<IActionResult> GetLowStock(
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetLowStockItemsQuery(page, pageSize)));
 
     [HttpPost("receive-stock")]
     public async Task<IActionResult> ReceiveStock([FromBody] ReceiveStockCommand command)
