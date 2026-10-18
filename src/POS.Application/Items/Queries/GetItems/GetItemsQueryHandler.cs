@@ -23,7 +23,7 @@ public class GetItemsQueryHandler : IRequestHandler<GetItemsQuery, PagedResult<I
     {
         var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
         var (items, total) = await _itemRepository.GetPagedAsync(
-            page, pageSize, request.IsComposite, ct);
+            page, pageSize, request.IsComposite, ct: ct);
 
         var dtos = new List<ItemDto>();
         foreach (var i in items)

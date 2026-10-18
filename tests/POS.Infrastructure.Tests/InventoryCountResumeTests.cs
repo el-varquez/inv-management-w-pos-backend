@@ -4,6 +4,7 @@ using POS.Application.Inventory.Commands.CompleteInventoryCount;
 using POS.Application.Inventory.Commands.CreateInventoryCount;
 using POS.Application.Inventory.Commands.SaveInventoryCountProgress;
 using POS.Application.Inventory.Queries.GetInventoryCount;
+using POS.Application.Inventory.Queries.GetInventoryCountLines;
 using POS.Application.Inventory.Queries.GetInventoryCounts;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -178,7 +179,12 @@ public class InventoryCountResumeTests : IDisposable
 
         Assert.Equal("Month end", dto.Notes);
         Assert.Equal("Draft", dto.Status);
-        var line = Assert.Single(dto.Lines);
+        Assert.Equal(1, dto.LineCount);
+        Assert.Equal(1, dto.CountedCount);
+
+        var lines = await new GetInventoryCountLinesQueryHandler(_counts)
+            .Handle(new GetInventoryCountLinesQuery(id, null, null), CancellationToken.None);
+        var line = Assert.Single(lines.Items);
         Assert.Equal("Rice", line.ItemName);
         Assert.Equal("General", line.CategoryName);
         Assert.Equal(10, line.ExpectedQty);

@@ -43,19 +43,22 @@ public class CompleteInventoryCountCommandHandler
         foreach (var input in request.Lines)
         {
             var line = count.Lines.FirstOrDefault(l => l.ItemId == input.ItemId)
-                ?? throw new DomainException($"Item line not found in this count.");
+                ?? throw new DomainException("Item line not found in this count.");
 
             line.ActualQty = input.ActualQty;
+        }
 
-            if (input.ActualQty is null) continue;
+        foreach (var line in count.Lines.Where(l => l.ActualQty != null))
+        {
+            var actualQty = line.ActualQty!.Value;
 
-            var item = await _itemRepository.GetByIdAsync(input.ItemId, ct)
-                ?? throw new NotFoundException("Item", input.ItemId);
+            var item = await _itemRepository.GetByIdAsync(line.ItemId, ct)
+                ?? throw new NotFoundException("Item", line.ItemId);
 
-            var movementQty = input.ActualQty.Value - item.Stock;
+            var movementQty = actualQty - item.Stock;
             if (movementQty != 0)
             {
-                item.Stock = input.ActualQty.Value;
+                item.Stock = actualQty;
                 item.UpdatedAt = DateTime.UtcNow;
                 await _itemRepository.UpdateAsync(item, ct);
 

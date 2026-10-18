@@ -248,10 +248,10 @@ public class NonPhysicalItemTests : IDisposable
         var rice = await SeedAsync("Rice 1kg", stock: 2, threshold: 5);
 
         var handler = new GetLowStockItemsQueryHandler(_items);
-        var result = await handler.Handle(new GetLowStockItemsQuery(), CancellationToken.None);
+        var result = await handler.Handle(new GetLowStockItemsQuery(null, null), CancellationToken.None);
 
-        Assert.Single(result);
-        Assert.Equal(rice.Id, result[0].ItemId);
+        Assert.Single(result.Items);
+        Assert.Equal(rice.Id, result.Items[0].ItemId);
     }
 
     [Fact]

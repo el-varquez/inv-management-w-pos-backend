@@ -14,18 +14,11 @@ public class GetInventoryCountQueryHandler
 
     public async Task<InventoryCountDto> Handle(GetInventoryCountQuery request, CancellationToken ct)
     {
-        var count = await _countRepository.GetByIdAsync(request.Id, ct)
+        var count = await _countRepository.GetHeaderAsync(request.Id, ct)
             ?? throw new NotFoundException("InventoryCount", request.Id);
 
-        var lines = count.Lines
-            .OrderBy(l => l.Item.Name)
-            .Select(l => new InventoryCountLineDto(
-                l.ItemId,
-                l.Item.Name,
-                l.Item.Category.Name,
-                l.ExpectedQty,
-                l.ActualQty))
-            .ToList();
+        var (lineCount, countedCount, varianceCount) =
+            await _countRepository.GetLineStatsAsync(count.Id, ct);
 
         return new InventoryCountDto(
             count.Id,
@@ -34,6 +27,8 @@ public class GetInventoryCountQueryHandler
             count.Status.ToString(),
             count.CreatedAt,
             count.CompletedAt,
-            lines);
+            lineCount,
+            countedCount,
+            varianceCount);
     }
 }

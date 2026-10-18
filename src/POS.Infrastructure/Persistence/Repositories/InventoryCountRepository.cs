@@ -18,6 +18,41 @@ public class InventoryCountRepository : IInventoryCountRepository
             .ThenInclude(i => i.Category)
             .FirstOrDefaultAsync(ic => ic.Id == id, ct);
 
+    public async Task<InventoryCount?> GetHeaderAsync(Guid id, CancellationToken ct = default)
+        => await _context.InventoryCounts
+            .FirstOrDefaultAsync(ic => ic.Id == id, ct);
+
+    public async Task<(IList<InventoryCountLine> Lines, int Total)> GetLinesPagedAsync(
+        Guid countId, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _context.InventoryCountLines
+            .Include(l => l.Item)
+            .ThenInclude(i => i.Category)
+            .Where(l => l.InventoryCountId == countId)
+            .OrderBy(l => l.Item.Name)
+            .ThenBy(l => l.ItemId);
+
+        var total = await query.CountAsync(ct);
+        var lines = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (lines, total);
+    }
+
+    public async Task<(int LineCount, int CountedCount, int VarianceCount)> GetLineStatsAsync(
+        Guid countId, CancellationToken ct = default)
+    {
+        var lines = _context.InventoryCountLines.Where(l => l.InventoryCountId == countId);
+
+        var lineCount = await lines.CountAsync(ct);
+        var countedCount = await lines.CountAsync(l => l.ActualQty != null, ct);
+        var varianceCount = await lines.CountAsync(l => l.ActualQty != null && l.ActualQty != l.ExpectedQty, ct);
+
+        return (lineCount, countedCount, varianceCount);
+    }
+
     public async Task<IList<InventoryCount>> GetAllAsync(CancellationToken ct = default)
         => await _context.InventoryCounts
             .Include(ic => ic.Lines)

@@ -1,8 +1,9 @@
 using MediatR;
+using POS.Application.Common.Models;
 
 namespace POS.Application.Inventory.Queries.GetInventoryValuation;
 
-public record GetInventoryValuationQuery : IRequest<InventoryValuationDto>;
+public record GetInventoryValuationQuery(int? Page, int? PageSize) : IRequest<InventoryValuationDto>;
 
 public record InventoryValuationItemDto(
     Guid ItemId,
@@ -14,8 +15,11 @@ public record InventoryValuationItemDto(
 );
 
 public record InventoryValuationDto(
-    IList<InventoryValuationItemDto> Items,
+    IReadOnlyList<InventoryValuationItemDto> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
     decimal TotalValue,
     int TotalItems,
     DateTime GeneratedAt
-);
+) : PagedResult<InventoryValuationItemDto>(Items, Page, PageSize, TotalCount);

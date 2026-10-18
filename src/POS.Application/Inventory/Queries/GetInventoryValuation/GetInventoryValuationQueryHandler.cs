@@ -1,4 +1,5 @@
 using MediatR;
+using POS.Application.Common.Models;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Inventory.Queries.GetInventoryValuation;
@@ -14,23 +15,26 @@ public class GetInventoryValuationQueryHandler
     public async Task<InventoryValuationDto> Handle(
         GetInventoryValuationQuery request, CancellationToken ct)
     {
-        var items = await _itemRepository.GetAllAsync(ct);
+        var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
+        var (items, total, totalValue) = await _itemRepository.GetValuationPagedAsync(page, pageSize, ct);
 
-        var valuationItems = items
-            .Where(i => !i.IsComposite)
+        var dtos = items
             .Select(i => new InventoryValuationItemDto(
-            i.Id,
-            i.Name,
-            i.Category.Name,
-            i.Stock,
-            i.CostPrice,
-            i.Stock * i.CostPrice
-        )).ToList();
+                i.Id,
+                i.Name,
+                i.Category.Name,
+                i.Stock,
+                i.CostPrice,
+                i.Stock * i.CostPrice))
+            .ToList();
 
         return new InventoryValuationDto(
-            valuationItems,
-            valuationItems.Sum(i => i.StockValue),
-            valuationItems.Count,
+            dtos,
+            page,
+            pageSize,
+            total,
+            totalValue,
+            total,
             DateTime.UtcNow
         );
     }

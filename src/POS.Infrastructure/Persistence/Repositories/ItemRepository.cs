@@ -71,7 +71,7 @@ public class ItemRepository : IItemRepository
             .ToListAsync(ct);
 
     public async Task<(IList<Item> Items, int Total)> GetPagedAsync(
-        int page, int pageSize, bool? isComposite = null, CancellationToken ct = default)
+        int page, int pageSize, bool? isComposite = null, bool? tracksStock = null, CancellationToken ct = default)
     {
         var query = _context.Items
             .Include(i => i.Category)
@@ -79,6 +79,9 @@ public class ItemRepository : IItemRepository
 
         if (isComposite.HasValue)
             query = query.Where(i => i.IsComposite == isComposite.Value);
+
+        if (tracksStock.HasValue)
+            query = query.Where(i => i.TracksStock == tracksStock.Value);
 
         var ordered = query
             .OrderBy(i => i.Name)
@@ -93,11 +96,42 @@ public class ItemRepository : IItemRepository
         return (items, total);
     }
 
-    public async Task<IList<Item>> GetLowStockAsync(CancellationToken ct = default)
-        => await _context.Items
+    public async Task<(IList<Item> Items, int Total)> GetLowStockPagedAsync(
+        int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _context.Items
             .Include(i => i.Category)
-            .Where(i => i.IsActive && i.TracksStock && i.Stock <= i.LowStockThreshold)
+            .Where(i => i.IsActive && i.TracksStock && !i.IsComposite && i.Stock <= i.LowStockThreshold)
+            .OrderBy(i => i.Name)
+            .ThenBy(i => i.Id);
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
+
+        return (items, total);
+    }
+
+    public async Task<(IList<Item> Items, int Total, decimal TotalValue)> GetValuationPagedAsync(
+        int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _context.Items
+            .Where(i => i.IsActive && !i.IsComposite);
+
+        var total = await query.CountAsync(ct);
+        var totalValue = await query.SumAsync(i => (decimal?)(i.Stock * i.CostPrice), ct) ?? 0m;
+        var items = await query
+            .Include(i => i.Category)
+            .OrderBy(i => i.Name)
+            .ThenBy(i => i.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, total, totalValue);
+    }
 
     public async Task AddAsync(Item item, CancellationToken ct = default)
         => await _context.Items.AddAsync(item, ct);

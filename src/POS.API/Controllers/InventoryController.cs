@@ -8,6 +8,7 @@ using POS.Application.Inventory.Commands.CreateInventoryCount;
 using POS.Application.Inventory.Commands.SaveInventoryCountProgress;
 using POS.Application.Inventory.Commands.SetCompositeItem;
 using POS.Application.Inventory.Queries.GetInventoryCount;
+using POS.Application.Inventory.Queries.GetInventoryCountLines;
 using POS.Application.Inventory.Queries.GetInventoryCounts;
 using POS.Application.Inventory.Queries.GetInventoryHistory;
 using POS.Application.Inventory.Queries.GetItemComponents;
@@ -34,8 +35,10 @@ public class InventoryController : ControllerBase
         => Ok(await _mediator.Send(new GetStockLevelsQuery(page, pageSize)));
 
     [HttpGet("low-stock")]
-    public async Task<IActionResult> GetLowStock()
-        => Ok(await _mediator.Send(new GetLowStockItemsQuery()));
+    public async Task<IActionResult> GetLowStock(
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetLowStockItemsQuery(page, pageSize)));
 
     [HttpPost("receive-stock")]
     public async Task<IActionResult> ReceiveStock([FromBody] ReceiveStockCommand command)
@@ -87,6 +90,13 @@ public class InventoryController : ControllerBase
     public async Task<IActionResult> GetCount(Guid id)
         => Ok(await _mediator.Send(new GetInventoryCountQuery(id)));
 
+    [HttpGet("count/{id:guid}/lines")]
+    public async Task<IActionResult> GetCountLines(
+        Guid id,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetInventoryCountLinesQuery(id, page, pageSize)));
+
     [HttpGet("items/{id:guid}/components")]
     public async Task<IActionResult> GetComponents(Guid id)
         => Ok(await _mediator.Send(new GetItemComponentsQuery(id)));
@@ -110,6 +120,8 @@ public class InventoryController : ControllerBase
         => Ok(await _mediator.Send(new GetInventoryHistoryQuery(from, to, type, page, pageSize)));
 
     [HttpGet("valuation")]
-    public async Task<IActionResult> GetValuation()
-        => Ok(await _mediator.Send(new GetInventoryValuationQuery()));
+    public async Task<IActionResult> GetValuation(
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetInventoryValuationQuery(page, pageSize)));
 }
