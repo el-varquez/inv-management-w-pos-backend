@@ -20,8 +20,10 @@ public class ReportsController : ControllerBase
     [HttpGet("sales")]
     public async Task<IActionResult> GetSalesReport(
         [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
-        => Ok(await _mediator.Send(new GetSalesReportQuery(from, to)));
+        [FromQuery] DateTime? to,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetSalesReportQuery(from, to, page, pageSize)));
 
     [HttpGet("expenses")]
     public async Task<IActionResult> GetExpenseReport(
