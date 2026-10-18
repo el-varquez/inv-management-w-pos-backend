@@ -126,6 +126,53 @@ public class SaleRepository : ISaleRepository
         return (result, total);
     }
 
+    private IQueryable<SaleItem> LinesInRange(DateTime? from, DateTime? to, Guid? categoryId, Guid? itemId)
+    {
+        var query = _context.SaleItems.AsQueryable();
+        if (from.HasValue) query = query.Where(l => l.Sale.CreatedAt >= from.Value);
+        if (to.HasValue) query = query.Where(l => l.Sale.CreatedAt <= to.Value);
+        if (itemId.HasValue) query = query.Where(l => l.ItemId == itemId.Value);
+        else if (categoryId.HasValue) query = query.Where(l => l.Item.CategoryId == categoryId.Value);
+        return query;
+    }
+
+    public async Task<SaleLineTotals> GetLineTotalsAsync(
+        DateTime? from, DateTime? to, Guid? categoryId, Guid? itemId, CancellationToken ct = default)
+    {
+        var lines = LinesInRange(from, to, categoryId, itemId);
+        var revenue = await lines.SumAsync(l => (decimal?)l.Total, ct) ?? 0m;
+        var cost = await lines.SumAsync(l => (decimal?)(l.CostPrice * l.Quantity), ct) ?? 0m;
+        return new SaleLineTotals(revenue, cost);
+    }
+
+    public async Task<(IList<ItemProfitRow> Rows, int Total)> GetItemProfitRowsPagedAsync(
+        DateTime? from, DateTime? to, Guid? categoryId, Guid? itemId, int page, int pageSize, CancellationToken ct = default)
+    {
+        var grouped = LinesInRange(from, to, categoryId, itemId)
+            .GroupBy(l => new { l.ItemId, l.Item.Name, CategoryName = l.Item.Category.Name })
+            .Select(g => new
+            {
+                g.Key.ItemId,
+                g.Key.Name,
+                g.Key.CategoryName,
+                Quantity = g.Sum(l => l.Quantity),
+                Revenue = g.Sum(l => l.Total),
+                Cost = g.Sum(l => l.CostPrice * l.Quantity)
+            })
+            .OrderByDescending(r => (double)(r.Revenue - r.Cost)) // SQLite cannot ORDER BY a decimal expression; the sort key alone is cast
+            .ThenBy(r => r.ItemId);
+
+        var total = await grouped.CountAsync(ct);
+        var rows = await grouped
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (rows
+            .Select(r => new ItemProfitRow(r.ItemId, r.Name, r.CategoryName, r.Quantity, r.Revenue, r.Cost))
+            .ToList(), total);
+    }
+
     public async Task<IList<Sale>> GetByShiftAsync(
         Guid shiftId, CancellationToken ct = default)
         => await _context.Sales

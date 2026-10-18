@@ -1,6 +1,5 @@
 using MediatR;
-using POS.Domain.Entities;
-using POS.Domain.Enums;
+using POS.Application.Common.Models;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Reports.Queries.GetProfitReport;
@@ -22,103 +21,60 @@ public class GetProfitReportQueryHandler
     public async Task<ProfitReportDto> Handle(
         GetProfitReportQuery request, CancellationToken ct)
     {
-        var allSales = await _sales.GetAllWithItemCategoriesAsync(
-            request.From, request.To, ct);
-
+        var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
         var isFiltered = request.ItemId.HasValue || request.CategoryId.HasValue;
 
-        var allLines = allSales.SelectMany(t => t.Items);
-        var lines = LineFilter(allLines, request).ToList();
-
-        var cogs = lines.Sum(i => i.CostPrice * i.Quantity);
-
-        decimal netSales;
-        if (isFiltered)
-        {
-            netSales = lines.Sum(i => i.Total);
-        }
-        else
-        {
-            var sales = allSales.Where(t => t.RefundedFromId == null);
-            var refunds = Math.Abs(allSales
-                .Where(t => t.RefundedFromId != null)
-                .Sum(t => t.Total));
-            netSales = sales.Sum(t => t.Total) - refunds;
-        }
-
+        // Unfiltered net sales is the sales table's paid total minus refunds; filtered net sales
+        // is the matching lines' revenue. Cost always comes from the matching lines.
+        var lineTotals = await _sales.GetLineTotalsAsync(
+            request.From, request.To, request.CategoryId, request.ItemId, ct);
+        var netSales = isFiltered
+            ? lineTotals.Revenue
+            : (await _sales.GetTotalsAsync(request.From, request.To, ct)).Net;
+        var cogs = lineTotals.Cost;
         var grossProfit = netSales - cogs;
 
-        var movements = await _stockMovementRepository.GetAllAsync(
-            request.From, request.To, null, ct);
-
-        var inventoryLoss = MovementFilter(movements, request)
-            .Where(m =>
-                (m.Type == StockMovementType.Adjustment ||
-                 m.Type == StockMovementType.InventoryCount) &&
-                m.Quantity < 0 &&
-                (m.Reason == AdjustmentReason.Loss ||
-                 m.Reason == AdjustmentReason.Damage ||
-                 m.Reason == AdjustmentReason.Spoilage))
-            .Sum(m => Math.Abs(m.Quantity) * m.Item.CostPrice);
-
+        var inventoryLoss = await _stockMovementRepository.GetLossTotalAsync(
+            request.From, request.To, request.CategoryId, request.ItemId, ct);
         var netProfit = grossProfit - inventoryLoss;
 
         var grossMargin = netSales != 0
             ? Math.Round(grossProfit / netSales * 100, 2)
             : 0;
 
-        var details = lines
-            .GroupBy(i => i.ItemId)
-            .Select(g =>
+        var (rows, total) = await _sales.GetItemProfitRowsPagedAsync(
+            request.From, request.To, request.CategoryId, request.ItemId, page, pageSize, ct);
+
+        var items = rows
+            .Select(r =>
             {
-                var revenue = g.Sum(i => i.Total);
-                var cost = g.Sum(i => i.CostPrice * i.Quantity);
-                var profit = revenue - cost;
+                var profit = r.Revenue - r.Cost;
                 return new ProfitDetailDto(
-                    g.Key,
-                    g.Select(i => i.ItemName).FirstOrDefault() ?? string.Empty,
-                    g.Select(i => i.Item?.Category?.Name).FirstOrDefault(n => n != null)
-                        ?? "Uncategorized",
-                    g.Sum(i => i.Quantity),
-                    revenue,
-                    cost,
+                    r.ItemId,
+                    r.ItemName,
+                    r.CategoryName,
+                    r.Quantity,
+                    r.Revenue,
+                    r.Cost,
                     profit,
-                    revenue != 0 ? Math.Round(profit / revenue * 100, 2) : 0
+                    r.Revenue != 0 ? Math.Round(profit / r.Revenue * 100, 2) : 0
                 );
             })
-            .OrderByDescending(d => d.Profit)
             .ToList();
 
         return new ProfitReportDto(
+            items,
+            page,
+            pageSize,
+            total,
             netSales,
             cogs,
             grossProfit,
             inventoryLoss,
             netProfit,
             grossMargin,
-            details,
             request.From,
             request.To
         );
-    }
-
-    private static IEnumerable<SaleItem> LineFilter(
-        IEnumerable<SaleItem> lines, GetProfitReportQuery request)
-    {
-        if (request.ItemId.HasValue)
-            return lines.Where(i => i.ItemId == request.ItemId.Value);
-        if (request.CategoryId.HasValue)
-            return lines.Where(i => i.Item != null && i.Item.CategoryId == request.CategoryId.Value);
-        return lines;
-    }
-
-    private static IEnumerable<StockMovement> MovementFilter(
-        IEnumerable<StockMovement> movements, GetProfitReportQuery request)
-    {
-        if (request.ItemId.HasValue)
-            return movements.Where(m => m.ItemId == request.ItemId.Value);
-        if (request.CategoryId.HasValue)
-            return movements.Where(m => m.Item != null && m.Item.CategoryId == request.CategoryId.Value);
-        return movements;
     }
 }

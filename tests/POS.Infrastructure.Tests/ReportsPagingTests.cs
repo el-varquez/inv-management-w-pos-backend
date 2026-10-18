@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Reports.Queries.GetExpenseReport;
+using POS.Application.Reports.Queries.GetProfitReport;
 using POS.Application.Reports.Queries.GetSalesReport;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -227,6 +228,97 @@ public class ReportsPagingTests : IDisposable
         Assert.Equal(2, report.Breakdown.Count);
         Assert.Equal(47m, report.Breakdown.Single(b => b.Category == "Cost of Purchases").Amount);
         Assert.Equal(15m, report.Breakdown.Single(b => b.Category == "Inventory Loss").Amount);
+    }
+
+    // ---------- Task 3: profit report ----------
+
+    /// <summary>
+    /// Rice (cost 10): 5 @ 90, 10 @ 200, refund −2 @ −50 → revenue 240, cost 130, profit 110.
+    /// Soap (cost 4): 7 @ 150, 3 @ 60 → revenue 210, cost 40, profit 170.
+    /// Sale totals are the Task 1 figures, so unfiltered net sales is still 450.
+    /// </summary>
+    private async Task<(Item Rice, Item Soap)> SeedTwoItemSalesAsync()
+    {
+        var rice = await SeedItemAsync("Rice 1kg", cost: 10m);
+        var soap = await SeedItemAsync("Soap", cost: 4m);
+        await SeedSaleAsync(Day1, 100m, 10m, 90m, lines: new Line(rice, 5, 90m));
+        await SeedSaleAsync(Day1.AddHours(2), 150m, 0m, 150m, lines: new Line(soap, 7, 150m));
+        var paid = await SeedSaleAsync(Day2, 200m, 0m, 200m, lines: new Line(rice, 10, 200m));
+        await SeedSaleAsync(Day2.AddHours(1), 50m, 0m, -50m, paid.Id, new Line(rice, -2, -50m));
+        await SeedSaleAsync(Day3, 60m, 0m, 60m, lines: new Line(soap, 3, 60m));
+        return (rice, soap);
+    }
+
+    [Fact]
+    public async Task Profit_report_unfiltered_uses_sales_totals_and_pages_items_by_profit()
+    {
+        var (_, soap) = await SeedTwoItemSalesAsync();
+
+        var report = await new GetProfitReportQueryHandler(_sales, _movements)
+            .Handle(new GetProfitReportQuery(null, null, null, null, 1, 1), CancellationToken.None);
+
+        Assert.Equal(450m, report.NetSales);
+        Assert.Equal(170m, report.CostOfGoodsSold);
+        Assert.Equal(280m, report.GrossProfit);
+        Assert.Equal(0m, report.InventoryLoss);
+        Assert.Equal(62.22m, report.GrossMarginPercent);
+        Assert.Single(report.Items);
+        Assert.Equal(2, report.TotalCount);
+        Assert.Equal(soap.Id, report.Items[0].ItemId);
+        Assert.Equal(170m, report.Items[0].Profit);
+        Assert.Equal(10, report.Items[0].QuantitySold);
+        Assert.Equal("General", report.Items[0].CategoryName);
+    }
+
+    [Fact]
+    public async Task Profit_report_filtered_by_item_uses_that_items_line_revenue()
+    {
+        var (rice, _) = await SeedTwoItemSalesAsync();
+
+        var report = await new GetProfitReportQueryHandler(_sales, _movements)
+            .Handle(new GetProfitReportQuery(null, null, null, rice.Id, null, null), CancellationToken.None);
+
+        Assert.Equal(240m, report.NetSales);
+        Assert.Equal(130m, report.CostOfGoodsSold);
+        Assert.Equal(1, report.TotalCount);
+        var row = Assert.Single(report.Items);
+        Assert.Equal(rice.Id, row.ItemId);
+        Assert.Equal(13, row.QuantitySold);
+        Assert.Equal(110m, row.Profit);
+    }
+
+    [Fact]
+    public async Task Profit_report_filtered_by_category_uses_that_categorys_lines_and_losses()
+    {
+        var drinksId = Guid.NewGuid();
+        _ctx.Categories.Add(new Category { Id = drinksId, Name = "Drinks" });
+        await _ctx.SaveChangesAsync();
+        var rice = await SeedItemAsync("Rice 1kg", cost: 10m);
+        var coke = new Item
+        {
+            Name = "Coke 1.5L",
+            ItemCode = $"T{++_seq:D4}",
+            CostPrice = 50m,
+            SellingPrice = 75m,
+            Stock = 100,
+            CategoryId = drinksId
+        };
+        await _items.AddAsync(coke);
+        await _uow.SaveChangesAsync();
+        await SeedSaleAsync(Day1, 90m, 0m, 90m, lines: new Line(rice, 5, 90m));
+        await SeedSaleAsync(Day2, 150m, 0m, 150m, lines: new Line(coke, 2, 150m));
+        await SeedMovementAsync(rice, StockMovementType.Adjustment, -2, null, AdjustmentReason.Loss, Day2);
+        await SeedMovementAsync(coke, StockMovementType.Adjustment, -1, null, AdjustmentReason.Damage, Day3);
+
+        var report = await new GetProfitReportQueryHandler(_sales, _movements)
+            .Handle(new GetProfitReportQuery(null, null, drinksId, null, null, null), CancellationToken.None);
+
+        Assert.Equal(150m, report.NetSales);
+        Assert.Equal(100m, report.CostOfGoodsSold);
+        Assert.Equal(50m, report.InventoryLoss);
+        Assert.Equal(0m, report.NetProfit);
+        Assert.Equal(1, report.TotalCount);
+        Assert.Equal(coke.Id, Assert.Single(report.Items).ItemId);
     }
 
     public void Dispose()

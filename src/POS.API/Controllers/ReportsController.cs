@@ -38,8 +38,10 @@ public class ReportsController : ControllerBase
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] Guid? categoryId,
-        [FromQuery] Guid? itemId)
-        => Ok(await _mediator.Send(new GetProfitReportQuery(from, to, categoryId, itemId)));
+        [FromQuery] Guid? itemId,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetProfitReportQuery(from, to, categoryId, itemId, page, pageSize)));
 
     [HttpGet("best-sellers")]
     public async Task<IActionResult> GetBestSellers(
