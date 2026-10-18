@@ -1,5 +1,5 @@
 using MediatR;
-using POS.Domain.Enums;
+using POS.Application.Common.Models;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Reports.Queries.GetExpenseReport;
@@ -15,18 +15,16 @@ public class GetExpenseReportQueryHandler
     public async Task<ExpenseReportDto> Handle(
         GetExpenseReportQuery request, CancellationToken ct)
     {
-        var movements = await _stockMovementRepository.GetAllAsync(
-            request.From, request.To, null, ct);
+        var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
 
-        var addStockMovements = movements
-            .Where(m => m.Type == StockMovementType.AddStock && m.CostPerUnit.HasValue)
-            .ToList();
+        var costOfPurchases = await _stockMovementRepository.GetPurchaseTotalAsync(
+            request.From, request.To, ct);
+        var inventoryLoss = await _stockMovementRepository.GetLossTotalAsync(
+            request.From, request.To, null, null, ct);
+        var (purchases, total) = await _stockMovementRepository.GetPurchasesPagedAsync(
+            request.From, request.To, page, pageSize, ct);
 
-        var costOfPurchases = addStockMovements
-            .Sum(m => m.Quantity * (m.CostPerUnit ?? 0));
-
-        var purchases = addStockMovements
-            .OrderByDescending(m => m.CreatedAt)
+        var items = purchases
             .Select(m => new ExpensePurchaseDto(
                 m.CreatedAt,
                 m.Item.Name,
@@ -37,21 +35,6 @@ public class GetExpenseReportQueryHandler
             ))
             .ToList();
 
-        var lossMovements = movements
-            .Where(m =>
-                (m.Type == StockMovementType.Adjustment ||
-                 m.Type == StockMovementType.InventoryCount) &&
-                m.Quantity < 0 &&
-                (m.Reason == AdjustmentReason.Loss ||
-                 m.Reason == AdjustmentReason.Damage ||
-                 m.Reason == AdjustmentReason.Spoilage))
-            .ToList();
-
-        var inventoryLoss = lossMovements
-            .Sum(m => Math.Abs(m.Quantity) * m.Item.CostPrice);
-
-        var totalExpenses = costOfPurchases + inventoryLoss;
-
         var breakdown = new List<ExpenseLineDto>
         {
             new("Cost of Purchases", costOfPurchases),
@@ -59,11 +42,14 @@ public class GetExpenseReportQueryHandler
         };
 
         return new ExpenseReportDto(
+            items,
+            page,
+            pageSize,
+            total,
             costOfPurchases,
             inventoryLoss,
-            totalExpenses,
+            costOfPurchases + inventoryLoss,
             breakdown,
-            purchases,
             request.From,
             request.To
         );

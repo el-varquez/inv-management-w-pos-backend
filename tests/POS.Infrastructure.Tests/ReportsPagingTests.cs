@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using POS.Application.Reports.Queries.GetExpenseReport;
 using POS.Application.Reports.Queries.GetSalesReport;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -138,6 +139,31 @@ public class ReportsPagingTests : IDisposable
         await SeedSaleAsync(Day3, 60m, 0m, 60m, lines: new Line(item, 3, 60m));
     }
 
+    private async Task<StockMovement> SeedMovementAsync(
+        Item item,
+        StockMovementType type,
+        int qty,
+        decimal? cost,
+        AdjustmentReason? reason,
+        DateTime createdAt,
+        string? supplier = null)
+    {
+        var movement = new StockMovement
+        {
+            ItemId = item.Id,
+            Type = type,
+            Quantity = qty,
+            CostPerUnit = cost,
+            Reason = reason,
+            SupplierName = supplier,
+            CreatedBy = _user.Id,
+            CreatedAt = createdAt
+        };
+        await _movements.AddAsync(movement);
+        await _uow.SaveChangesAsync();
+        return movement;
+    }
+
     // ---------- Task 1: sales report ----------
 
     [Fact]
@@ -172,6 +198,35 @@ public class ReportsPagingTests : IDisposable
         var second = await handler.Handle(new GetSalesReportQuery(null, null, 2, 2), CancellationToken.None);
         Assert.Single(second.Items);
         Assert.Equal(Day3.Date, second.Items[0].Date.Date);
+    }
+
+    // ---------- Task 2: expense report ----------
+
+    [Fact]
+    public async Task Expense_report_totals_and_purchase_pages()
+    {
+        var rice = await SeedItemAsync("Rice 1kg", cost: 5m);
+        var soap = await SeedItemAsync("Soap", cost: 4m);
+        await SeedMovementAsync(rice, StockMovementType.AddStock, 2, 10m, null, Day1, "Supplier A");
+        await SeedMovementAsync(soap, StockMovementType.AddStock, 5, 4m, null, Day2);
+        await SeedMovementAsync(rice, StockMovementType.AddStock, 1, 7m, null, Day3);
+        await SeedMovementAsync(soap, StockMovementType.AddStock, 9, null, null, Day3.AddHours(1));
+        await SeedMovementAsync(rice, StockMovementType.Adjustment, -3, null, AdjustmentReason.Loss, Day2.AddHours(1));
+
+        var report = await new GetExpenseReportQueryHandler(_movements)
+            .Handle(new GetExpenseReportQuery(null, null, 1, 2), CancellationToken.None);
+
+        Assert.Equal(2, report.Items.Count);
+        Assert.Equal(3, report.TotalCount);
+        Assert.Equal(Day3.Date, report.Items[0].Date.Date);
+        Assert.Equal(1, report.Items[0].Quantity);
+        Assert.Equal("Rice 1kg", report.Items[0].ItemName);
+        Assert.Equal(47m, report.CostOfPurchases);
+        Assert.Equal(15m, report.InventoryLoss);
+        Assert.Equal(62m, report.TotalExpenses);
+        Assert.Equal(2, report.Breakdown.Count);
+        Assert.Equal(47m, report.Breakdown.Single(b => b.Category == "Cost of Purchases").Amount);
+        Assert.Equal(15m, report.Breakdown.Single(b => b.Category == "Inventory Loss").Amount);
     }
 
     public void Dispose()
