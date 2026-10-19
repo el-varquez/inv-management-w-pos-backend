@@ -3,7 +3,7 @@ using POS.Application.Common.Models;
 
 namespace POS.Application.Inventory.Queries.GetStockLevels;
 
-public record GetStockLevelsQuery(int? Page, int? PageSize) : IRequest<PagedResult<StockLevelDto>>;
+public record GetStockLevelsQuery(int? Page, int? PageSize, string? Search = null) : IRequest<PagedResult<StockLevelDto>>;
 
 public record StockLevelDto(
     Guid ItemId,
@@ -14,5 +14,5 @@ public record StockLevelDto(
     bool IsLowStock,
     decimal CostPrice,
     decimal SellingPrice,
-    decimal StockValue       
+    decimal StockValue
 );

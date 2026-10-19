@@ -9,7 +9,8 @@ public record GetInventoryHistoryQuery(
     DateTime? To,
     StockMovementType? Type,
     int? Page,
-    int? PageSize
+    int? PageSize,
+    string? Search = null
 ) : IRequest<PagedResult<InventoryHistoryDto>>;
 
 public record InventoryHistoryDto(

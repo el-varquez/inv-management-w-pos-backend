@@ -2,7 +2,7 @@ using MediatR;
 
 namespace POS.Application.Items.Queries.SearchItems;
 
-public record SearchItemsQuery(string Term, int? Limit = null)
+public record SearchItemsQuery(string Term, int? Limit = null, Guid? CategoryId = null)
     : IRequest<IList<SearchItemDto>>;
 
 public record SearchItemDto(

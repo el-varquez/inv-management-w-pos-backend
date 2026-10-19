@@ -20,7 +20,8 @@ public class GetInventoryCountLinesQueryHandler
             ?? throw new NotFoundException("InventoryCount", request.CountId);
 
         var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
-        var (lines, total) = await _countRepository.GetLinesPagedAsync(request.CountId, page, pageSize, ct);
+        var (lines, total) = await _countRepository.GetLinesPagedAsync(
+            request.CountId, page, pageSize, request.Search, ct);
 
         var dtos = lines
             .Select(l => new InventoryCountLineDto(

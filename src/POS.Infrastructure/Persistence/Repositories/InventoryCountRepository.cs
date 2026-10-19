@@ -23,12 +23,13 @@ public class InventoryCountRepository : IInventoryCountRepository
             .FirstOrDefaultAsync(ic => ic.Id == id, ct);
 
     public async Task<(IList<InventoryCountLine> Lines, int Total)> GetLinesPagedAsync(
-        Guid countId, int page, int pageSize, CancellationToken ct = default)
+        Guid countId, int page, int pageSize, string? search = null, CancellationToken ct = default)
     {
         var query = _context.InventoryCountLines
             .Include(l => l.Item)
             .ThenInclude(i => i.Category)
             .Where(l => l.InventoryCountId == countId)
+            .WhereItemMatches(search)
             .OrderBy(l => l.Item.Name)
             .ThenBy(l => l.ItemId);
 

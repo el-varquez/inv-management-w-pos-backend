@@ -36,23 +36,12 @@ public class GetSukiLedgerQueryHandler
         var liveInvoices = invoices.Where(i => !i.IsVoided).ToList();
         var livePaid = payments.Where(p => !p.IsVoided).Sum(p => p.Amount);
 
-        var entries = invoices
-            .Select(i => new UtangLedgerEntryDto(
-                i.Id, "Charge", i.Total, i.MarkupTotal, i.Id, i.InvoiceNumber,
-                null, i.IsVoided, null, i.CreatedAt))
-            .Concat(payments.Select(p => new UtangLedgerEntryDto(
-                p.Id, "Payment", p.Amount, 0m, null, null,
-                p.Note ?? "Payment received", p.IsVoided, p.EditedFrom, p.CreatedAt)))
-            .OrderBy(e => e.CreatedAt)
-            .ThenBy(e => e.Id)
-            .ToList();
-
         return new SukiLedgerDto(
             suki.Id, suki.Name, suki.Phone,
             liveInvoices.Sum(i => i.Total) - livePaid,
+            livePaid,
             liveInvoices.Sum(i => i.MarkupTotal),
             reminder.DebtSince, reminder.LastPaidAt,
-            reminder.DaysSincePayment, reminder.PaymentOverdue,
-            entries);
+            reminder.DaysSincePayment, reminder.PaymentOverdue);
     }
 }

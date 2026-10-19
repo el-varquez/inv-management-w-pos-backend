@@ -20,26 +20,34 @@ public class ReportsController : ControllerBase
     [HttpGet("sales")]
     public async Task<IActionResult> GetSalesReport(
         [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
-        => Ok(await _mediator.Send(new GetSalesReportQuery(from, to)));
+        [FromQuery] DateTime? to,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetSalesReportQuery(from, to, page, pageSize)));
 
     [HttpGet("expenses")]
     public async Task<IActionResult> GetExpenseReport(
         [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
-        => Ok(await _mediator.Send(new GetExpenseReportQuery(from, to)));
+        [FromQuery] DateTime? to,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetExpenseReportQuery(from, to, page, pageSize)));
 
     [HttpGet("profit")]
     public async Task<IActionResult> GetProfitReport(
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] Guid? categoryId,
-        [FromQuery] Guid? itemId)
-        => Ok(await _mediator.Send(new GetProfitReportQuery(from, to, categoryId, itemId)));
+        [FromQuery] Guid? itemId,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetProfitReportQuery(from, to, categoryId, itemId, page, pageSize)));
 
     [HttpGet("best-sellers")]
     public async Task<IActionResult> GetBestSellers(
         [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
-        => Ok(await _mediator.Send(new GetBestSellersQuery(from, to)));
+        [FromQuery] DateTime? to,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
+        => Ok(await _mediator.Send(new GetBestSellersQuery(from, to, page, pageSize)));
 }

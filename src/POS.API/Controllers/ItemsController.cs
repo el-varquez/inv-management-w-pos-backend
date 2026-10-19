@@ -24,8 +24,9 @@ public class ItemsController : ControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
-        [FromQuery] bool? isComposite)
-        => Ok(await _mediator.Send(new GetItemsQuery(page, pageSize, isComposite)));
+        [FromQuery] bool? isComposite,
+        [FromQuery] string? search)
+        => Ok(await _mediator.Send(new GetItemsQuery(page, pageSize, isComposite, search)));
 
     [HttpGet("sellable")]
     public async Task<IActionResult> GetSellable()
@@ -35,8 +36,9 @@ public class ItemsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Search(
         [FromQuery] string? term,
-        [FromQuery] int? limit)
-        => Ok(await _mediator.Send(new SearchItemsQuery(term ?? string.Empty, limit)));
+        [FromQuery] int? limit,
+        [FromQuery] Guid? categoryId)
+        => Ok(await _mediator.Send(new SearchItemsQuery(term ?? string.Empty, limit, categoryId)));
 
     [HttpGet("search-sellable")]
     public async Task<IActionResult> SearchSellable(

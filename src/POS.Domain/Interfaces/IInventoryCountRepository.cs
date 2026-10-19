@@ -8,7 +8,7 @@ public interface IInventoryCountRepository
     Task<InventoryCount?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<InventoryCount?> GetHeaderAsync(Guid id, CancellationToken ct = default);
     Task<(IList<InventoryCountLine> Lines, int Total)> GetLinesPagedAsync(
-        Guid countId, int page, int pageSize, CancellationToken ct = default);
+        Guid countId, int page, int pageSize, string? search = null, CancellationToken ct = default);
     Task<(int LineCount, int CountedCount, int VarianceCount)> GetLineStatsAsync(
         Guid countId, CancellationToken ct = default);
     Task<IList<InventoryCount>> GetAllAsync(CancellationToken ct = default);

@@ -3,7 +3,7 @@ using POS.Application.Common.Models;
 
 namespace POS.Application.Items.Queries.GetItems;
 
-public record GetItemsQuery(int? Page, int? PageSize, bool? IsComposite = null)
+public record GetItemsQuery(int? Page, int? PageSize, bool? IsComposite = null, string? Search = null)
     : IRequest<PagedResult<ItemDto>>;
 
 public record ItemDto(

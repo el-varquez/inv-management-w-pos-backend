@@ -1,4 +1,5 @@
 using MediatR;
+using POS.Application.Common.Models;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Reports.Queries.GetSalesReport;
@@ -14,42 +15,27 @@ public class GetSalesReportQueryHandler
     public async Task<SalesReportDto> Handle(
         GetSalesReportQuery request, CancellationToken ct)
     {
-        var allSales = await _sales.GetAllAsync(
-            request.From, request.To, ct);
+        var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
 
-        var sales = allSales.Where(t => t.RefundedFromId == null).ToList();
-        var refundTxns = allSales.Where(t => t.RefundedFromId != null).ToList();
+        var totals = await _sales.GetTotalsAsync(request.From, request.To, ct);
+        var (rows, total) = await _sales.GetDailyRowsPagedAsync(
+            request.From, request.To, page, pageSize, ct);
 
-        var dailyBreakdown = sales
-            .GroupBy(t => t.CreatedAt.Date)
-            .OrderBy(g => g.Key)
-            .Select(g =>
-            {
-                var daySales = g.Where(t => t.RefundedFromId == null).ToList();
-                var dayRefunds = g.Where(t => t.RefundedFromId != null).ToList();
-
-                var gross = daySales.Sum(t => t.Subtotal);
-                var discounts = daySales.Sum(t => t.DiscountAmount);
-                var refunds = Math.Abs(dayRefunds.Sum(t => t.Total));
-                var net = daySales.Sum(t => t.Total) - refunds;
-
-                return new SalesReportDailyDto(
-                    g.Key, gross, discounts, refunds, net, daySales.Count);
-            })
+        var items = rows
+            .Select(r => new SalesReportDailyDto(
+                r.Date, r.Gross, r.Discounts, r.Refunds, r.Net, r.Count))
             .ToList();
 
-        var totalGross = sales.Sum(t => t.Subtotal);
-        var totalDiscounts = sales.Sum(t => t.DiscountAmount);
-        var totalRefunds = Math.Abs(refundTxns.Sum(t => t.Total));
-        var netSales = sales.Sum(t => t.Total) - totalRefunds;
-
         return new SalesReportDto(
-            totalGross,
-            totalDiscounts,
-            totalRefunds,
-            netSales,
-            sales.Count,
-            dailyBreakdown,
+            items,
+            page,
+            pageSize,
+            total,
+            totals.Gross,
+            totals.Discounts,
+            totals.Refunds,
+            totals.Net,
+            totals.Count,
             request.From,
             request.To
         );

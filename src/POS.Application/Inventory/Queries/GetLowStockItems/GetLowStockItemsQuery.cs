@@ -3,7 +3,7 @@ using POS.Application.Common.Models;
 
 namespace POS.Application.Inventory.Queries.GetLowStockItems;
 
-public record GetLowStockItemsQuery(int? Page, int? PageSize) : IRequest<PagedResult<LowStockItemDto>>;
+public record GetLowStockItemsQuery(int? Page, int? PageSize, string? Search = null) : IRequest<PagedResult<LowStockItemDto>>;
 
 public record LowStockItemDto(
     Guid ItemId,
@@ -11,5 +11,5 @@ public record LowStockItemDto(
     string CategoryName,
     int Stock,
     int LowStockThreshold,
-    int Deficit            
+    int Deficit
 );

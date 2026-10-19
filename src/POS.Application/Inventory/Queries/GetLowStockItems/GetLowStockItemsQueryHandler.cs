@@ -16,7 +16,7 @@ public class GetLowStockItemsQueryHandler
         GetLowStockItemsQuery request, CancellationToken ct)
     {
         var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
-        var (items, total) = await _itemRepository.GetLowStockPagedAsync(page, pageSize, ct);
+        var (items, total) = await _itemRepository.GetLowStockPagedAsync(page, pageSize, request.Search, ct);
 
         var dtos = items
             .Select(i => new LowStockItemDto(

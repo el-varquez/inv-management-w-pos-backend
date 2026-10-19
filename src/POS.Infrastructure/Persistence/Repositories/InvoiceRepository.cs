@@ -56,6 +56,21 @@ public class InvoiceRepository : IInvoiceRepository
             .OrderBy(i => i.CreatedAt)
             .ToListAsync(ct);
 
+    public async Task<IList<ItemQuantityRow>> GetItemQuantitiesAsync(
+        DateTime? from, DateTime? to, CancellationToken ct = default)
+    {
+        var query = _context.InvoiceItems.Where(l => !l.Invoice.IsVoided);
+        if (from.HasValue) query = query.Where(l => l.Invoice.CreatedAt >= from.Value);
+        if (to.HasValue) query = query.Where(l => l.Invoice.CreatedAt <= to.Value);
+
+        var rows = await query
+            .GroupBy(l => new { l.ItemId, l.Item.Name })
+            .Select(g => new { g.Key.ItemId, g.Key.Name, Quantity = g.Sum(l => l.Quantity) })
+            .ToListAsync(ct);
+
+        return rows.Select(r => new ItemQuantityRow(r.ItemId, r.Name, r.Quantity)).ToList();
+    }
+
     public async Task<int> GetMaxInvoiceSequenceAsync(string prefix, CancellationToken ct = default)
     {
         var numbers = await _context.Invoices

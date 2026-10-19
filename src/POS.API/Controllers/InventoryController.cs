@@ -31,14 +31,16 @@ public class InventoryController : ControllerBase
     [HttpGet("stock-levels")]
     public async Task<IActionResult> GetStockLevels(
         [FromQuery] int? page,
-        [FromQuery] int? pageSize)
-        => Ok(await _mediator.Send(new GetStockLevelsQuery(page, pageSize)));
+        [FromQuery] int? pageSize,
+        [FromQuery] string? search)
+        => Ok(await _mediator.Send(new GetStockLevelsQuery(page, pageSize, search)));
 
     [HttpGet("low-stock")]
     public async Task<IActionResult> GetLowStock(
         [FromQuery] int? page,
-        [FromQuery] int? pageSize)
-        => Ok(await _mediator.Send(new GetLowStockItemsQuery(page, pageSize)));
+        [FromQuery] int? pageSize,
+        [FromQuery] string? search)
+        => Ok(await _mediator.Send(new GetLowStockItemsQuery(page, pageSize, search)));
 
     [HttpPost("receive-stock")]
     public async Task<IActionResult> ReceiveStock([FromBody] ReceiveStockCommand command)
@@ -94,8 +96,9 @@ public class InventoryController : ControllerBase
     public async Task<IActionResult> GetCountLines(
         Guid id,
         [FromQuery] int? page,
-        [FromQuery] int? pageSize)
-        => Ok(await _mediator.Send(new GetInventoryCountLinesQuery(id, page, pageSize)));
+        [FromQuery] int? pageSize,
+        [FromQuery] string? search)
+        => Ok(await _mediator.Send(new GetInventoryCountLinesQuery(id, page, pageSize, search)));
 
     [HttpGet("items/{id:guid}/components")]
     public async Task<IActionResult> GetComponents(Guid id)
@@ -116,12 +119,14 @@ public class InventoryController : ControllerBase
         [FromQuery] DateTime? to,
         [FromQuery] StockMovementType? type,
         [FromQuery] int? page,
-        [FromQuery] int? pageSize)
-        => Ok(await _mediator.Send(new GetInventoryHistoryQuery(from, to, type, page, pageSize)));
+        [FromQuery] int? pageSize,
+        [FromQuery] string? search)
+        => Ok(await _mediator.Send(new GetInventoryHistoryQuery(from, to, type, page, pageSize, search)));
 
     [HttpGet("valuation")]
     public async Task<IActionResult> GetValuation(
         [FromQuery] int? page,
-        [FromQuery] int? pageSize)
-        => Ok(await _mediator.Send(new GetInventoryValuationQuery(page, pageSize)));
+        [FromQuery] int? pageSize,
+        [FromQuery] string? search)
+        => Ok(await _mediator.Send(new GetInventoryValuationQuery(page, pageSize, search)));
 }

@@ -1,10 +1,11 @@
 using MediatR;
+using POS.Application.Common.Models;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.Reports.Queries.GetBestSellers;
 
 public class GetBestSellersQueryHandler
-    : IRequestHandler<GetBestSellersQuery, IList<BestSellerDto>>
+    : IRequestHandler<GetBestSellersQuery, PagedResult<BestSellerDto>>
 {
     private readonly ISaleRepository _sales;
     private readonly IInvoiceRepository _invoices;
@@ -15,31 +16,34 @@ public class GetBestSellersQueryHandler
         _invoices = invoices;
     }
 
-    public async Task<IList<BestSellerDto>> Handle(
+    public async Task<PagedResult<BestSellerDto>> Handle(
         GetBestSellersQuery request, CancellationToken ct)
     {
-        var sales = await _sales.GetAllAsync(request.From, request.To, ct);
-        var invoices = await _invoices.GetAllAsync(request.From, request.To, ct);
+        var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
 
-        var saleLines = sales.SelectMany(s => s.Items).ToList();
-        var quantities = saleLines
-            .Select(l => (l.ItemId, l.ItemName, l.Quantity))
-            .Concat(invoices
-                .Where(i => !i.IsVoided)
-                .SelectMany(i => i.Items)
-                .Select(l => (l.ItemId, l.ItemName, l.Quantity)));
+        // Both sources arrive already aggregated to one row per item, so the merge is
+        // over the catalog's sold items, not over every line.
+        var sold = await _sales.GetItemSalesRowsAsync(request.From, request.To, ct);
+        var charged = await _invoices.GetItemQuantitiesAsync(request.From, request.To, ct);
 
-        return quantities
-            .GroupBy(x => x.ItemId)
-            .Select(g =>
+        var soldById = sold.ToDictionary(r => r.ItemId);
+        var chargedById = charged.ToDictionary(r => r.ItemId);
+
+        var merged = soldById.Keys
+            .Union(chargedById.Keys)
+            .Select(itemId =>
             {
-                var paidLines = saleLines.Where(l => l.ItemId == g.Key).ToList();
-                var revenue = paidLines.Sum(i => i.Total);
-                var profit = paidLines.Sum(i => i.Total - i.CostPrice * i.Quantity);
+                soldById.TryGetValue(itemId, out var sale);
+                chargedById.TryGetValue(itemId, out var invoice);
+
+                var quantity = (sale?.Quantity ?? 0) + (invoice?.Quantity ?? 0);
+                var revenue = sale?.Revenue ?? 0m;
+                var profit = sale?.Profit ?? 0m;
+
                 return new BestSellerDto(
-                    g.Key,
-                    g.Select(x => x.ItemName).FirstOrDefault() ?? string.Empty,
-                    g.Sum(x => x.Quantity),
+                    itemId,
+                    sale?.ItemName ?? invoice?.ItemName ?? string.Empty,
+                    quantity,
                     revenue,
                     profit,
                     revenue != 0 ? Math.Round(profit / revenue * 100, 2) : 0
@@ -48,6 +52,14 @@ public class GetBestSellersQueryHandler
             .Where(b => b.QuantitySold > 0)
             .OrderByDescending(b => b.QuantitySold)
             .ThenByDescending(b => b.Revenue)
+            .ThenBy(b => b.ItemId)
             .ToList();
+
+        var items = merged
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new PagedResult<BestSellerDto>(items, page, pageSize, merged.Count);
     }
 }

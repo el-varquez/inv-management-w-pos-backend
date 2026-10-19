@@ -28,16 +28,22 @@ public class ItemRepository : IItemRepository
     public async Task<IList<string>> GetItemCodesAsync(CancellationToken ct = default)
         => await _context.Items.Select(i => i.ItemCode).ToListAsync(ct);
 
-    public async Task<IList<Item>> SearchAsync(string term, int limit, CancellationToken ct = default)
+    public async Task<IList<Item>> SearchAsync(
+        string term, int limit, Guid? categoryId = null, CancellationToken ct = default)
     {
         var lowered = term.ToLower();
-        return await _context.Items
+        var query = _context.Items
             .Include(i => i.Category)
             .Where(i =>
                 i.Barcode == term ||
                 i.ItemCode.ToLower() == lowered ||
                 i.Name.ToLower().Contains(lowered) ||
-                i.ItemCode.ToLower().Contains(lowered))
+                i.ItemCode.ToLower().Contains(lowered));
+
+        if (categoryId.HasValue)
+            query = query.Where(i => i.CategoryId == categoryId.Value);
+
+        return await query
             .OrderByDescending(i => i.Barcode == term)
             .ThenByDescending(i => i.ItemCode.ToLower() == lowered)
             .ThenBy(i => i.Name)
@@ -71,11 +77,12 @@ public class ItemRepository : IItemRepository
             .ToListAsync(ct);
 
     public async Task<(IList<Item> Items, int Total)> GetPagedAsync(
-        int page, int pageSize, bool? isComposite = null, bool? tracksStock = null, CancellationToken ct = default)
+        int page, int pageSize, bool? isComposite = null, bool? tracksStock = null, string? search = null, CancellationToken ct = default)
     {
         var query = _context.Items
             .Include(i => i.Category)
-            .Where(i => i.IsActive);
+            .Where(i => i.IsActive)
+            .WhereMatches(search);
 
         if (isComposite.HasValue)
             query = query.Where(i => i.IsComposite == isComposite.Value);
@@ -97,11 +104,12 @@ public class ItemRepository : IItemRepository
     }
 
     public async Task<(IList<Item> Items, int Total)> GetLowStockPagedAsync(
-        int page, int pageSize, CancellationToken ct = default)
+        int page, int pageSize, string? search = null, CancellationToken ct = default)
     {
         var query = _context.Items
             .Include(i => i.Category)
             .Where(i => i.IsActive && i.TracksStock && !i.IsComposite && i.Stock <= i.LowStockThreshold)
+            .WhereMatches(search)
             .OrderBy(i => i.Name)
             .ThenBy(i => i.Id);
 
@@ -115,10 +123,12 @@ public class ItemRepository : IItemRepository
     }
 
     public async Task<(IList<Item> Items, int Total, decimal TotalValue)> GetValuationPagedAsync(
-        int page, int pageSize, CancellationToken ct = default)
+        int page, int pageSize, string? search = null, CancellationToken ct = default)
     {
+        // The filter runs before both the page and the total, so a filtered valuation shows the filtered total.
         var query = _context.Items
-            .Where(i => i.IsActive && !i.IsComposite);
+            .Where(i => i.IsActive && !i.IsComposite)
+            .WhereMatches(search);
 
         var total = await query.CountAsync(ct);
         var totalValue = await query.SumAsync(i => (decimal?)(i.Stock * i.CostPrice), ct) ?? 0m;
