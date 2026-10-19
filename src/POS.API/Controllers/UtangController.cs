@@ -54,8 +54,9 @@ public class UtangController : ControllerBase
 
     [HttpGet("sukis/{id:guid}/ledger/entries")]
     public async Task<IActionResult> GetLedgerEntries(
-        Guid id, [FromQuery] int? page, [FromQuery] int? pageSize)
-        => Ok(await _mediator.Send(new GetSukiLedgerEntriesQuery(id, page, pageSize)));
+        Guid id, [FromQuery] int? page, [FromQuery] int? pageSize,
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? search)
+        => Ok(await _mediator.Send(new GetSukiLedgerEntriesQuery(id, page, pageSize, from, to, search)));
 
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(

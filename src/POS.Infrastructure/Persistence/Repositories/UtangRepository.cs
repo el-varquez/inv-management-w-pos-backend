@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
@@ -124,11 +125,14 @@ public class UtangRepository : IUtangRepository
         return invoiced - paid;
     }
 
-    public async Task<(IList<LedgerEntryRow> Items, int Total)> GetLedgerEntriesPagedAsync(
-        Guid sukiId, int page, int pageSize, CancellationToken ct = default)
+    public async Task<(IList<LedgerEntryRow> Items, int Total, decimal OpeningBalance)> GetLedgerEntriesPagedAsync(
+        Guid sukiId, int page, int pageSize,
+        DateTime? from = null, DateTime? to = null, string? search = null,
+        CancellationToken ct = default)
     {
         // The running balance needs the whole chronological sequence, so slim rows are
-        // projected (no items, no navigations), walked once in memory, then paged.
+        // projected (no items, no navigations) and walked once in memory. Period and search
+        // filters apply after the walk so every balance stays truthful; then the page is cut.
         var charges = await _context.Invoices
             .Where(i => i.SukiId == sukiId)
             .Select(i => new { i.Id, i.Total, i.MarkupTotal, i.InvoiceNumber, i.IsVoided, i.CreatedAt })
@@ -158,12 +162,36 @@ public class UtangRepository : IUtangRepository
             rows[k] = row with { RunningBalance = running };
         }
 
-        rows.Reverse();
-        var items = rows
+        var openingBalance = from is null
+            ? 0m
+            : rows.Where(r => !r.IsVoided && r.CreatedAt < from.Value)
+                .Select(r => r.RunningBalance)
+                .LastOrDefault() ?? 0m;
+
+        IEnumerable<LedgerEntryRow> selected = rows;
+        if (from is not null) selected = selected.Where(r => r.CreatedAt >= from.Value);
+        if (to is not null) selected = selected.Where(r => r.CreatedAt <= to.Value);
+
+        var term = search?.Trim();
+        if (!string.IsNullOrEmpty(term))
+        {
+            decimal? amount = decimal.TryParse(
+                term, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed)
+                ? parsed
+                : null;
+            selected = selected.Where(r =>
+                (r.InvoiceNumber?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (r.Note?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (amount is not null && r.Amount == amount.Value));
+        }
+
+        var filtered = selected.ToList();
+        filtered.Reverse();
+        var items = filtered
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToList();
 
-        return (items, rows.Count);
+        return (items, filtered.Count, openingBalance);
     }
 }

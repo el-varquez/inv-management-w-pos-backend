@@ -154,6 +154,86 @@ public class LedgerPagingTests : IDisposable
             Handler().Handle(new GetSukiLedgerEntriesQuery(Guid.NewGuid(), null, null), CancellationToken.None));
     }
 
+    [Fact]
+    public async Task Period_filter_returns_entries_in_range_with_the_opening_balance()
+    {
+        await ChargeAsync(10m, T0);
+        await ChargeAsync(20m, T0.AddDays(4));
+        await PayAsync(5m, T0.AddDays(9));
+        await ChargeAsync(7m, T0.AddDays(19));
+
+        var page = await Handler().Handle(
+            new GetSukiLedgerEntriesQuery(_suki.Id, null, null, From: T0.AddDays(3), To: T0.AddDays(14)),
+            CancellationToken.None);
+
+        Assert.Equal(2, page.TotalCount);
+        Assert.Equal(new[] { "Payment", "Charge" }, page.Items.Select(e => e.Type).ToArray());
+        Assert.Equal(new decimal[] { 5m, 20m }, page.Items.Select(e => e.Amount).ToArray());
+        Assert.Equal(new decimal?[] { 25m, 30m }, page.Items.Select(e => e.RunningBalance).ToArray());
+        Assert.Equal(10m, page.OpeningBalance);
+    }
+
+    [Fact]
+    public async Task Search_matches_invoice_number_note_or_exact_amount_without_changing_balances()
+    {
+        await ChargeAsync(10m, T0);
+        var twenty = await ChargeAsync(20m, T0.AddDays(1));
+        await PayAsync(5m, T0.AddDays(2), note: "Partial");
+
+        var byNote = await Handler().Handle(
+            new GetSukiLedgerEntriesQuery(_suki.Id, null, null, Search: "partial"), CancellationToken.None);
+        var byAmount = await Handler().Handle(
+            new GetSukiLedgerEntriesQuery(_suki.Id, null, null, Search: "20"), CancellationToken.None);
+        var byInvoice = await Handler().Handle(
+            new GetSukiLedgerEntriesQuery(_suki.Id, null, null, Search: twenty.InvoiceNumber), CancellationToken.None);
+
+        var payment = Assert.Single(byNote.Items);
+        Assert.Equal("Payment", payment.Type);
+        Assert.Equal(25m, payment.RunningBalance);
+        Assert.Equal(1, byNote.TotalCount);
+
+        var charge = Assert.Single(byAmount.Items);
+        Assert.Equal(twenty.Id, charge.Id);
+        Assert.Equal(30m, charge.RunningBalance);
+
+        Assert.Equal(twenty.Id, Assert.Single(byInvoice.Items).Id);
+        Assert.Equal(0m, byInvoice.OpeningBalance);
+    }
+
+    [Fact]
+    public async Task Opening_balance_ignores_voided_entries()
+    {
+        await ChargeAsync(10m, T0);
+        await ChargeAsync(99m, T0.AddDays(1), voided: true);
+        await ChargeAsync(5m, T0.AddDays(5));
+
+        var page = await Handler().Handle(
+            new GetSukiLedgerEntriesQuery(_suki.Id, null, null, From: T0.AddDays(3)), CancellationToken.None);
+
+        var only = Assert.Single(page.Items);
+        Assert.Equal(5m, only.Amount);
+        Assert.Equal(15m, only.RunningBalance);
+        Assert.Equal(10m, page.OpeningBalance);
+    }
+
+    [Fact]
+    public async Task Period_bounds_are_inclusive_and_the_entry_at_from_is_not_in_the_opening_balance()
+    {
+        await ChargeAsync(10m, T0);
+        await ChargeAsync(20m, T0.AddDays(3));                 // exactly at From
+        await PayAsync(5m, T0.AddDays(14));                    // exactly at To
+        await ChargeAsync(7m, T0.AddDays(14).AddSeconds(1));   // just past To
+
+        var page = await Handler().Handle(
+            new GetSukiLedgerEntriesQuery(_suki.Id, null, null, From: T0.AddDays(3), To: T0.AddDays(14)),
+            CancellationToken.None);
+
+        Assert.Equal(2, page.TotalCount);
+        Assert.Equal(new decimal[] { 5m, 20m }, page.Items.Select(e => e.Amount).ToArray());
+        Assert.Equal(new decimal?[] { 25m, 30m }, page.Items.Select(e => e.RunningBalance).ToArray());
+        Assert.Equal(10m, page.OpeningBalance);
+    }
+
     public void Dispose()
     {
         _ctx.Dispose();
