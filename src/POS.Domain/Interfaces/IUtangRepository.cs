@@ -46,7 +46,15 @@ public interface IUtangRepository
 
     Task<decimal> GetBalanceAsync(Guid sukiId, CancellationToken ct = default);
 
-    /// <summary>The suki's charges and payments merged, newest first, each carrying its running balance.</summary>
-    Task<(IList<LedgerEntryRow> Items, int Total)> GetLedgerEntriesPagedAsync(
-        Guid sukiId, int page, int pageSize, CancellationToken ct = default);
+    /// <summary>
+    /// The suki's charges and payments merged, newest first, each carrying its running balance.
+    /// Balances are computed over the full chronological ledger before <paramref name="from"/>,
+    /// <paramref name="to"/> (inclusive) and <paramref name="search"/> select rows, so a filtered row
+    /// keeps its true balance. <c>OpeningBalance</c> is the balance carried into <paramref name="from"/>
+    /// (ignoring voided entries); 0 when <paramref name="from"/> is null.
+    /// </summary>
+    Task<(IList<LedgerEntryRow> Items, int Total, decimal OpeningBalance)> GetLedgerEntriesPagedAsync(
+        Guid sukiId, int page, int pageSize,
+        DateTime? from = null, DateTime? to = null, string? search = null,
+        CancellationToken ct = default);
 }

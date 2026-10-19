@@ -6,20 +6,21 @@ using POS.Domain.Interfaces;
 namespace POS.Application.Utang.Queries.GetSukiLedgerEntries;
 
 public class GetSukiLedgerEntriesQueryHandler
-    : IRequestHandler<GetSukiLedgerEntriesQuery, PagedResult<UtangLedgerEntryDto>>
+    : IRequestHandler<GetSukiLedgerEntriesQuery, LedgerEntriesPageDto>
 {
     private readonly IUtangRepository _utang;
 
     public GetSukiLedgerEntriesQueryHandler(IUtangRepository utang) => _utang = utang;
 
-    public async Task<PagedResult<UtangLedgerEntryDto>> Handle(
+    public async Task<LedgerEntriesPageDto> Handle(
         GetSukiLedgerEntriesQuery request, CancellationToken ct)
     {
         _ = await _utang.GetSukiByIdAsync(request.SukiId, ct)
             ?? throw new NotFoundException("Suki", request.SukiId);
 
         var (page, pageSize) = Pagination.Normalize(request.Page, request.PageSize);
-        var (rows, total) = await _utang.GetLedgerEntriesPagedAsync(request.SukiId, page, pageSize, ct);
+        var (rows, total, openingBalance) = await _utang.GetLedgerEntriesPagedAsync(
+            request.SukiId, page, pageSize, request.From, request.To, request.Search, ct);
 
         var items = rows
             .Select(r => new UtangLedgerEntryDto(
@@ -36,6 +37,6 @@ public class GetSukiLedgerEntriesQueryHandler
                 r.RunningBalance))
             .ToList();
 
-        return new PagedResult<UtangLedgerEntryDto>(items, page, pageSize, total);
+        return new LedgerEntriesPageDto(items, page, pageSize, total, openingBalance);
     }
 }
