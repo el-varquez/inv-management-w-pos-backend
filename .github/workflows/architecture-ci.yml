@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
+  architecture:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
